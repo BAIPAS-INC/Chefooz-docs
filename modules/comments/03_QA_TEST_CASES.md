@@ -75,7 +75,7 @@ const testReel = {
 
 ```powershell
 # test-comments.ps1
-$baseUrl = "http://localhost:3000/api/v1"
+$baseUrl = "https://api-staging.chefooz.com/api/v1"
 $token = "<JWT_TOKEN>"
 
 function Test-CreateComment {
@@ -107,7 +107,7 @@ function Test-CreateComment {
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -146,7 +146,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -177,7 +177,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -207,7 +207,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -241,7 +241,7 @@ $response = Invoke-WebRequest `
 $longText = "a" * 501  # 501 characters
 
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -266,7 +266,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -298,7 +298,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Body (@{
         mediaId = "507f1f77bcf86cd799439011"
@@ -335,7 +335,7 @@ $parent = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Great re
 
 # 2. Create reply
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($parent.data.id)/replies" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($parent.data.id)/replies" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{
@@ -366,7 +366,7 @@ $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Top lev
 
 # 2. Create reply
 $reply = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/replies" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/replies" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ mediaId = "507f1f77bcf86cd799439011"; text = "Reply" } | ConvertTo-Json) `
@@ -374,7 +374,7 @@ $reply = Invoke-WebRequest `
 
 # 3. Try to reply to reply
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($reply.data.id)/replies" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($reply.data.id)/replies" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER3_TOKEN" } `
     -Body (@{ mediaId = "507f1f77bcf86cd799439011"; text = "Nested reply" } | ConvertTo-Json) `
@@ -403,7 +403,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/507f1f77bcf86cd799439099/replies" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/507f1f77bcf86cd799439099/replies" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -446,7 +446,7 @@ $reply3 = Test-CreateReply -CommentId $comment.data.id -Text "Third reply"
 
 # 3. List replies
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/replies" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/replies" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -492,7 +492,7 @@ $taggedUserIds = @(
 )
 
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -523,7 +523,7 @@ $taggedUserIds = @(1..15 | ForEach-Object {
 })
 
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -550,7 +550,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -580,7 +580,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -617,7 +617,7 @@ $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Test"
 
 # 2. Like comment
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/like" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/like" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" }
 ```
@@ -653,13 +653,13 @@ $response = Invoke-WebRequest `
 # 1. Create and like comment
 $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Test"
 Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/like" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/like" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" }
 
 # 2. Unlike comment
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/like" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/like" `
     -Method DELETE `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" }
 ```
@@ -697,12 +697,12 @@ $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Test"
 
 # 2. Like twice
 $response1 = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/like" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/like" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" }
 
 $response2 = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/like" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/like" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" }
 ```
@@ -728,7 +728,7 @@ $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Test"
 
 # 2. Unlike
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/like" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/like" `
     -Method DELETE `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" }
 ```
@@ -763,7 +763,7 @@ $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Test"
 
 # 2. User1 likes own comment
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/like" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/like" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -790,7 +790,7 @@ $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Great!"
 
 # 2. User2 (creator) pins comment
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/pin" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/pin" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ mediaId = "507f1f77bcf86cd799439011" } | ConvertTo-Json) `
@@ -828,7 +828,7 @@ $comment2 = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Second
 
 # 2. Pin first comment
 Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment1.data.id)/pin" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment1.data.id)/pin" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ mediaId = "507f1f77bcf86cd799439011" } | ConvertTo-Json) `
@@ -836,7 +836,7 @@ Invoke-WebRequest `
 
 # 3. Pin second comment
 Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment2.data.id)/pin" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment2.data.id)/pin" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ mediaId = "507f1f77bcf86cd799439011" } | ConvertTo-Json) `
@@ -844,7 +844,7 @@ Invoke-WebRequest `
 
 # 4. Verify only second is pinned
 $list = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -868,7 +868,7 @@ $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Test"
 
 # 2. User1 tries to pin (not creator)
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/pin" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/pin" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{ mediaId = "507f1f77bcf86cd799439011" } | ConvertTo-Json) `
@@ -902,7 +902,7 @@ $reply = Test-CreateReply -CommentId $comment.data.id -Text "Reply"
 
 # 2. Try to pin reply
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($reply.data.id)/pin" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($reply.data.id)/pin" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ mediaId = "507f1f77bcf86cd799439011" } | ConvertTo-Json) `
@@ -933,7 +933,7 @@ $response = Invoke-WebRequest `
 # 1. Pin comment
 $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Test"
 Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/pin" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/pin" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ mediaId = "507f1f77bcf86cd799439011" } | ConvertTo-Json) `
@@ -941,7 +941,7 @@ Invoke-WebRequest `
 
 # 2. Unpin
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/pin" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/pin" `
     -Method DELETE `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ mediaId = "507f1f77bcf86cd799439011" } | ConvertTo-Json) `
@@ -969,7 +969,7 @@ $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Test"
 
 # 2. Delete comment
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/delete/$($comment.data.id)" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/delete/$($comment.data.id)" `
     -Method DELETE `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -1002,7 +1002,7 @@ $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Test"
 
 # 2. User2 tries to delete
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/delete/$($comment.data.id)" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/delete/$($comment.data.id)" `
     -Method DELETE `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" }
 ```
@@ -1031,13 +1031,13 @@ $response = Invoke-WebRequest `
 # 1. Create and delete comment
 $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Test"
 Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/delete/$($comment.data.id)" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/delete/$($comment.data.id)" `
     -Method DELETE `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 
 # 2. List comments
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -1064,13 +1064,13 @@ $reply2 = Test-CreateReply -CommentId $comment.data.id -Text "Reply 2"
 
 # 2. Delete parent comment
 Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/delete/$($comment.data.id)" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/delete/$($comment.data.id)" `
     -Method DELETE `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 
 # 3. Check replies still exist
 $replies = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$($comment.data.id)/replies" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$($comment.data.id)/replies" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -1100,14 +1100,14 @@ $replies = Invoke-WebRequest `
 
 # 2. Fetch page 1
 $page1 = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011&limit=20" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011&limit=20" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 
 # 3. Fetch page 2
 $nextCursor = ($page1.Content | ConvertFrom-Json).data.nextCursor
 $page2 = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011&limit=20&cursor=$nextCursor" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011&limit=20&cursor=$nextCursor" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -1135,13 +1135,13 @@ $page2 = Invoke-WebRequest `
 
 # 2. Pin the 3rd oldest comment
 $comments = (Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }).Content | ConvertFrom-Json
 
 $thirdCommentId = $comments.data.items[2].id
 Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/$thirdCommentId/pin" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/$thirdCommentId/pin" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ mediaId = "507f1f77bcf86cd799439011" } | ConvertTo-Json) `
@@ -1149,7 +1149,7 @@ Invoke-WebRequest `
 
 # 3. List comments again
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -1171,7 +1171,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -1197,7 +1197,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -1225,7 +1225,7 @@ $response = Invoke-WebRequest `
 # Send 100 comments rapidly
 1..100 | ForEach-Object {
     Invoke-WebRequest `
-        -Uri "http://localhost:3000/api/v1/comments/create" `
+        -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
         -Method POST `
         -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
         -Body (@{
@@ -1261,7 +1261,7 @@ $response = Invoke-WebRequest `
 # 2. Measure list query time
 $start = Get-Date
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011&limit=20" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011&limit=20" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 $duration = (Get-Date) - $start
@@ -1286,7 +1286,7 @@ $duration = (Get-Date) - $start
 # 2. Enable DB query logging
 # 3. List comments
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011&limit=20" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/list?mediaId=507f1f77bcf86cd799439011&limit=20" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 
@@ -1316,7 +1316,7 @@ $comment = Test-CreateComment -MediaId "507f1f77bcf86cd799439011" -Text "Great!"
 
 # 2. Check User2's notifications
 $notifications = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/notifications/list" `
+    -Uri "https://api-staging.chefooz.com/api/v1/notifications/list" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" }
 ```
@@ -1354,7 +1354,7 @@ $reply = Test-CreateReply -CommentId $comment.data.id -Text "Answer!"
 
 # 3. Check User1's notifications
 $notifications = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/notifications/list" `
+    -Uri "https://api-staging.chefooz.com/api/v1/notifications/list" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -1386,7 +1386,7 @@ $notifications = Invoke-WebRequest `
 ```powershell
 # 1. User1 tags User3 in comment
 $comment = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/comments/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/comments/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -1398,7 +1398,7 @@ $comment = Invoke-WebRequest `
 
 # 2. Check User3's notifications
 $notifications = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/notifications/list" `
+    -Uri "https://api-staging.chefooz.com/api/v1/notifications/list" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER3_TOKEN" }
 ```

@@ -972,7 +972,7 @@ time curl -X POST /api/v1/withdrawals/request \
 ab -n 100 -c 10 -T 'application/json' \
   -H "Authorization: Bearer {token}" \
   -p withdrawal.json \
-  http://localhost:3000/api/v1/withdrawals/request
+  https://api-staging.chefooz.com/api/v1/withdrawals/request
 ```
 
 **Expected Results**:

@@ -24,7 +24,7 @@
 ### **API Base URL**
 ```powershell
 $baseUrl = "https://api-dev.chefooz.com/v1"
-# or for local: $baseUrl = "http://localhost:3000/v1"
+# or for local: $baseUrl = "https://api-staging.chefooz.com/v1"
 ```
 
 ### **Authentication Headers**

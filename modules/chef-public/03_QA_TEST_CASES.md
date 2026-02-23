@@ -138,7 +138,7 @@ const CHEF_NOT_FOUND = '550e8400-e29b-41d4-a716-446655440999';
 ```powershell
 # PowerShell Script
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
 
 # Parse response
 $data = ($response.Content | ConvertFrom-Json)
@@ -203,7 +203,7 @@ Write-Host "Total Orders: $($data.data.totalOrders)" # Expected: 50
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440002"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 1.2: Get Minimal Profile"
@@ -261,7 +261,7 @@ Write-Host "Description: $($data.data.description)" # Expected: "still setting u
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440999"
 try {
-    $response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+    $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
     Write-Host "❌ Test Failed: Expected 404 error"
 } catch {
     $statusCode = $_.Exception.Response.StatusCode.value__
@@ -303,7 +303,7 @@ try {
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440004"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 1.4: VegType Calculation - Veg Only"
@@ -328,7 +328,7 @@ Write-Host "Veg Type: $($data.data.vegType)" # Expected: "veg"
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 1.5: VegType Calculation - Mixed"
@@ -368,7 +368,7 @@ WHERE ord."chefId" = '550e8400-e29b-41d4-a716-446655440001'
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 1.6: Order Count Verification"
@@ -394,7 +394,7 @@ Write-Host "Total Orders: $($data.data.totalOrders)" # Expected: 50
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440003"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 1.7: Offline Kitchen Status"
@@ -423,7 +423,7 @@ Write-Host "Accepting Orders: $($data.data.acceptingOrders)" # Expected: false
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/menu" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 2.1: Get Grouped Menu"
@@ -483,7 +483,7 @@ foreach ($category in $data.data.categorized) {
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/menu" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 # Find specific item
@@ -523,7 +523,7 @@ SELECT COUNT(*) FROM "ChefMenuItem" WHERE "chefId" = '550e8400-e29b-41d4-a716-44
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/menu" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 2.3: Active Items Only"
@@ -556,7 +556,7 @@ foreach ($category in $data.data.categorized) {
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/menu" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 2.4: Category Name Resolution"
@@ -585,7 +585,7 @@ foreach ($category in $data.data.categorized) {
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440002"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/menu" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 2.5: Empty Menu"
@@ -625,7 +625,7 @@ VALUES (
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/menu" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 2.6: Uncategorized Items"
@@ -654,7 +654,7 @@ Write-Host "Item Name: $($data.data.uncategorized[0].name)" # Expected: "Mystery
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reels" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reels" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 3.1: Get Chef Reels"
@@ -691,7 +691,7 @@ Write-Host "Reels Count: $($data.data.reels.Count)" # Expected: 8
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reels" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reels" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 $reel = $data.data.reels[0]
@@ -726,7 +726,7 @@ Write-Host "Thumbnail URL: $($reel.thumbnailUrl)" # Expected: https://cdn.chefoo
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reels" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reels" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 3.3: Soft-Delete Filter"
@@ -759,7 +759,7 @@ foreach ($reel in $data.data.reels) {
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440004"
 $limit = 5
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reels?limit=$limit" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reels?limit=$limit" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 3.4: Custom Limit"
@@ -784,7 +784,7 @@ Write-Host "Returned Reels: $($data.data.reels.Count)" # Expected: 5
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reels" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reels" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 3.5: Reels Ordering"
@@ -820,7 +820,7 @@ foreach ($reel in $data.data.reels) {
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440002"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reels" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reels" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 Write-Host "✅ Test Case 3.6: No Reels Available"
@@ -858,7 +858,7 @@ Write-Host "Reels Array: $($data.data.reels.Count)" # Expected: 0
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reels" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reels" -Method GET
 $data = ($response.Content | ConvertFrom-Json)
 
 $reel = $data.data.reels[0]
@@ -889,16 +889,18 @@ Write-Host "Like Count: $($reel.likeCount)" # Expected: 250
 
 **Steps**:
 ```powershell
-# Get JWT token for test user
-$loginResponse = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/auth/login" `
-  -Method POST `
-  -ContentType "application/json" `
-  -Body '{"email": "customer@test.com", "password": "password123"}'
-$token = ($loginResponse.Content | ConvertFrom-Json).data.accessToken
-
-# Request reorder preview
+# Get JWT via OTP auth (Chefooz: no passwords, OTP-only via WhatsApp/Twilio SMS)
+$otpResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/auth/v2/send-otp" `
+    -Method POST -ContentType "application/json" `
+    -Body '{"phoneNumber": "+919876543210"}'
+$requestId = ($otpResponse.Content | ConvertFrom-Json).data.requestId
+$otp = Read-Host "Enter OTP received via WhatsApp or Twilio SMS"
+$verifyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp" `
+    -Method POST -ContentType "application/json" `
+    -Body "{`"requestId`": `"$requestId`", `"otp`": `"$otp`"}"
+$token = ($verifyResponse.Content | ConvertFrom-Json).data.accessToken# Request reorder preview
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reorder-preview" `
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reorder-preview" `
   -Method GET `
   -Headers @{ Authorization = "Bearer $token" }
 $data = ($response.Content | ConvertFrom-Json)
@@ -960,7 +962,7 @@ Write-Host "Items Count: $($data.data.items.Count)" # Expected: 3
 ```powershell
 $token = "..." # Valid JWT token
 $chefId = "550e8400-e29b-41d4-a716-446655440003" # Chef user never ordered from
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reorder-preview" `
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reorder-preview" `
   -Method GET `
   -Headers @{ Authorization = "Bearer $token" }
 $data = ($response.Content | ConvertFrom-Json)
@@ -995,7 +997,7 @@ Write-Host "Data: $($data.data)" # Expected: null
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reorder-preview" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reorder-preview" -Method GET
 # No Authorization header
 $data = ($response.Content | ConvertFrom-Json)
 
@@ -1037,7 +1039,7 @@ WHERE id = 'item-123';
 ```powershell
 $token = "..." # Valid JWT token
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reorder-preview" `
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reorder-preview" `
   -Method GET `
   -Headers @{ Authorization = "Bearer $token" }
 $data = ($response.Content | ConvertFrom-Json)
@@ -1075,7 +1077,7 @@ Write-Host "Price Paise: $($item.pricePaise)" # Expected: 60000 (30000 × 2)
 ```powershell
 $token = "..." # Valid JWT token
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reorder-preview" `
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reorder-preview" `
   -Method GET `
   -Headers @{ Authorization = "Bearer $token" }
 $data = ($response.Content | ConvertFrom-Json)
@@ -1111,7 +1113,7 @@ Write-Host "Items Count: $($data.data.items.Count)" # Expected: 2 (not 3 or 5)
 ```powershell
 $token = "..." # Valid JWT token
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reorder-preview" `
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reorder-preview" `
   -Method GET `
   -Headers @{ Authorization = "Bearer $token" }
 $data = ($response.Content | ConvertFrom-Json)
@@ -1138,19 +1140,19 @@ Write-Host "Last Order Date: $($data.data.lastOrderDate)" # Expected: 2024-11-15
 ```powershell
 # Step 1: Get chef reels (discover chef)
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$reelsResponse = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reels" -Method GET
+$reelsResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reels" -Method GET
 $firstReel = (($reelsResponse.Content | ConvertFrom-Json).data.reels[0])
 
 Write-Host "Step 1: Discovered Chef via Reel: $($firstReel.id)"
 
 # Step 2: Get chef public profile
-$profileResponse = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+$profileResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
 $profile = ($profileResponse.Content | ConvertFrom-Json).data
 
 Write-Host "Step 2: Chef Profile: $($profile.kitchenName), IsOpen: $($profile.isOpen)"
 
 # Step 3: Get chef menu
-$menuResponse = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/menu" -Method GET
+$menuResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu" -Method GET
 $menu = ($menuResponse.Content | ConvertFrom-Json).data
 
 Write-Host "Step 3: Menu Items: $($menu.totalItems)"
@@ -1180,13 +1182,13 @@ $chefId = "550e8400-e29b-41d4-a716-446655440001"
 
 # Get data from Chef-Kitchen API (admin/owner access)
 $token = "..." # Chef's JWT token
-$kitchenResponse = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/kitchen" `
+$kitchenResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/kitchen" `
   -Method GET `
   -Headers @{ Authorization = "Bearer $token" }
 $kitchenData = ($kitchenResponse.Content | ConvertFrom-Json).data
 
 # Get data from Chef-Public API
-$publicResponse = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+$publicResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
 $publicData = ($publicResponse.Content | ConvertFrom-Json).data
 
 Write-Host "✅ Test Case 5.2: Data Consistency"
@@ -1220,7 +1222,7 @@ $chefId = "550e8400-e29b-41d4-a716-446655440001"
 $times = @()
 for ($i = 1; $i -le 10; $i++) {
     $start = Get-Date
-    $response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+    $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
     $end = Get-Date
     $duration = ($end - $start).TotalMilliseconds
     $times += $duration
@@ -1288,9 +1290,9 @@ Write-Host "P95: $p95 ms" # Expected: < 500ms
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
 
 # No Authorization header
-$profileResponse = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
-$menuResponse = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/menu" -Method GET
-$reelsResponse = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/reels" -Method GET
+$profileResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
+$menuResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu" -Method GET
+$reelsResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/reels" -Method GET
 
 Write-Host "✅ Test Case 7.1: Public Access"
 Write-Host "Profile: $($profileResponse.StatusCode)" # Expected: 200
@@ -1315,7 +1317,7 @@ Write-Host "Reels: $($reelsResponse.StatusCode)" # Expected: 200
 **Steps**:
 ```powershell
 $chefId = "550e8400-e29b-41d4-a716-446655440001"
-$response = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/chefs/$chefId/public" -Method GET
+$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/public" -Method GET
 $data = ($response.Content | ConvertFrom-Json).data
 
 Write-Host "✅ Test Case 7.2: No Sensitive Data"
@@ -1347,7 +1349,7 @@ Write-Host "Chef-Public Module - Full Test Suite"
 Write-Host "========================================="
 
 # Configuration
-$baseUrl = "http://localhost:3000"
+$baseUrl = "https://api-staging.chefooz.com"
 $chefComplete = "550e8400-e29b-41d4-a716-446655440001"
 $chefIncomplete = "550e8400-e29b-41d4-a716-446655440002"
 

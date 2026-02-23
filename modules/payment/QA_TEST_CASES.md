@@ -27,7 +27,7 @@
 ### Prerequisites
 
 **Backend:**
-- NestJS API running on staging (`https://staging-api.chefooz.com`)
+- NestJS API running on staging (`https://api-staging.chefooz.com`)
 - PostgreSQL database accessible
 - Razorpay Test Mode enabled
 - Environment variables configured:
@@ -343,7 +343,7 @@ Failure: failure@razorpay
 
 **API Test (cURL):**
 ```bash
-curl -X POST https://staging-api.chefooz.com/api/v1/payment/webhook \
+curl -X POST https://api-staging.chefooz.com/api/v1/payment/webhook \
   -H "Content-Type: application/json" \
   -H "x-razorpay-signature: <calculated_signature>" \
   -d '{

@@ -34,14 +34,14 @@
 4. **Test User JWT Token** (OTP-based):
    ```bash
    # Step 1: Send OTP
-   curl -X POST http://localhost:3000/api/v1/auth/v2/send-otp \
+   curl -X POST https://api-staging.chefooz.com/api/v1/auth/v2/send-otp \
      -H "Content-Type: application/json" \
      -d '{"phone":"9876543210","deviceId":"test-device-123"}'
    
    # Response: { "sessionId": "uuid-here", "expiresAt": "...", "channel": "whatsapp" }
    
    # Step 2: Verify OTP (use OTP from WhatsApp/SMS)
-   curl -X POST http://localhost:3000/api/v1/auth/v2/verify-otp \
+   curl -X POST https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp \
      -H "Content-Type: application/json" \
      -d '{"sessionId":"uuid-from-step1","otp":"1234"}'
    
@@ -52,7 +52,7 @@
 ### **Base URL**
 
 ```
-http://localhost:3000/api/v1/cart
+https://api-staging.chefooz.com/api/v1/cart
 ```
 
 ### **Headers**
@@ -72,7 +72,7 @@ Content-Type: application/json
 # test-data-setup.ps1
 # Creates test users, chefs, and menu items
 
-$baseUrl = "http://localhost:3000/api/v1"
+$baseUrl = "https://api-staging.chefooz.com/api/v1"
 
 # 1. Create test users via OTP authentication
 # Step 1: Send OTP
@@ -165,7 +165,7 @@ Write-Host "✅ Test data saved to test-data.json"
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart" `
     -Method Get `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -208,7 +208,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart" `
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart" `
     -Method Get `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -263,7 +263,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart" `
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/count" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/count" `
     -Method Get `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -293,7 +293,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/count" `
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/count" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/count" `
     -Method Get `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -334,7 +334,7 @@ $body = @{
     }
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -389,7 +389,7 @@ $body = @{
     }
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -437,7 +437,7 @@ $body = @{
     }
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -492,7 +492,7 @@ $body = @{
     customerCookingPreferences = "Make it less spicy and extra crispy"
 } | ConvertTo-Json -Depth 3
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -544,7 +544,7 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items" `
+    $response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
         -Body $body
@@ -589,7 +589,7 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items" `
+    $response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
         -Body $body
@@ -627,7 +627,7 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items" `
+    $response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
         -Body $body
@@ -665,7 +665,7 @@ $body = @{
     quantity = 5
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items/$cartItemId" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items/$cartItemId" `
     -Method Patch `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -707,7 +707,7 @@ $body = @{
     quantity = 0
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items/$cartItemId" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items/$cartItemId" `
     -Method Patch `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -740,7 +740,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items/$car
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items/$cartItemId" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items/$cartItemId" `
     -Method Delete `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -770,7 +770,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items/$car
 **Request**:
 ```powershell
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/items/non-existent-uuid" `
+    $response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/items/non-existent-uuid" `
         -Method Delete `
         -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 } catch {
@@ -801,7 +801,7 @@ try {
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/clear" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/clear" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -844,7 +844,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/clear" `
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/validate" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/validate" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -887,7 +887,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/validate" 
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/validate" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/validate" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -937,7 +937,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/validate" 
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/validate" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/validate" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -985,7 +985,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/validate" 
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/validate" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/validate" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -1031,7 +1031,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/validate" 
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/validate" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/validate" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -1078,7 +1078,7 @@ $body = @{
     reelId = "reel-uuid"
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/add-creator-order" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/add-creator-order" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -1132,7 +1132,7 @@ $body = @{
     reelId = "reel-uuid"
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/add-creator-order" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/add-creator-order" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -1179,7 +1179,7 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/add-creator-order" `
+    $response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/add-creator-order" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
         -Body $body
@@ -1215,7 +1215,7 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/add-creator-order" `
+    $response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/add-creator-order" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
         -Body $body
@@ -1263,7 +1263,7 @@ $body = @{
     )
 } | ConvertTo-Json -Depth 3
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/merge" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/merge" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -1310,7 +1310,7 @@ $body = @{
     )
 } | ConvertTo-Json -Depth 3
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/merge" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/merge" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -1359,7 +1359,7 @@ $body = @{
 } | ConvertTo-Json -Depth 3
 
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/merge" `
+    $response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/merge" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
         -Body $body
@@ -1402,7 +1402,7 @@ $body = @{
     items = @()
 } | ConvertTo-Json -Depth 3
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/merge" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/merge" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -1443,7 +1443,7 @@ $body = @{
     addressId = "address-uuid"
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/checkout" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/checkout" `
     -Method Post `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
     -Body $body
@@ -1483,7 +1483,7 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/checkout" `
+    $response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/checkout" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
         -Body $body
@@ -1520,7 +1520,7 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/checkout" `
+    $response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/checkout" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $JWT_TOKEN"; "Content-Type" = "application/json" } `
         -Body $body
@@ -1555,7 +1555,7 @@ try {
 # Start 2 checkout requests in parallel
 $job1 = Start-Job -ScriptBlock {
     $body = @{ addressId = "address-uuid" } | ConvertTo-Json
-    Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/checkout" `
+    Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/checkout" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $env:JWT_TOKEN"; "Content-Type" = "application/json" } `
         -Body $body
@@ -1563,7 +1563,7 @@ $job1 = Start-Job -ScriptBlock {
 
 $job2 = Start-Job -ScriptBlock {
     $body = @{ addressId = "address-uuid" } | ConvertTo-Json
-    Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart/checkout" `
+    Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart/checkout" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $env:JWT_TOKEN"; "Content-Type" = "application/json" } `
         -Body $body
@@ -1644,7 +1644,7 @@ $result2 = Receive-Job $job2
 
 **Request**:
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart" `
+$response = Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart" `
     -Method Get `
     -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
 ```
@@ -1689,7 +1689,7 @@ $response = Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart" `
 $times = @()
 1..100 | ForEach-Object {
     $start = Get-Date
-    Invoke-RestMethod -Uri "http://localhost:3000/api/v1/cart" `
+    Invoke-RestMethod -Uri "https://api-staging.chefooz.com/api/v1/cart" `
         -Method Get `
         -Headers @{ Authorization = "Bearer $JWT_TOKEN" }
     $end = Get-Date
@@ -1757,7 +1757,7 @@ Write-Host "p99: $p99 ms"
 # Comprehensive automated test suite for Cart Module
 
 param(
-    [string]$baseUrl = "http://localhost:3000/api/v1",
+    [string]$baseUrl = "https://api-staging.chefooz.com/api/v1",
     [string]$jwtToken = $env:JWT_TOKEN
 )
 

@@ -75,7 +75,7 @@ const testReels = {
 
 ```powershell
 # test-collections.ps1
-$baseUrl = "http://localhost:3000/api/v1"
+$baseUrl = "https://api-staging.chefooz.com/api/v1"
 $token = "<JWT_TOKEN>"
 
 function Test-ToggleSave {
@@ -115,7 +115,7 @@ function Test-CreateCollection {
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/save" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/save" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{ mediaId = "691ca197b8be29951a3caf07" } | ConvertTo-Json) `
@@ -153,7 +153,7 @@ Test-ToggleSave -MediaId "691ca197b8be29951a3caf07"
 
 # 2. Unsave (toggle again)
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/save" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/save" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{ mediaId = "691ca197b8be29951a3caf07" } | ConvertTo-Json) `
@@ -187,7 +187,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/save" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/save" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{ mediaId = "691ca197b8be29951a3caf99" } | ConvertTo-Json) `
@@ -217,7 +217,7 @@ $response = Invoke-WebRequest `
 ```powershell
 # 1. User1 saves
 Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/save" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/save" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{ mediaId = "691ca197b8be29951a3caf07" } | ConvertTo-Json) `
@@ -225,7 +225,7 @@ Invoke-WebRequest `
 
 # 2. User2 saves same reel
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/save" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/save" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ mediaId = "691ca197b8be29951a3caf07" } | ConvertTo-Json) `
@@ -249,7 +249,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/save" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/save" `
     -Method POST `
     -Body (@{ mediaId = "691ca197b8be29951a3caf07" } | ConvertTo-Json) `
     -ContentType "application/json"
@@ -287,7 +287,7 @@ Test-ToggleSave -MediaId "691ca197b8be29951a3caf09"
 
 # 2. Get saved reels
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/saved?limit=20" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/saved?limit=20" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -342,7 +342,7 @@ Invoke-WebRequest -Uri "$baseUrl/collections/save" -Method POST -Headers @{ Auth
 
 # 2. Get saved count
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/saved/count/691ca197b8be29951a3caf07" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/saved/count/691ca197b8be29951a3caf07" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -375,7 +375,7 @@ Test-ToggleSave -MediaId "691ca197b8be29951a3caf07"
 
 # 2. Check status
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/saved/status/691ca197b8be29951a3caf07" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/saved/status/691ca197b8be29951a3caf07" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -406,7 +406,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -448,7 +448,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{ name = "Quick Meals" } | ConvertTo-Json) `
@@ -476,7 +476,7 @@ $response = Invoke-WebRequest `
 
 # 2. Try to create 201st collection
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{ name = "Collection 201" } | ConvertTo-Json) `
@@ -506,7 +506,7 @@ $response = Invoke-WebRequest `
 ```powershell
 # Test empty name
 $response1 = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{ name = "" } | ConvertTo-Json) `
@@ -515,7 +515,7 @@ $response1 = Invoke-WebRequest `
 # Test long name (61 chars)
 $longName = "a" * 61
 $response2 = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{ name = $longName } | ConvertTo-Json) `
@@ -543,7 +543,7 @@ Test-CreateCollection -Name "Desserts" -Emoji "🍰"
 
 # 2. Get collections
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/my" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/my" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -569,7 +569,7 @@ $collectionId = ($create.Content | ConvertFrom-Json).data.collection.id
 
 # 2. Rename
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/$collectionId/rename" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/$collectionId/rename" `
     -Method PATCH `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{
@@ -618,7 +618,7 @@ Invoke-WebRequest -Uri "$baseUrl/collections/$collectionId/add" -Method POST -He
 
 # 3. Delete collection
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/$collectionId" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/$collectionId" `
     -Method DELETE `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -657,7 +657,7 @@ Test-ToggleSave -MediaId "691ca197b8be29951a3caf07"
 
 # 3. Add to collection
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/$collectionId/add" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/$collectionId/add" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{ mediaId = "691ca197b8be29951a3caf07" } | ConvertTo-Json) `
@@ -702,7 +702,7 @@ Invoke-WebRequest -Uri "$baseUrl/collections/$collectionId2/add" -Method POST -H
 
 # 4. Get collections for reel
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/reel/691ca197b8be29951a3caf07/collections" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/reel/691ca197b8be29951a3caf07/collections" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -751,7 +751,7 @@ $response = Invoke-WebRequest -Uri "$baseUrl/collections/$collectionId/add" -Met
 
 # 2. Remove from collection
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/$collectionId/remove/691ca197b8be29951a3caf07" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/$collectionId/remove/691ca197b8be29951a3caf07" `
     -Method DELETE `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -784,7 +784,7 @@ Invoke-WebRequest -Uri "$baseUrl/collections/$collectionId/add" -Method POST -He
 
 # 3. Get items
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/$collectionId/items?limit=20" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/$collectionId/items?limit=20" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -830,7 +830,7 @@ Invoke-WebRequest -Uri "$baseUrl/collections/$collectionId2/add" -Method POST -H
 
 # 3. Get collections for reel
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/reel/691ca197b8be29951a3caf07/collections" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/reel/691ca197b8be29951a3caf07/collections" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -857,7 +857,7 @@ $collectionId = ($create.Content | ConvertFrom-Json).data.collection.id
 
 # 2. User2 tries to rename
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/$collectionId/rename" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/$collectionId/rename" `
     -Method PATCH `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ name = "Stolen Collection" } | ConvertTo-Json) `
@@ -891,7 +891,7 @@ $collectionId = ($create.Content | ConvertFrom-Json).data.collection.id
 
 # 2. User2 tries to delete
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/$collectionId" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/$collectionId" `
     -Method DELETE `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" }
 ```
@@ -915,7 +915,7 @@ $collectionId = ($create.Content | ConvertFrom-Json).data.collection.id
 
 # 2. User2 tries to add reel
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/$collectionId/add" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/$collectionId/add" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER2_TOKEN" } `
     -Body (@{ mediaId = "691ca197b8be29951a3caf07" } | ConvertTo-Json) `
@@ -946,14 +946,14 @@ $response = Invoke-WebRequest `
 
 # 2. Fetch page 1
 $page1 = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/saved?limit=20" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/saved?limit=20" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 
 # 3. Fetch page 2
 $nextCursor = ($page1.Content | ConvertFrom-Json).data.nextCursor
 $page2 = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/saved?limit=20&cursor=$nextCursor" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/saved?limit=20&cursor=$nextCursor" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -986,14 +986,14 @@ $collectionId = ($create.Content | ConvertFrom-Json).data.collection.id
 
 # 3. Fetch page 1
 $page1 = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/$collectionId/items?limit=20" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/$collectionId/items?limit=20" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 
 # 4. Fetch page 2
 $nextCursor = ($page1.Content | ConvertFrom-Json).data.nextCursor
 $page2 = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/$collectionId/items?limit=20&cursor=$nextCursor" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/$collectionId/items?limit=20&cursor=$nextCursor" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -1029,7 +1029,7 @@ $page2 = Invoke-WebRequest `
 # 3. Measure query time
 $start = Get-Date
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/my" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/my" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 $duration = (Get-Date) - $start
@@ -1056,7 +1056,7 @@ $jobs = 1..10 | ForEach-Object {
     Start-Job -ScriptBlock {
         param($token, $mediaId)
         Invoke-WebRequest `
-            -Uri "http://localhost:3000/api/v1/collections/save" `
+            -Uri "https://api-staging.chefooz.com/api/v1/collections/save" `
             -Method POST `
             -Headers @{ Authorization = "Bearer $token" } `
             -Body (@{ mediaId = $mediaId } | ConvertTo-Json) `
@@ -1097,7 +1097,7 @@ Invoke-WebRequest -Uri "$baseUrl/collections/$collectionId" -Method DELETE -Head
 
 # 4. Check save status
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/saved/status/691ca197b8be29951a3caf07" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/saved/status/691ca197b8be29951a3caf07" `
     -Method GET `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" }
 ```
@@ -1117,7 +1117,7 @@ $response = Invoke-WebRequest `
 **Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-    -Uri "http://localhost:3000/api/v1/collections/create" `
+    -Uri "https://api-staging.chefooz.com/api/v1/collections/create" `
     -Method POST `
     -Headers @{ Authorization = "Bearer $USER1_TOKEN" } `
     -Body (@{

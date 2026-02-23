@@ -804,7 +804,7 @@ ORDER BY date DESC;
 ```bash
 # Use Apache Bench
 ab -n 10 -c 5 -H "Authorization: Bearer {admin-token}" \
-  http://localhost:3000/api/v1/admin/finance/reconciliation/summary
+  https://api-staging.chefooz.com/api/v1/admin/finance/reconciliation/summary
 ```
 
 **Expected Results**:

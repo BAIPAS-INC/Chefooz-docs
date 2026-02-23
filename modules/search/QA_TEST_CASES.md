@@ -36,24 +36,40 @@
 
 ### Test User Credentials
 
+> ⚠️ **Chefooz uses OTP-only authentication (no passwords)**. Login via mobile phone number + OTP sent via WhatsApp (primary) or Twilio SMS (fallback). Use the `/api/v1/auth/v2/send-otp` → `/api/v1/auth/v2/verify-otp` flow to obtain a JWT token before running tests.
+
 ```bash
-# Customer Account
-Username: testcustomer@chefooz.com
-Password: TestCustomer@123
+# Customer Account (phone-number based)
+Phone: +919876543210   # Obtain JWT via OTP on mobile
 
 # Chef Account
-Username: testchef@chefooz.com
-Password: TestChef@123
+Phone: +919876543212   # Obtain JWT via OTP on mobile
 
 # Admin Account
-Username: testadmin@chefooz.com
-Password: TestAdmin@123
+Phone: +919876543220   # Admin JWT via admin portal login
+```
+
+**OTP Auth Flow (to get JWT for tests)**:
+```powershell
+# Step 1: Send OTP
+$otpResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/auth/v2/send-otp" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body '{"phoneNumber": "+919876543210"}'
+$requestId = ($otpResponse.Content | ConvertFrom-Json).data.requestId
+
+# Step 2: Verify OTP (use OTP received on phone via WhatsApp/SMS)
+$verifyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body "{`"requestId`": `"$requestId`", `"otp`": `"<OTP_FROM_WHATSAPP_OR_SMS>`"}"
+$jwtToken = ($verifyResponse.Content | ConvertFrom-Json).data.accessToken
 ```
 
 ### API Base URL
 
 ```
-Staging: https://staging-api.chefooz.com/api/v1
+Staging: https://api-staging.chefooz.com/api/v1
 Production: https://api.chefooz.com/api/v1
 ```
 
@@ -918,7 +934,7 @@ GET /v1/search/suggest?query=but
 ```bash
 for i in {1..100}; do
   curl -w "%{time_total}\n" -o /dev/null -s \
-    "https://staging-api.chefooz.com/api/v1/search/dishes?q=biryani"
+    "https://api-staging.chefooz.com/api/v1/search/dishes?q=biryani"
 done | sort -n | awk 'NR==50'
 ```
 
@@ -1009,7 +1025,7 @@ done | sort -n | awk 'NR==50'
 ```bash
 for i in {1..15}; do
   curl -w "%{http_code}\n" -o /dev/null -s \
-    "https://staging-api.chefooz.com/api/v1/search/dishes?q=test" &
+    "https://api-staging.chefooz.com/api/v1/search/dishes?q=test" &
 done
 wait
 ```

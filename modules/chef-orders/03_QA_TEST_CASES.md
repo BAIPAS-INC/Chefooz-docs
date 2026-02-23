@@ -17,7 +17,7 @@
 ## 🛠️ **Test Environment Setup**
 
 ### **Prerequisites**
-- Backend API running: `http://localhost:3000` (or staging URL)
+- Backend API running: `http://https://api-staging.chefooz.com
 - PostgreSQL database with test data
 - Valid JWT tokens for chef and customer users
 - PowerShell 7+ installed (for automation scripts)
@@ -49,7 +49,7 @@
 **PowerShell Variables**:
 ```powershell
 # Test environment configuration
-$BASE_URL = "http://localhost:3000"
+$BASE_URL = "https://api-staging.chefooz.com"
 $API_VERSION = "v1"
 $CHEF_TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 $CUSTOMER_TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -1227,7 +1227,7 @@ Write-Host "P95: $p95 ms"
 # ============================================
 
 # Configuration
-$BASE_URL = "http://localhost:3000"
+$BASE_URL = "https://api-staging.chefooz.com"
 $API_VERSION = "v1"
 $CHEF_TOKEN = "Bearer YOUR_CHEF_TOKEN_HERE"
 $CHEF_HEADERS = @{

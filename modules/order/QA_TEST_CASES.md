@@ -31,7 +31,7 @@
 - [ ] MongoDB with test reel data
 - [ ] Valkey/Redis instance for caching
 - [ ] Razorpay test mode credentials
-- [ ] Backend API running on `localhost:3000`
+- [ ] Backend API: `https://api-staging.chefooz.com` (staging)
 
 **Frontend**:
 - [ ] Expo Go or development build installed
@@ -1614,39 +1614,30 @@ Tests that verify platform-specific behaviors work correctly.
 
 ### Test User Accounts
 
+> ⚠️ **Chefooz uses OTP-only authentication (no passwords)**. Login is phone number + OTP via WhatsApp (primary) or Twilio SMS (fallback). Use `/api/v1/auth/v2/send-otp` → `/api/v1/auth/v2/verify-otp` to obtain JWT tokens.
+
 ```json
 {
   "customers": [
     {
-      "email": "test-customer@chefooz.com",
       "phone": "+919876543210",
-      "password": "Test@1234",
-      "trustState": "NORMAL",
-      "coinBalance": 0
+      "note": "Use OTP auth to obtain JWT — trustState: NORMAL"
     },
     {
-      "email": "test-restricted@chefooz.com",
       "phone": "+919876543211",
-      "password": "Test@1234",
-      "trustState": "RESTRICTED",
-      "coinBalance": 0
+      "note": "Use OTP auth to obtain JWT — trustState: RESTRICTED"
     }
   ],
   "chefs": [
     {
-      "email": "test-chef@chefooz.com",
       "phone": "+919876543212",
-      "password": "Test@1234",
-      "kitchenStatus": "online",
-      "acceptingOrders": true
+      "note": "Use OTP auth to obtain JWT — kitchenStatus: online, acceptingOrders: true"
     }
   ],
   "riders": [
     {
-      "email": "test-rider@chefooz.com",
       "phone": "+919876543213",
-      "password": "Test@1234",
-      "status": "available"
+      "note": "Use OTP auth to obtain JWT — status: available"
     }
   ]
 }

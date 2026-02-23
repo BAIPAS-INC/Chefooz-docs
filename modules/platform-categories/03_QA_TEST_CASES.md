@@ -16,7 +16,7 @@
 ## 🔧 **Test Environment Setup**
 
 ### **Prerequisites**
-- Backend running on `http://localhost:3333`
+- Backend running on `https://api-staging.chefooz.com`
 - PostgreSQL database with seeded categories
 - No authentication required (public endpoint)
 
@@ -27,7 +27,7 @@
 
 ### **Environment Variables**
 ```bash
-API_BASE_URL=http://localhost:3333
+API_BASE_URL=https://api-staging.chefooz.com
 DATABASE_URL=postgresql://user:pass@localhost:5432/chefooz
 ```
 
@@ -52,7 +52,7 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/chefooz
 ```bash
 # PowerShell
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET `
   -ContentType "application/json"
 
@@ -114,7 +114,7 @@ $firstCat.isActive | Should -Be $true
 **Test Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 
 $data = ($response.Content | ConvertFrom-Json).data
@@ -154,7 +154,7 @@ $data[10].sortOrder | Should -Be 11
 ```powershell
 # Request WITHOUT Authorization header
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET `
   -ContentType "application/json"
 ```
@@ -183,7 +183,7 @@ $response.StatusCode | Should -Be 200
 **Test Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 
 $categories = ($response.Content | ConvertFrom-Json).data
@@ -231,7 +231,7 @@ foreach ($cat in $categories) {
 **Test Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 
 $categories = ($response.Content | ConvertFrom-Json).data
@@ -280,7 +280,7 @@ $keys.Count | Should -Be 11
 **Test Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 
 $categories = ($response.Content | ConvertFrom-Json).data
@@ -346,7 +346,7 @@ for ($i = 0; $i -lt 100; $i++) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     
     $response = Invoke-WebRequest `
-      -Uri "http://localhost:3333/api/v1/platform-categories" `
+      -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
       -Method GET
     
     $stopwatch.Stop()
@@ -400,7 +400,7 @@ Start-Sleep -Seconds 5
 
 # Check categories created
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 
 $categories = ($response.Content | ConvertFrom-Json).data
@@ -439,7 +439,7 @@ $categories.Count | Should -Be 11
 ```powershell
 # Get current category count
 $beforeResponse = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 $beforeCount = (($beforeResponse.Content | ConvertFrom-Json).data).Count
 
@@ -449,7 +449,7 @@ Start-Sleep -Seconds 5
 
 # Get category count after restart
 $afterResponse = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 $afterCount = (($afterResponse.Content | ConvertFrom-Json).data).Count
 ```
@@ -500,7 +500,7 @@ $afterCount | Should -Be 11
 ```powershell
 # Check backend health endpoint
 $health = Invoke-WebRequest `
-  -Uri "http://localhost:3333/health" `
+  -Uri "https://api-staging.chefooz.com/health" `
   -Method GET
 
 $health.StatusCode | Should -Be 200
@@ -561,7 +561,7 @@ DELETE FROM platform_categories;
 ```powershell
 # Get valid category ID
 $categories = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 $categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
 
@@ -575,7 +575,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
   -Method POST `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -618,7 +618,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
   -Method POST `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -662,7 +662,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
   -Method POST `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -699,7 +699,7 @@ $data.message | Should -Match "platformCategoryId"
 ```powershell
 # Get new category ID (MAIN_COURSE)
 $categories = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 $newCategoryId = (($categories.Content | ConvertFrom-Json).data | Where-Object { $_.key -eq "MAIN_COURSE" }).id
 
@@ -709,7 +709,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items/$menuItemId" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items/$menuItemId" `
   -Method PATCH `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -746,7 +746,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items/$menuItemId" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items/$menuItemId" `
   -Method PATCH `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -781,7 +781,7 @@ $data.errorCode | Should -Be "INVALID_PLATFORM_CATEGORY"
 **Test Steps**:
 ```powershell
 $categories = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 $categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
 
@@ -793,7 +793,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
   -Method POST `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -826,7 +826,7 @@ $data.chefLabels.Count | Should -Be 5
 **Test Steps**:
 ```powershell
 $categories = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 $categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
 
@@ -838,7 +838,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
   -Method POST `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -872,7 +872,7 @@ $data.errorCode | Should -Be "TOO_MANY_LABELS"
 **Test Steps**:
 ```powershell
 $categories = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 $categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
 
@@ -884,7 +884,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
   -Method POST `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -918,7 +918,7 @@ $data.errorCode | Should -Be "LABEL_TOO_LONG"
 **Test Steps**:
 ```powershell
 $categories = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 $categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
 
@@ -930,7 +930,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
   -Method POST `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -962,7 +962,7 @@ $data.chefLabels.Count | Should -Be 0
 **Test Steps**:
 ```powershell
 $categories = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 $categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
 
@@ -974,7 +974,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
   -Method POST `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -1013,7 +1013,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chef/menu-items/$menuItemId" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items/$menuItemId" `
   -Method PATCH `
   -Headers @{ Authorization = "Bearer $chefToken" } `
   -ContentType "application/json" `
@@ -1123,7 +1123,7 @@ console.log('Cache hit rate:', cacheHitRate);
 **Test Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/chefs/$chefId/menu" `
+  -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu" `
   -Method GET
 
 $menu = ($response.Content | ConvertFrom-Json).data
@@ -1161,7 +1161,7 @@ foreach ($group in $menu.categories) {
 ```powershell
 # Get MAIN_COURSE category ID
 $categories = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/platform-categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
   -Method GET
 $mainCourseId = (($categories.Content | ConvertFrom-Json).data | Where-Object { $_.key -eq "MAIN_COURSE" }).id
 
@@ -1174,7 +1174,7 @@ $body = @{
 } | ConvertTo-Json
 
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/search/menu-items" `
+  -Uri "https://api-staging.chefooz.com/api/v1/search/menu-items" `
   -Method POST `
   -ContentType "application/json" `
   -Body $body
@@ -1207,7 +1207,7 @@ foreach ($item in $results) {
 **Test Steps**:
 ```powershell
 $response = Invoke-WebRequest `
-  -Uri "http://localhost:3333/api/v1/explore/categories" `
+  -Uri "https://api-staging.chefooz.com/api/v1/explore/categories" `
   -Method GET
 ```
 
@@ -1254,7 +1254,7 @@ for ($i = 0; $i -lt 1000; $i++) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     
     $response = Invoke-WebRequest `
-      -Uri "http://localhost:3333/api/v1/platform-categories" `
+      -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
       -Method GET
     
     $stopwatch.Stop()
@@ -1302,7 +1302,7 @@ $jobs = @()
 for ($i = 0; $i -lt 100; $i++) {
     $jobs += Start-Job -ScriptBlock {
         Invoke-WebRequest `
-          -Uri "http://localhost:3333/api/v1/platform-categories" `
+          -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
           -Method GET
     }
 }
@@ -1368,7 +1368,7 @@ Execution Time: 0.045 ms
 ```powershell
 # test-platform-categories.ps1
 
-$API_BASE = "http://localhost:3333"
+$API_BASE = "https://api-staging.chefooz.com"
 
 Write-Host "🧪 Testing Platform Categories Module..." -ForegroundColor Cyan
 

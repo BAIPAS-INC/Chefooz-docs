@@ -27,7 +27,7 @@
 
 ### Prerequisites
 
-1. **Backend Service**: `apps/chefooz-apis` running on http://localhost:3333
+1. **Backend Service**: `apps/chefooz-apis` running on https://api-staging.chefooz.com
 2. **PostgreSQL**: Local instance with test database
 3. **MongoDB**: Local instance for audit logs
 4. **AWS Services** (Mock):

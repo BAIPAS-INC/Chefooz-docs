@@ -87,7 +87,7 @@ const testReels = {
 **Test Configuration**:
 ```typescript
 const testConfig = {
-  baseUrl: 'http://localhost:3000/api/v1',
+  baseUrl: 'https://api-staging.chefooz.com/api/v1',
   jwtTokens: {
     publicUser: 'eyJhbGciOiJIUzI1NiIs...',
     privateUser: 'eyJhbGciOiJIUzI1NiIs...',

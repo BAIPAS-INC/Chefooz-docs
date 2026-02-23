@@ -864,7 +864,7 @@ jest.mock('@cache/cache.service', () => ({
 **Objective**: Verify WebSocket connection
 
 **Test Steps**:
-1. Connect to `ws://localhost:3333/courier`
+1. Connect to `wss://api-staging.chefooz.com/courier`
 2. Verify connection event logged
 
 **Expected Result**:

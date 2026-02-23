@@ -28,7 +28,7 @@
 ## 🔧 Test Environment Setup
 
 ### Prerequisites
-- Backend running at `http://localhost:3333`
+- Backend running at `https://api-staging.chefooz.com`
 - PostgreSQL database with clean test data
 - WhatsApp Cloud API configured (or use dev mode bypass)
 - Twilio SMS configured for fallback testing
@@ -154,7 +154,7 @@ OTP_DEV_MODE=false  # Set to true to bypass actual OTP sending
 
 **API Test Command:**
 ```bash
-curl -X POST http://localhost:3333/api/v1/auth/v2/send-otp \
+curl -X POST https://api-staging.chefooz.com/api/v1/auth/v2/send-otp \
   -H "Content-Type: application/json" \
   -d '{
     "phone": "9876543210",
@@ -283,7 +283,7 @@ echo "eyJhbGciOiJIUzI1NiIs..." | base64 -d
 
 **API Test Command:**
 ```bash
-curl -X POST http://localhost:3333/api/v1/auth/v2/verify-otp \
+curl -X POST https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp \
   -H "Content-Type: application/json" \
   -d '{
     "phone": "9876543210",
@@ -343,7 +343,7 @@ curl -X POST http://localhost:3333/api/v1/auth/v2/verify-otp \
 
 **API Test Command:**
 ```bash
-curl -X PUT http://localhost:3333/api/v1/auth/profile \
+curl -X PUT https://api-staging.chefooz.com/api/v1/auth/profile \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -403,7 +403,7 @@ curl -X PUT http://localhost:3333/api/v1/auth/profile \
 
 **API Test Command:**
 ```bash
-curl -X GET http://localhost:3333/api/v1/auth/me \
+curl -X GET https://api-staging.chefooz.com/api/v1/auth/me \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -1068,7 +1068,7 @@ ORDER BY createdAt DESC LIMIT 1;
 # Using Apache Bench
 ab -n 100 -c 10 -T application/json \
   -p otp-payload.json \
-  http://localhost:3333/api/v1/auth/v2/send-otp
+  https://api-staging.chefooz.com/api/v1/auth/v2/send-otp
 ```
 
 ---
@@ -1185,7 +1185,7 @@ ab -n 100 -c 10 -T application/json \
 
 ### Send OTP (WhatsApp-first)
 ```bash
-curl -X POST http://localhost:3333/api/v1/auth/v2/send-otp \
+curl -X POST https://api-staging.chefooz.com/api/v1/auth/v2/send-otp \
   -H "Content-Type: application/json" \
   -d '{
     "phone": "9876543210",
@@ -1195,7 +1195,7 @@ curl -X POST http://localhost:3333/api/v1/auth/v2/send-otp \
 
 ### Verify OTP
 ```bash
-curl -X POST http://localhost:3333/api/v1/auth/v2/verify-otp \
+curl -X POST https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp \
   -H "Content-Type: application/json" \
   -d '{
     "phone": "9876543210",
@@ -1206,13 +1206,13 @@ curl -X POST http://localhost:3333/api/v1/auth/v2/verify-otp \
 
 ### Get Current User
 ```bash
-curl -X GET http://localhost:3333/api/v1/auth/me \
+curl -X GET https://api-staging.chefooz.com/api/v1/auth/me \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" | jq
 ```
 
 ### Update Profile
 ```bash
-curl -X PUT http://localhost:3333/api/v1/auth/profile \
+curl -X PUT https://api-staging.chefooz.com/api/v1/auth/profile \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1225,7 +1225,7 @@ curl -X PUT http://localhost:3333/api/v1/auth/profile \
 ```bash
 for i in {1..6}; do
   echo "Request $i:"
-  curl -X POST http://localhost:3333/api/v1/auth/v2/send-otp \
+  curl -X POST https://api-staging.chefooz.com/api/v1/auth/v2/send-otp \
     -H "Content-Type: application/json" \
     -d '{"phone": "9876543210", "deviceId": "RATE-LIMIT-TEST"}'
   sleep 1

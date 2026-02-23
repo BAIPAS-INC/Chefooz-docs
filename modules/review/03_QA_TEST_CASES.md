@@ -26,7 +26,7 @@
 ### API Base URL
 ```
 Development: https://dev-api.chefooz.com
-Staging: https://staging-api.chefooz.com
+Staging: https://api-staging.chefooz.com
 Production: https://api.chefooz.com
 ```
 

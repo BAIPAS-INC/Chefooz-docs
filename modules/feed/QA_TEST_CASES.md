@@ -68,7 +68,7 @@
 
 | Environment | Base URL | Notes |
 |-------------|----------|-------|
-| **Development** | `http://localhost:3000` | Local testing |
+| **Development** | `https://api-staging.chefooz.com` | Local testing |
 | **Staging** | `https://staging-api.chefooz.app` | QA environment |
 | **Production** | `https://api.chefooz.app` | Live environment (CAUTION) |
 
