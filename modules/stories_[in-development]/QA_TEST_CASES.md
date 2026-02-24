@@ -1449,7 +1449,7 @@ scenarios:
   "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
   "username": "john_chef",
   "fullName": "John Doe",
-  "email": "john@chefooz.app",
+  "phone": "+919876543212",
   "role": "user"
 }
 ```

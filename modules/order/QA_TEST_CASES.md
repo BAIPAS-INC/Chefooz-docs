@@ -41,22 +41,18 @@
 **Test Accounts**:
 ```
 Customer 1:
-- Email: test-customer@chefooz.com
 - Phone: +919876543210
 - Trust State: NORMAL
 
 Customer 2 (Restricted):
-- Email: test-restricted@chefooz.com
 - Phone: +919876543211
 - Trust State: RESTRICTED
 
 Chef:
-- Email: test-chef@chefooz.com
 - Phone: +919876543212
 - Kitchen: Active, Accepting Orders
 
 Rider:
-- Email: test-rider@chefooz.com
 - Phone: +919876543213
 ```
 
@@ -76,7 +72,7 @@ Tests that verify core business logic works as designed.
 **Platform**: Both (iOS & Android)
 
 **Prerequisites:**
-- User logged in as test-customer@chefooz.com
+- User logged in via OTP (Phone: +919876543210)
 - Chef has active menu items
 - Chef kitchen is accepting orders
 
@@ -1616,28 +1612,48 @@ Tests that verify platform-specific behaviors work correctly.
 
 > ⚠️ **Chefooz uses OTP-only authentication (no passwords)**. Login is phone number + OTP via WhatsApp (primary) or Twilio SMS (fallback). Use `/api/v1/auth/v2/send-otp` → `/api/v1/auth/v2/verify-otp` to obtain JWT tokens.
 
+**OTP Auth Flow (curl — use to obtain JWT for API tests):**
+```bash
+# Step 1: Request OTP
+curl -s -X POST https://api-staging.chefooz.com/api/v1/auth/v2/send-otp \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "+919876543210"}' | jq '.data.requestId'
+
+# Step 2: Verify OTP (enter the OTP received via WhatsApp/SMS)
+curl -s -X POST https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp \
+  -H "Content-Type: application/json" \
+  -d '{"requestId": "<REQUEST_ID>", "otp": "<OTP_FROM_WHATSAPP_OR_SMS>"}' | jq '.data.accessToken'
+
+# Save the token
+export JWT_TOKEN="<ACCESS_TOKEN_FROM_ABOVE>"
+```
+
 ```json
 {
   "customers": [
     {
       "phone": "+919876543210",
-      "note": "Use OTP auth to obtain JWT — trustState: NORMAL"
+      "authFlow": "POST /api/v1/auth/v2/send-otp → POST /api/v1/auth/v2/verify-otp",
+      "note": "trustState: NORMAL"
     },
     {
       "phone": "+919876543211",
-      "note": "Use OTP auth to obtain JWT — trustState: RESTRICTED"
+      "authFlow": "POST /api/v1/auth/v2/send-otp → POST /api/v1/auth/v2/verify-otp",
+      "note": "trustState: RESTRICTED"
     }
   ],
   "chefs": [
     {
       "phone": "+919876543212",
-      "note": "Use OTP auth to obtain JWT — kitchenStatus: online, acceptingOrders: true"
+      "authFlow": "POST /api/v1/auth/v2/send-otp → POST /api/v1/auth/v2/verify-otp",
+      "note": "kitchenStatus: online, acceptingOrders: true"
     }
   ],
   "riders": [
     {
       "phone": "+919876543213",
-      "note": "Use OTP auth to obtain JWT — status: available"
+      "authFlow": "POST /api/v1/auth/v2/send-otp → POST /api/v1/auth/v2/verify-otp",
+      "note": "status: available"
     }
   ]
 }

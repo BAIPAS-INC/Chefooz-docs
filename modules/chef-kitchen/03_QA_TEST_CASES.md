@@ -19,7 +19,8 @@
 ## 🛠️ **Test Environment Setup**
 
 ### **Prerequisites**
-```powershell
+```bash
+
 # Backend: https://api-staging.chefooz.com (staging environment)
 
 # Test data seeded with:
@@ -40,7 +41,6 @@
   "id": "chef-test-001",
   "username": "test_chef",
   "role": "chef",
-  "email": "testchef@chefooz.com",
   "phone": "+919876543210"
 }
 ```
@@ -69,7 +69,8 @@
 - Platform category `cat-appetizers-001` exists
 
 **Test Steps**:
-```powershell
+```bash
+
 $headers = @{
     "Authorization" = "Bearer $jwtToken"
     "Content-Type" = "application/json"
@@ -83,12 +84,11 @@ $body = @{
     foodType = "veg"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 
-$response.Content | ConvertFrom-Json
+$response.Content | jq .
 ```
 
 **Expected Result**:
@@ -128,7 +128,8 @@ $response.Content | ConvertFrom-Json
 **Objective**: Verify complete menu item creation with all optional fields.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Butter Chicken"
     description = "Creamy tomato-based curry with tender chicken"
@@ -173,10 +174,9 @@ $body = @{
     )
 } | ConvertTo-Json -Depth 10
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -198,7 +198,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify rejection of invalid platform category.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Test Item"
     description = "Test"
@@ -207,11 +208,9 @@ $body = @{
     foodType = "veg"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body `
-    -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -237,7 +236,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify validation of chef labels (max 5).
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Test Item"
     description = "Test"
@@ -247,11 +247,9 @@ $body = @{
     chefLabels = @("Label1", "Label2", "Label3", "Label4", "Label5", "Label6")
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body `
-    -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -276,7 +274,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify validation of individual chef label length.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Test Item"
     description = "Test"
@@ -286,11 +285,9 @@ $body = @{
     chefLabels = @("This label is definitely more than twenty characters long")
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body `
-    -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -311,7 +308,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify authentication requirement.
 
 **Test Steps**:
-```powershell
+```bash
+
 $headers = @{
     "Content-Type" = "application/json"
 }
@@ -324,11 +322,9 @@ $body = @{
     foodType = "veg"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body `
-    -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -350,11 +346,13 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 - Chef has 3 menu items (2 available, 1 unavailable)
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001" `
-    -Method GET
+```bash
 
-$data = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001")
+
+$data = ($response.Content | jq .).data
 $data.Count
 ```
 
@@ -375,11 +373,13 @@ $data.Count
 **Objective**: Verify retrieval of all items including unavailable.
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001&includeUnavailable=true" `
-    -Method GET
+```bash
 
-$data = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001&includeUnavailable=true")
+
+$data = ($response.Content | jq .).data
 $data.Count
 ```
 
@@ -402,11 +402,13 @@ $data.Count
 - 5 menu items (3 in "Appetizers", 2 in "Main Course")
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001&grouped=true" `
-    -Method GET
+```bash
 
-$data = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001&grouped=true")
+
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Result**:
@@ -458,11 +460,13 @@ $data = ($response.Content | ConvertFrom-Json).data
 **Objective**: Verify retrieval of single item by ID.
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu/item-uuid-123" `
-    -Method GET
+```bash
 
-$data = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/menu/item-uuid-123")
+
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Result**:
@@ -485,16 +489,16 @@ $data = ($response.Content | ConvertFrom-Json).data
 - Menu item exists (id: `item-test-001`, chefId: `chef-test-001`)
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Updated Paneer Tikka"
     price = 300
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001" `
-    -Method PATCH `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001")
 ```
 
 **Expected Result**:
@@ -519,19 +523,24 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 - Different chef authenticated (chefId: `chef-test-002`)
 
 **Test Steps**:
-```powershell
+```bash
+
 # Get JWT for a second chef via OTP auth (WhatsApp/Twilio SMS)
 # Step 1: Send OTP to chef-2's phone
-$otpResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/auth/v2/send-otp" `
-    -Method POST -ContentType "application/json" `
-    -Body '{"phoneNumber": "+919876543215"}'
-$requestId = ($otpResponse.Content | ConvertFrom-Json).data.requestId
+OTPRESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/auth/v2/send-otp" \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "+919876543215"}')
+$requestId = ($otpResponse.Content | jq .).data.requestId
 
 # Step 2: Verify OTP (use OTP received via WhatsApp or Twilio SMS)
-$verifyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp" `
-    -Method POST -ContentType "application/json" `
-    -Body "{`"requestId`": `"$requestId`", `"otp`": `"<OTP_FROM_WHATSAPP_OR_SMS>`"}"
-$otherJwtToken = ($verifyResponse.Content | ConvertFrom-Json).data.accessToken
+VERIFYRESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp" \
+  -H "Content-Type: application/json" \
+  -d '{`')
+$otherJwtToken = ($verifyResponse.Content | jq .).data.accessToken
 
 $headers2 = @{
     "Authorization" = "Bearer $otherJwtToken"
@@ -540,11 +549,9 @@ $headers2 = @{
 
 $body = @{ name = "Hacked Name" } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001" `
-    -Method PATCH `
-    -Headers $headers2 `
-    -Body $body `
-    -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001")
 ```
 
 **Expected Result**:
@@ -570,7 +577,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify JSONB field update (preserving other subfields).
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     availability = @{
         isAvailable = $true
@@ -582,10 +590,9 @@ $body = @{
     }
 } | ConvertTo-Json -Depth 5
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001" `
-    -Method PATCH `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001")
 ```
 
 **Expected Result**:
@@ -620,10 +627,11 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify hard delete of menu item.
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001" `
-    -Method DELETE `
-    -Headers $headers
+```bash
+
+RESPONSE=$(curl -s \
+  -X DELETE \
+  "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001")
 ```
 
 **Expected Result**:
@@ -648,11 +656,11 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify ownership validation on deletion.
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001" `
-    -Method DELETE `
-    -Headers $headers2 `
-    -SkipHttpErrorCheck
+```bash
+
+RESPONSE=$(curl -s \
+  -X DELETE \
+  "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001")
 ```
 
 **Expected Result**:
@@ -673,13 +681,13 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify quick availability toggle.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{ isAvailable = $false } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001/availability" `
-    -Method PATCH `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001/availability")
 ```
 
 **Expected Result**:
@@ -711,13 +719,13 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify re-enabling of item.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{ isAvailable = $true } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001/availability" `
-    -Method PATCH `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001/availability")
 ```
 
 **Expected Result**:
@@ -737,11 +745,13 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 - Current time: 15:00 (3 PM)
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001" `
-    -Method GET
+```bash
 
-$data = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001")
+
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Result**:
@@ -761,11 +771,13 @@ $data = ($response.Content | ConvertFrom-Json).data
 - Current time: 22:00 (10 PM)
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001" `
-    -Method GET
+```bash
 
-$data = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001")
+
+$data = ($response.Content | jq .).data
 $data | Where-Object { $_.id -eq "item-test-001" }
 ```
 
@@ -786,11 +798,13 @@ $data | Where-Object { $_.id -eq "item-test-001" }
 - Menu item with `availability: {isAvailable: true, soldOut: true}`
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001" `
-    -Method GET
+```bash
 
-$data = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001")
+
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Result**:
@@ -811,12 +825,14 @@ $data = ($response.Content | ConvertFrom-Json).data
 - Current time: 23:30 (11:30 PM)
 
 **Test Steps**:
-```powershell
-# Simulate time 23:30
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001" `
-    -Method GET
+```bash
 
-$data = ($response.Content | ConvertFrom-Json).data
+# Simulate time 23:30
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001")
+
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Result**:
@@ -834,7 +850,8 @@ $data = ($response.Content | ConvertFrom-Json).data
 **Objective**: Verify acceptance of valid platform category.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Test Item"
     description = "Test"
@@ -843,10 +860,9 @@ $body = @{
     foodType = "veg"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -863,7 +879,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify rejection of invalid platform category.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Test Item"
     description = "Test"
@@ -872,11 +889,9 @@ $body = @{
     foodType = "veg"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body `
-    -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -890,15 +905,15 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify platform category can be changed.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     platformCategoryId = "cat-main-course-001"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001" `
-    -Method PATCH `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/menu/item-test-001")
 ```
 
 **Expected Result**:
@@ -914,7 +929,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify FSSAI fields are optional but stored correctly.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Packaged Biryani"
     description = "Pre-packaged biryani"
@@ -928,10 +944,9 @@ $body = @{
     bestBeforeHours = 24
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -950,7 +965,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify FSSAI license number length validation.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Test"
     description = "Test"
@@ -960,11 +976,9 @@ $body = @{
     fssaiLicenseNumber = "123" # Invalid: too short
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body `
-    -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -978,7 +992,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify FSSAI fields are optional.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Simple Dish"
     description = "No FSSAI info"
@@ -988,10 +1003,9 @@ $body = @{
     # No FSSAI fields
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -1011,17 +1025,17 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify one-time kitchen profile creation.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     isOnline = $false
     isAcceptingOrders = $true
     maxDailyOrders = 50
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/kitchen" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/kitchen")
 ```
 
 **Expected Result**:
@@ -1056,18 +1070,17 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 - Kitchen already exists for `chef-test-001`
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     isOnline = $true
     isAcceptingOrders = $true
     maxDailyOrders = 100
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/kitchen" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body `
-    -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/kitchen")
 ```
 
 **Expected Result**:
@@ -1088,10 +1101,11 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify retrieval of kitchen profile.
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/kitchen" `
-    -Method GET `
-    -Headers $headers
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/kitchen")
 ```
 
 **Expected Result**:
@@ -1109,16 +1123,16 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify status updates.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     isOnline = $true
     isAcceptingOrders = $true
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/kitchen/status" `
-    -Method PATCH `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/kitchen/status")
 ```
 
 **Expected Result**:
@@ -1145,16 +1159,16 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify order acceptance toggle.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     isOnline = $true
     isAcceptingOrders = $false
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/kitchen/status" `
-    -Method PATCH `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/kitchen/status")
 ```
 
 **Expected Result**:
@@ -1174,7 +1188,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify creation of 7 schedule rows (one per day).
 
 **Test Steps**:
-```powershell
+```bash
+
 $days = @("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY")
 
 foreach ($day in $days) {
@@ -1188,10 +1203,9 @@ foreach ($day in $days) {
         breakEndTime = "17:00"
     } | ConvertTo-Json
 
-    $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/schedule" `
-        -Method POST `
-        -Headers $headers `
-        -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/schedule")
 }
 ```
 
@@ -1210,16 +1224,16 @@ foreach ($day in $days) {
 **Objective**: Verify updating individual day schedule.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     dayOfWeek = "SUNDAY"
     isActive = $false
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/schedule" `
-    -Method PATCH `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/schedule")
 ```
 
 **Expected Result**:
@@ -1237,18 +1251,17 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify time format validation.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     dayOfWeek = "MONDAY"
     startTime = "25:00" # Invalid: hour > 23
     endTime = "22:00"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/schedule" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body `
-    -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/schedule")
 ```
 
 **Expected Result**:
@@ -1262,10 +1275,11 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify retrieval of weekly schedule.
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/schedule" `
-    -Method GET `
-    -Headers $headers
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/schedule")
 ```
 
 **Expected Result**:
@@ -1285,7 +1299,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify chef-created category creation.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Chef Specials"
     description = "My signature dishes"
@@ -1293,10 +1308,9 @@ $body = @{
     displayOrder = "ASC"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-category" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-category")
 ```
 
 **Expected Result**:
@@ -1310,7 +1324,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify category reordering.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     categories = @(
         @{ id = "cat-1"; order = 2 },
@@ -1318,10 +1333,9 @@ $body = @{
     )
 } | ConvertTo-Json -Depth 5
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-category/reorder" `
-    -Method PATCH `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-category/reorder")
 ```
 
 **Expected Result**:
@@ -1392,10 +1406,12 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify performance with large menu (100 items).
 
 **Test Steps**:
-```powershell
+```bash
+
 Measure-Command {
-    Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001" `
-        -Method GET
+curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001"
 }
 ```
 
@@ -1414,10 +1430,12 @@ Measure-Command {
 **Objective**: Verify grouped menu performance.
 
 **Test Steps**:
-```powershell
+```bash
+
 Measure-Command {
-    Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001&grouped=true" `
-        -Method GET
+curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chef/menu?chefId=chef-test-001&grouped=true"
 }
 ```
 
@@ -1435,7 +1453,8 @@ Measure-Command {
 **Objective**: Verify concurrency handling.
 
 **Test Steps**:
-```powershell
+```bash
+
 # Create 10 items concurrently
 1..10 | ForEach-Object -Parallel {
     $body = @{
@@ -1446,10 +1465,9 @@ Measure-Command {
         foodType = "veg"
     } | ConvertTo-Json
 
-    Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-        -Method POST `
-        -Headers $using:headers `
-        -Body $body
+curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu"
 } -ThrottleLimit 10
 ```
 
@@ -1466,7 +1484,8 @@ Measure-Command {
 **Objective**: Verify protection against SQL injection.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "'; DROP TABLE chef_menu_items; --"
     description = "Test"
@@ -1475,10 +1494,9 @@ $body = @{
     foodType = "veg"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -1496,7 +1514,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 **Objective**: Verify XSS protection.
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Test"
     description = "<script>alert('XSS')</script>"
@@ -1505,10 +1524,9 @@ $body = @{
     foodType = "veg"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/menu" `
-    -Method POST `
-    -Headers $headers `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu")
 ```
 
 **Expected Result**:
@@ -1533,7 +1551,8 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/chef/
 
 ### **PowerShell Test Runner**
 
-```powershell
+```bash
+
 # tests/chef-kitchen-test-runner.ps1
 
 $baseUrl = "https://api-staging.chefooz.com/api/v1"
@@ -1543,17 +1562,21 @@ function Get-JWTToken {
     # Chefooz uses OTP-only auth (no passwords) — WhatsApp primary, Twilio SMS fallback
     # Step 1: Send OTP
     $otpBody = @{ phoneNumber = "+919876543212" } | ConvertTo-Json
-    $otpResponse = Invoke-WebRequest -Uri "$baseUrl/auth/v2/send-otp" `
-        -Method POST -ContentType "application/json" -Body $otpBody
-    $requestId = ($otpResponse.Content | ConvertFrom-Json).data.requestId
+OTPRESPONSE=$(curl -s \
+  -X POST \
+  "$baseUrl/auth/v2/send-otp" \
+  -H "Content-Type: application/json")
+    $requestId = ($otpResponse.Content | jq .).data.requestId
 
     # Step 2: Verify OTP received via WhatsApp or Twilio SMS
     $otp = Read-Host "Enter OTP received on +919876543212 (WhatsApp/SMS)"
     $verifyBody = @{ requestId = $requestId; otp = $otp } | ConvertTo-Json
-    $verifyResponse = Invoke-WebRequest -Uri "$baseUrl/auth/v2/verify-otp" `
-        -Method POST -ContentType "application/json" -Body $verifyBody
+VERIFYRESPONSE=$(curl -s \
+  -X POST \
+  "$baseUrl/auth/v2/verify-otp" \
+  -H "Content-Type: application/json")
 
-    return ($verifyResponse.Content | ConvertFrom-Json).data.accessToken
+    return ($verifyResponse.Content | jq .).data.accessToken
 }
 
 function Test-CreateMenuItem {
@@ -1573,17 +1596,16 @@ function Test-CreateMenuItem {
     }
 
     try {
-        $response = Invoke-WebRequest -Uri "$baseUrl/chef/menu" `
-            -Method POST `
-            -Headers $headers `
-            -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "$baseUrl/chef/menu")
 
         if ($response.StatusCode -eq 201) {
-            Write-Host "✅ Test-CreateMenuItem PASSED" -ForegroundColor Green
+            echo "✅ Test-CreateMenuItem PASSED" -ForegroundColor Green
             return $true
         }
     } catch {
-        Write-Host "❌ Test-CreateMenuItem FAILED: $_" -ForegroundColor Red
+        echo "❌ Test-CreateMenuItem FAILED: $_" -ForegroundColor Red
         return $false
     }
 }
@@ -1592,26 +1614,27 @@ function Test-GetMenuByChef {
     param([string]$chefId)
 
     try {
-        $response = Invoke-WebRequest -Uri "$baseUrl/chef/menu?chefId=$chefId" `
-            -Method GET
+RESPONSE=$(curl -s \
+  -X GET \
+  "$baseUrl/chef/menu?chefId=$chefId")
 
-        $data = ($response.Content | ConvertFrom-Json).data
+        $data = ($response.Content | jq .).data
 
         if ($response.StatusCode -eq 200 -and $data.Count -gt 0) {
-            Write-Host "✅ Test-GetMenuByChef PASSED (Found $($data.Count) items)" -ForegroundColor Green
+            echo "✅ Test-GetMenuByChef PASSED (Found $($data.Count) items)" -ForegroundColor Green
             return $true
         }
     } catch {
-        Write-Host "❌ Test-GetMenuByChef FAILED: $_" -ForegroundColor Red
+        echo "❌ Test-GetMenuByChef FAILED: $_" -ForegroundColor Red
         return $false
     }
 }
 
 function Run-AllTests {
-    Write-Host "🚀 Starting Chef-Kitchen Module Tests..." -ForegroundColor Cyan
+    echo "🚀 Starting Chef-Kitchen Module Tests..." -ForegroundColor Cyan
 
     # Get JWT token
-    Write-Host "Authenticating..." -ForegroundColor Yellow
+    echo "Authenticating..." -ForegroundColor Yellow
     $script:jwtToken = Get-JWTToken
 
     # Run tests
@@ -1623,9 +1646,9 @@ function Run-AllTests {
     $passed = ($results | Where-Object { $_ -eq $true }).Count
     $failed = ($results | Where-Object { $_ -eq $false }).Count
 
-    Write-Host "`n📊 Test Summary:" -ForegroundColor Cyan
-    Write-Host "✅ Passed: $passed" -ForegroundColor Green
-    Write-Host "❌ Failed: $failed" -ForegroundColor Red
+    echo "`n📊 Test Summary:" -ForegroundColor Cyan
+    echo "✅ Passed: $passed" -ForegroundColor Green
+    echo "❌ Failed: $failed" -ForegroundColor Red
 }
 
 Run-AllTests

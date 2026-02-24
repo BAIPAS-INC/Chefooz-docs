@@ -47,7 +47,8 @@
 ### **Test Configuration**
 
 **PowerShell Variables**:
-```powershell
+```bash
+
 # Test environment configuration
 $BASE_URL = "https://api-staging.chefooz.com"
 $API_VERSION = "v1"
@@ -189,14 +190,14 @@ WHERE id = 'kitchen-test-001';
 ```
 
 **PowerShell Script**:
-```powershell
-$response = Invoke-WebRequest `
-    -Uri "$BASE_URL/api/$API_VERSION/chef/orders/incoming" `
-    -Method GET `
-    -Headers $CHEF_HEADERS
+```bash
 
-Write-Host "Status: $($response.StatusCode)"
-Write-Host "Orders found: $(($response.Content | ConvertFrom-Json).data.Count)"
+RESPONSE=$(curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/chef/orders/incoming")
+
+echo "Status: $($response.StatusCode)"
+echo "Orders found: $(($response.Content | jq .).data.Count)"
 ```
 
 ---
@@ -223,10 +224,11 @@ Write-Host "Orders found: $(($response.Content | ConvertFrom-Json).data.Count)"
 - UI can filter by statusGroup
 
 **Validation**:
-```powershell
-$orders = ($response.Content | ConvertFrom-Json).data
+```bash
+
+$orders = ($response.Content | jq .).data
 foreach ($order in $orders) {
-    Write-Host "Order: $($order.orderNumber), Status: $($order.chefStatus), Group: $($order.statusGroup)"
+    echo "Order: $($order.orderNumber), Status: $($order.chefStatus), Group: $($order.statusGroup)"
 }
 ```
 
@@ -254,18 +256,23 @@ foreach ($order in $orders) {
 - isOverdue flag set correctly
 
 **Validation**:
-```powershell
+```bash
+
 # First call
-$order1 = (Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/incoming" -Method GET -Headers $CHEF_HEADERS | ConvertFrom-Json).data[0]
+ORDER1=$(curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/chef/orders/incoming")
 $remaining1 = $order1.prepRemainingMinutes
 
 Start-Sleep -Seconds 60
 
 # Second call
-$order2 = (Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/incoming" -Method GET -Headers $CHEF_HEADERS | ConvertFrom-Json).data[0]
+ORDER2=$(curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/chef/orders/incoming")
 $remaining2 = $order2.prepRemainingMinutes
 
-Write-Host "Remaining time decreased: $($remaining1 - $remaining2) minutes"
+echo "Remaining time decreased: $($remaining1 - $remaining2) minutes"
 ```
 
 ---
@@ -315,20 +322,19 @@ Write-Host "Remaining time decreased: $($remaining1 - $remaining2) minutes"
 ```
 
 **PowerShell Script**:
-```powershell
+```bash
+
 $body = @{
     estimatedPrepMinutes = 30
     chefNote = "Will be ready on time"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "$BASE_URL/api/$API_VERSION/chef/orders/order-test-001/accept" `
-    -Method POST `
-    -Headers $CHEF_HEADERS `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/order-test-001/accept")
 
-Write-Host "Status: $($response.StatusCode)"
-Write-Host "Order accepted at: $(($response.Content | ConvertFrom-Json).data.acceptedAt)"
+echo "Status: $($response.StatusCode)"
+echo "Order accepted at: $(($response.Content | jq .).data.acceptedAt)"
 ```
 
 ---
@@ -459,19 +465,19 @@ Write-Host "Order accepted at: $(($response.Content | ConvertFrom-Json).data.acc
 ```
 
 **PowerShell Script**:
-```powershell
+```bash
+
 # Set kitchen offline
 Invoke-SqlCmd -Query "UPDATE chef_kitchens SET is_online = false WHERE id = 'kitchen-test-001'"
 
 # Attempt to accept order
 try {
-    Invoke-WebRequest `
-        -Uri "$BASE_URL/api/$API_VERSION/chef/orders/order-test-001/accept" `
-        -Method POST `
-        -Headers $CHEF_HEADERS `
-        -Body '{"estimatedPrepMinutes": 30}'
+curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/order-test-001/accept" \
+  -d '{"estimatedPrepMinutes": 30}'
 } catch {
-    Write-Host "Expected error: $($_.Exception.Response.StatusCode)"
+    echo "Expected error: $($_.Exception.Response.StatusCode)"
 }
 
 # Reset kitchen to online
@@ -599,19 +605,18 @@ Invoke-SqlCmd -Query "UPDATE chef_kitchens SET is_online = true WHERE id = 'kitc
 ```
 
 **PowerShell Script**:
-```powershell
+```bash
+
 $body = @{
     reason = "Out of main ingredient"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "$BASE_URL/api/$API_VERSION/chef/orders/order-test-001/reject" `
-    -Method POST `
-    -Headers $CHEF_HEADERS `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/order-test-001/reject")
 
-Write-Host "Status: $($response.StatusCode)"
-Write-Host "Order rejected at: $(($response.Content | ConvertFrom-Json).data.rejectedAt)"
+echo "Status: $($response.StatusCode)"
+echo "Order rejected at: $(($response.Content | jq .).data.rejectedAt)"
 ```
 
 ---
@@ -745,19 +750,18 @@ WHERE o.id = 'order-test-001';
 ```
 
 **PowerShell Script**:
-```powershell
+```bash
+
 $body = @{
     status = "PREPARING"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "$BASE_URL/api/$API_VERSION/chef/orders/order-test-002/status" `
-    -Method POST `
-    -Headers $CHEF_HEADERS `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/order-test-002/status")
 
-Write-Host "Status: $($response.StatusCode)"
-Write-Host "New status: $(($response.Content | ConvertFrom-Json).data.status)"
+echo "Status: $($response.StatusCode)"
+echo "New status: $(($response.Content | jq .).data.status)"
 ```
 
 ---
@@ -886,7 +890,8 @@ Write-Host "New status: $(($response.Content | ConvertFrom-Json).data.status)"
 ```
 
 **Notification Check**:
-```powershell
+```bash
+
 # Query notification logs (should be empty for <10 min change)
 # Verify no 'order.prep_time_updated' event sent
 ```
@@ -922,7 +927,8 @@ Write-Host "New status: $(($response.Content | ConvertFrom-Json).data.status)"
 - Notification includes old and new prep times
 
 **Notification Verification**:
-```powershell
+```bash
+
 # Check notification logs
 # Event: 'order.prep_time_updated'
 # Payload: { oldPrepTime: 30, newPrepTime: 45 }
@@ -1016,27 +1022,38 @@ Write-Host "New status: $(($response.Content | ConvertFrom-Json).data.status)"
 8. Verify delivery system notified
 
 **PowerShell E2E Script**:
-```powershell
+```bash
+
 # Step 1: Create order (Order module API)
-$newOrder = Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/orders" -Method POST -Headers $CUSTOMER_HEADERS -Body $orderData
+NEWORDER=$(curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/orders")
 
 # Step 2: Chef views incoming
-$incoming = Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/incoming" -Method GET -Headers $CHEF_HEADERS
-$orderId = (($incoming.Content | ConvertFrom-Json).data[0]).id
+INCOMING=$(curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/chef/orders/incoming")
+$orderId = (($incoming.Content | jq .).data[0]).id
 
 # Step 3: Accept order
 $acceptBody = '{"estimatedPrepMinutes": 30}'
-$accepted = Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/$orderId/accept" -Method POST -Headers $CHEF_HEADERS -Body $acceptBody
+ACCEPTED=$(curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/$orderId/accept")
 
 # Step 4: Mark as PREPARING
 $preparingBody = '{"status": "PREPARING"}'
-Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/$orderId/status" -Method POST -Headers $CHEF_HEADERS -Body $preparingBody
+curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/$orderId/status"
 
 # Step 5: Mark as READY
 $readyBody = '{"status": "READY"}'
-Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/$orderId/status" -Method POST -Headers $CHEF_HEADERS -Body $readyBody
+curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/$orderId/status"
 
-Write-Host "✅ Full flow complete"
+echo "✅ Full flow complete"
 ```
 
 ---
@@ -1057,12 +1074,15 @@ Write-Host "✅ Full flow complete"
 7. Verify chef receives confirmation email
 
 **Verification**:
-```powershell
+```bash
+
 # After rejection, verify:
 # 1. Order status
-$order = Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/orders/$orderId" -Method GET -Headers $CUSTOMER_HEADERS
-$orderStatus = (($order.Content | ConvertFrom-Json).data).status
-Write-Host "Order status: $orderStatus" # Should be CANCELLED
+ORDER=$(curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/orders/$orderId")
+$orderStatus = (($order.Content | jq .).data).status
+echo "Order status: $orderStatus" # Should be CANCELLED
 
 # 2. Payment status
 # Query payment table to verify refund initiated
@@ -1164,23 +1184,26 @@ Write-Host "Order status: $orderStatus" # Should be CANCELLED
 3. Verify p95 response time < 200ms
 
 **PowerShell Performance Test**:
-```powershell
+```bash
+
 $iterations = 10
 $times = @()
 
 for ($i = 1; $i -le $iterations; $i++) {
     $start = Get-Date
-    Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/incoming" -Method GET -Headers $CHEF_HEADERS
+curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/chef/orders/incoming"
     $end = Get-Date
     $duration = ($end - $start).TotalMilliseconds
     $times += $duration
-    Write-Host "Request $i: $duration ms"
+    echo "Request $i: $duration ms"
 }
 
 $avg = ($times | Measure-Object -Average).Average
 $p95 = ($times | Sort-Object)[[Math]::Floor($iterations * 0.95)]
-Write-Host "Average: $avg ms"
-Write-Host "P95: $p95 ms"
+echo "Average: $avg ms"
+echo "P95: $p95 ms"
 ```
 
 **Expected Result**:
@@ -1221,7 +1244,8 @@ Write-Host "P95: $p95 ms"
 
 ### **Full Test Suite (PowerShell)**
 
-```powershell
+```bash
+
 # ============================================
 # Chef Orders Module - Full Test Suite
 # ============================================
@@ -1248,16 +1272,16 @@ function Run-Test {
     )
     
     $script:totalTests++
-    Write-Host "`n========================================" -ForegroundColor Cyan
-    Write-Host "Running: $TestName" -ForegroundColor Cyan
-    Write-Host "========================================" -ForegroundColor Cyan
+    echo "`n========================================" -ForegroundColor Cyan
+    echo "Running: $TestName" -ForegroundColor Cyan
+    echo "========================================" -ForegroundColor Cyan
     
     try {
         & $TestScript
-        Write-Host "✅ PASSED" -ForegroundColor Green
+        echo "✅ PASSED" -ForegroundColor Green
         $script:passedTests++
     } catch {
-        Write-Host "❌ FAILED: $($_.Exception.Message)" -ForegroundColor Red
+        echo "❌ FAILED: $($_.Exception.Message)" -ForegroundColor Red
         $script:failedTests++
     }
 }
@@ -1266,17 +1290,16 @@ function Run-Test {
 # Test 1: Get Incoming Orders
 # ============================================
 Run-Test "Get Incoming Orders" {
-    $response = Invoke-WebRequest `
-        -Uri "$BASE_URL/api/$API_VERSION/chef/orders/incoming" `
-        -Method GET `
-        -Headers $CHEF_HEADERS
+RESPONSE=$(curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/chef/orders/incoming")
     
     if ($response.StatusCode -ne 200) {
         throw "Expected 200, got $($response.StatusCode)"
     }
     
-    $data = ($response.Content | ConvertFrom-Json).data
-    Write-Host "Found $($data.Count) orders"
+    $data = ($response.Content | jq .).data
+    echo "Found $($data.Count) orders"
 }
 
 # ============================================
@@ -1284,7 +1307,9 @@ Run-Test "Get Incoming Orders" {
 # ============================================
 Run-Test "Accept Order" {
     # First, get an order
-    $orders = (Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/incoming" -Method GET -Headers $CHEF_HEADERS | ConvertFrom-Json).data
+ORDERS=$(curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/chef/orders/incoming")
     $newOrder = $orders | Where-Object { $_.chefStatus -eq "NEW" } | Select-Object -First 1
     
     if (-not $newOrder) {
@@ -1296,22 +1321,20 @@ Run-Test "Accept Order" {
         chefNote = "Test acceptance"
     } | ConvertTo-Json
     
-    $response = Invoke-WebRequest `
-        -Uri "$BASE_URL/api/$API_VERSION/chef/orders/$($newOrder.id)/accept" `
-        -Method POST `
-        -Headers $CHEF_HEADERS `
-        -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/$($newOrder.id)/accept")
     
     if ($response.StatusCode -ne 200) {
         throw "Expected 200, got $($response.StatusCode)"
     }
     
-    $result = ($response.Content | ConvertFrom-Json).data
+    $result = ($response.Content | jq .).data
     if ($result.status -ne "ACCEPTED") {
         throw "Order status not updated to ACCEPTED"
     }
     
-    Write-Host "Order accepted: $($newOrder.id)"
+    echo "Order accepted: $($newOrder.id)"
 }
 
 # ============================================
@@ -1319,7 +1342,9 @@ Run-Test "Accept Order" {
 # ============================================
 Run-Test "Reject Order" {
     # Get a NEW order
-    $orders = (Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/incoming" -Method GET -Headers $CHEF_HEADERS | ConvertFrom-Json).data
+ORDERS=$(curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/chef/orders/incoming")
     $newOrder = $orders | Where-Object { $_.chefStatus -eq "NEW" } | Select-Object -First 1
     
     if (-not $newOrder) {
@@ -1330,22 +1355,20 @@ Run-Test "Reject Order" {
         reason = "Test rejection - out of ingredients"
     } | ConvertTo-Json
     
-    $response = Invoke-WebRequest `
-        -Uri "$BASE_URL/api/$API_VERSION/chef/orders/$($newOrder.id)/reject" `
-        -Method POST `
-        -Headers $CHEF_HEADERS `
-        -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/$($newOrder.id)/reject")
     
     if ($response.StatusCode -ne 200) {
         throw "Expected 200, got $($response.StatusCode)"
     }
     
-    $result = ($response.Content | ConvertFrom-Json).data
+    $result = ($response.Content | jq .).data
     if ($result.chefStatus -ne "REJECTED") {
         throw "Order status not updated to REJECTED"
     }
     
-    Write-Host "Order rejected: $($newOrder.id)"
+    echo "Order rejected: $($newOrder.id)"
 }
 
 # ============================================
@@ -1353,7 +1376,9 @@ Run-Test "Reject Order" {
 # ============================================
 Run-Test "Update Status to PREPARING" {
     # Get an ACCEPTED order
-    $orders = (Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/incoming" -Method GET -Headers $CHEF_HEADERS | ConvertFrom-Json).data
+ORDERS=$(curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/chef/orders/incoming")
     $acceptedOrder = $orders | Where-Object { $_.chefStatus -eq "ACCEPTED" } | Select-Object -First 1
     
     if (-not $acceptedOrder) {
@@ -1364,17 +1389,15 @@ Run-Test "Update Status to PREPARING" {
         status = "PREPARING"
     } | ConvertTo-Json
     
-    $response = Invoke-WebRequest `
-        -Uri "$BASE_URL/api/$API_VERSION/chef/orders/$($acceptedOrder.id)/status" `
-        -Method POST `
-        -Headers $CHEF_HEADERS `
-        -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/$($acceptedOrder.id)/status")
     
     if ($response.StatusCode -ne 200) {
         throw "Expected 200, got $($response.StatusCode)"
     }
     
-    Write-Host "Order status updated to PREPARING"
+    echo "Order status updated to PREPARING"
 }
 
 # ============================================
@@ -1382,7 +1405,9 @@ Run-Test "Update Status to PREPARING" {
 # ============================================
 Run-Test "Update Prep Time" {
     # Get an ACCEPTED or PREPARING order
-    $orders = (Invoke-WebRequest -Uri "$BASE_URL/api/$API_VERSION/chef/orders/incoming" -Method GET -Headers $CHEF_HEADERS | ConvertFrom-Json).data
+ORDERS=$(curl -s \
+  -X GET \
+  "$BASE_URL/api/$API_VERSION/chef/orders/incoming")
     $order = $orders | Where-Object { $_.chefStatus -in @("ACCEPTED", "PREPARING") } | Select-Object -First 1
     
     if (-not $order) {
@@ -1393,34 +1418,32 @@ Run-Test "Update Prep Time" {
         estimatedPrepMinutes = 45
     } | ConvertTo-Json
     
-    $response = Invoke-WebRequest `
-        -Uri "$BASE_URL/api/$API_VERSION/chef/orders/$($order.id)/prep-time" `
-        -Method POST `
-        -Headers $CHEF_HEADERS `
-        -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "$BASE_URL/api/$API_VERSION/chef/orders/$($order.id)/prep-time")
     
     if ($response.StatusCode -ne 200) {
         throw "Expected 200, got $($response.StatusCode)"
     }
     
-    Write-Host "Prep time updated to 45 minutes"
+    echo "Prep time updated to 45 minutes"
 }
 
 # ============================================
 # Test Summary
 # ============================================
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "TEST SUMMARY" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Total Tests: $totalTests"
-Write-Host "Passed: $passedTests" -ForegroundColor Green
-Write-Host "Failed: $failedTests" -ForegroundColor Red
-Write-Host "Success Rate: $([Math]::Round(($passedTests / $totalTests) * 100, 2))%"
+echo "`n========================================" -ForegroundColor Cyan
+echo "TEST SUMMARY" -ForegroundColor Cyan
+echo "========================================" -ForegroundColor Cyan
+echo "Total Tests: $totalTests"
+echo "Passed: $passedTests" -ForegroundColor Green
+echo "Failed: $failedTests" -ForegroundColor Red
+echo "Success Rate: $([Math]::Round(($passedTests / $totalTests) * 100, 2))%"
 
 if ($failedTests -eq 0) {
-    Write-Host "`n✅ ALL TESTS PASSED!" -ForegroundColor Green
+    echo "`n✅ ALL TESTS PASSED!" -ForegroundColor Green
 } else {
-    Write-Host "`n⚠️  SOME TESTS FAILED" -ForegroundColor Yellow
+    echo "`n⚠️  SOME TESTS FAILED" -ForegroundColor Yellow
 }
 ```
 

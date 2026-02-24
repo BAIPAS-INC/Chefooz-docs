@@ -49,21 +49,20 @@ Phone: +919876543212   # Obtain JWT via OTP on mobile
 Phone: +919876543220   # Admin JWT via admin portal login
 ```
 
-**OTP Auth Flow (to get JWT for tests)**:
-```powershell
-# Step 1: Send OTP
-$otpResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/auth/v2/send-otp" `
-    -Method POST `
-    -ContentType "application/json" `
-    -Body '{"phoneNumber": "+919876543210"}'
-$requestId = ($otpResponse.Content | ConvertFrom-Json).data.requestId
+**OTP Auth Flow (curl — use to obtain JWT for tests)**:
+```bash
+# Step 1: Request OTP
+REQUEST_ID=$(curl -s -X POST https://api-staging.chefooz.com/api/v1/auth/v2/send-otp \
+    -H "Content-Type: application/json" \
+    -d '{"phoneNumber": "+919876543210"}' | jq -r '.data.requestId')
 
 # Step 2: Verify OTP (use OTP received on phone via WhatsApp/SMS)
-$verifyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp" `
-    -Method POST `
-    -ContentType "application/json" `
-    -Body "{`"requestId`": `"$requestId`", `"otp`": `"<OTP_FROM_WHATSAPP_OR_SMS>`"}"
-$jwtToken = ($verifyResponse.Content | ConvertFrom-Json).data.accessToken
+JWT_TOKEN=$(curl -s -X POST https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp \
+    -H "Content-Type: application/json" \
+    -d "{\"requestId\": \"$REQUEST_ID\", \"otp\": \"<OTP_FROM_WHATSAPP_OR_SMS>\"}" \
+    | jq -r '.data.accessToken')
+
+export JWT_TOKEN
 ```
 
 ### API Base URL

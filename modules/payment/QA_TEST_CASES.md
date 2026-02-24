@@ -49,11 +49,25 @@
 
 ---
 
-### Test Accounts
+> ⚠️ **Chefooz uses OTP-only authentication (no passwords)**. Login via mobile phone number + OTP sent via WhatsApp (primary) or Twilio SMS (fallback). Use the `/api/v1/auth/v2/send-otp` → `/api/v1/auth/v2/verify-otp` flow to obtain a JWT token before running tests.
+
+**OTP Auth Flow (curl):**
+```bash
+# Step 1: Request OTP
+curl -s -X POST https://api-staging.chefooz.com/api/v1/auth/v2/send-otp \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "+919876543210"}' | jq '.data.requestId'
+
+# Step 2: Verify OTP
+curl -s -X POST https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp \
+  -H "Content-Type: application/json" \
+  -d '{"requestId": "<REQUEST_ID>", "otp": "<OTP_FROM_WHATSAPP_OR_SMS>"}' | jq '.data.accessToken'
+
+export JWT_TOKEN="<ACCESS_TOKEN_FROM_ABOVE>"
+```
 
 **Test User 1 (Customer - Normal Trust):**
 ```
-Email: test.customer1@chefooz.com
 Phone: +919876543210
 User ID: 550e8400-e29b-41d4-a716-446655440001
 Trust State: NORMAL
@@ -61,7 +75,6 @@ Trust State: NORMAL
 
 **Test User 2 (Customer - Restricted Trust):**
 ```
-Email: test.customer2@chefooz.com
 Phone: +919876543211
 User ID: 550e8400-e29b-41d4-a716-446655440002
 Trust State: RESTRICTED
@@ -69,7 +82,6 @@ Trust State: RESTRICTED
 
 **Test Chef:**
 ```
-Email: chef.test@chefooz.com
 Phone: +919876543220
 User ID: 550e8400-e29b-41d4-a716-446655440010
 ```
@@ -175,7 +187,7 @@ Failure: failure@razorpay
 - Razorpay SDK opens with payment options
 
 **Test Data:**
-- User: test.customer1@chefooz.com
+- User: Phone +919876543210 (Customer - Normal Trust)
 - Cart: 2x Butter Chicken (₹700)
 
 **Actual Result:** _______________  
@@ -544,7 +556,7 @@ curl -X POST https://api-staging.chefooz.com/api/v1/payment/webhook \
 - Theme color: #FF6B35 (Chefooz brand)
 - Title: "Chefooz"
 - Description: "Food Order Payment"
-- User email and phone prefilled
+- User phone number prefilled
 - Payment methods displayed: UPI, Cards, Wallets, Net Banking
 
 **Test Data:**

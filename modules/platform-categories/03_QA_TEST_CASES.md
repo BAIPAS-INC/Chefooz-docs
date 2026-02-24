@@ -50,13 +50,12 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/chefooz
 
 **Test Steps**:
 ```bash
-# PowerShell
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET `
-  -ContentType "application/json"
+# Get all platform categories
+RESPONSE=$(curl -s -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories" \
+  -H "Content-Type: application/json")
 
-$data = $response.Content | ConvertFrom-Json
+echo $RESPONSE | jq .
 ```
 
 **Expected Results**:
@@ -88,7 +87,8 @@ $data = $response.Content | ConvertFrom-Json
 ```
 
 **Validation**:
-```powershell
+```bash
+
 # Assert response structure
 $data.success | Should -Be $true
 $data.data.Count | Should -Be 11
@@ -112,12 +112,13 @@ $firstCat.isActive | Should -Be $true
 **Description**: Verify categories are returned in correct sort order (1-11)
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
+```bash
 
-$data = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Results**:
@@ -126,7 +127,8 @@ $data = ($response.Content | ConvertFrom-Json).data
 - ✅ No gaps or duplicates in sort order
 
 **Validation**:
-```powershell
+```bash
+
 # Check sort order is ascending
 for ($i = 0; $i -lt ($data.Count - 1); $i++) {
     $current = $data[$i].sortOrder
@@ -151,12 +153,13 @@ $data[10].sortOrder | Should -Be 11
 **Description**: Verify endpoint does not require JWT authentication
 
 **Test Steps**:
-```powershell
+```bash
+
 # Request WITHOUT Authorization header
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET `
-  -ContentType "application/json"
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -165,7 +168,8 @@ $response = Invoke-WebRequest `
 - ✅ No authentication error
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 200
 ```
 
@@ -181,12 +185,13 @@ $response.StatusCode | Should -Be 200
 **Description**: Verify each category has all required fields
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
+```bash
 
-$categories = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+
+$categories = ($response.Content | jq .).data
 ```
 
 **Expected Results**:
@@ -200,7 +205,8 @@ $categories = ($response.Content | ConvertFrom-Json).data
   - `createdAt` (ISO 8601 timestamp)
 
 **Validation**:
-```powershell
+```bash
+
 foreach ($cat in $categories) {
     # Check all fields exist
     $cat.id | Should -Not -BeNullOrEmpty
@@ -229,12 +235,13 @@ foreach ($cat in $categories) {
 **Description**: Verify all 11 expected categories are returned
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
+```bash
 
-$categories = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+
+$categories = ($response.Content | jq .).data
 $keys = $categories | ForEach-Object { $_.key }
 ```
 
@@ -253,7 +260,8 @@ $keys = $categories | ForEach-Object { $_.key }
   - `PACKAGED_FOOD`
 
 **Validation**:
-```powershell
+```bash
+
 $expectedKeys = @(
     "BREAKFAST", "STARTERS", "MAIN_COURSE", "BREADS", "RICE",
     "SNACKS", "DESSERTS", "BEVERAGES", "COMBOS", "HEALTHY", "PACKAGED_FOOD"
@@ -278,12 +286,13 @@ $keys.Count | Should -Be 11
 **Description**: Verify all categories have emoji icons
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
+```bash
 
-$categories = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+
+$categories = ($response.Content | jq .).data
 ```
 
 **Expected Results**:
@@ -306,7 +315,8 @@ $categories = ($response.Content | ConvertFrom-Json).data
 | PACKAGED_FOOD | 📦 |
 
 **Validation**:
-```powershell
+```bash
+
 $expectedIcons = @{
     "BREAKFAST" = "🍳"
     "STARTERS" = "🥗"
@@ -338,16 +348,17 @@ foreach ($cat in $categories) {
 **Description**: Verify API response time is under 100ms (p95)
 
 **Test Steps**:
-```powershell
+```bash
+
 $times = @()
 
 # Run 100 requests
 for ($i = 0; $i -lt 100; $i++) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     
-    $response = Invoke-WebRequest `
-      -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-      -Method GET
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
     
     $stopwatch.Stop()
     $times += $stopwatch.ElapsedMilliseconds
@@ -364,7 +375,8 @@ $p95 = $sorted[$p95Index]
 - ✅ Average response time < 50ms
 
 **Validation**:
-```powershell
+```bash
+
 $p95 | Should -BeLessThan 100
 $avg = ($times | Measure-Object -Average).Average
 $avg | Should -BeLessThan 50
@@ -393,17 +405,18 @@ $avg | Should -BeLessThan 50
 DELETE FROM platform_categories;
 ```
 
-```powershell
+```bash
+
 # Start backend (triggers OnModuleInit)
 # Wait for startup completion (~5 seconds)
 Start-Sleep -Seconds 5
 
 # Check categories created
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
 
-$categories = ($response.Content | ConvertFrom-Json).data
+$categories = ($response.Content | jq .).data
 ```
 
 **Expected Results**:
@@ -413,7 +426,8 @@ $categories = ($response.Content | ConvertFrom-Json).data
 - ✅ Final log: "✅ Platform categories initialized"
 
 **Validation**:
-```powershell
+```bash
+
 $categories.Count | Should -Be 11
 
 # Check backend logs
@@ -436,22 +450,23 @@ $categories.Count | Should -Be 11
 - Categories already seeded (11 categories exist)
 
 **Test Steps**:
-```powershell
+```bash
+
 # Get current category count
-$beforeResponse = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
-$beforeCount = (($beforeResponse.Content | ConvertFrom-Json).data).Count
+BEFORERESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+$beforeCount = (($beforeResponse.Content | jq .).data).Count
 
 # Restart backend (triggers OnModuleInit again)
 # Wait for startup
 Start-Sleep -Seconds 5
 
 # Get category count after restart
-$afterResponse = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
-$afterCount = (($afterResponse.Content | ConvertFrom-Json).data).Count
+AFTERRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+$afterCount = (($afterResponse.Content | jq .).data).Count
 ```
 
 **Expected Results**:
@@ -460,7 +475,8 @@ $afterCount = (($afterResponse.Content | ConvertFrom-Json).data).Count
 - ✅ No "✅ Seeded" logs (only "✅ Initialized")
 
 **Validation**:
-```powershell
+```bash
+
 $beforeCount | Should -Be 11
 $afterCount | Should -Be 11
 ```
@@ -480,7 +496,8 @@ $afterCount | Should -Be 11
 - Simulate database unavailability (e.g., stop PostgreSQL)
 
 **Test Steps**:
-```powershell
+```bash
+
 # Stop database
 # docker stop chefooz-postgres
 
@@ -497,11 +514,12 @@ $afterCount | Should -Be 11
 - ✅ API endpoints remain accessible (except categories)
 
 **Validation**:
-```powershell
+```bash
+
 # Check backend health endpoint
-$health = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/health" `
-  -Method GET
+HEALTH=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/health")
 
 $health.StatusCode | Should -Be 200
 ```
@@ -526,7 +544,8 @@ $health.StatusCode | Should -Be 200
 DELETE FROM platform_categories;
 ```
 
-```powershell
+```bash
+
 # Measure startup time with logging
 # Extract seeding duration from logs
 # Expected: ~180ms (first run) or ~90ms (subsequent runs)
@@ -558,12 +577,13 @@ DELETE FROM platform_categories;
 - At least one platform category exists
 
 **Test Steps**:
-```powershell
+```bash
+
 # Get valid category ID
-$categories = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
-$categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
+CATEGORIES=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+$categoryId = (($categories.Content | jq .).data[0]).id
 
 # Create menu item
 $body = @{
@@ -574,12 +594,10 @@ $body = @{
     chefLabels = @("Spicy", "Popular")
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
-  -Method POST `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -589,9 +607,10 @@ $response = Invoke-WebRequest `
 - ✅ `chefLabels` array stored correctly
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 201
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 $data.platformCategoryId | Should -Be $categoryId
 $data.chefLabels.Count | Should -Be 2
 ```
@@ -608,7 +627,8 @@ $data.chefLabels.Count | Should -Be 2
 **Description**: Verify menu item creation fails with invalid platformCategoryId
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Butter Chicken"
     description = "Creamy tomato curry"
@@ -617,13 +637,10 @@ $body = @{
     chefLabels = @("Spicy")
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
-  -Method POST `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body `
-  -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -633,9 +650,10 @@ $response = Invoke-WebRequest `
 - ✅ `message`: "Invalid platform category ID"
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 400
-$data = $response.Content | ConvertFrom-Json
+$data = $response.Content | jq .
 $data.success | Should -Be $false
 $data.errorCode | Should -Be "INVALID_PLATFORM_CATEGORY"
 ```
@@ -652,7 +670,8 @@ $data.errorCode | Should -Be "INVALID_PLATFORM_CATEGORY"
 **Description**: Verify menu item creation fails without platformCategoryId
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     name = "Butter Chicken"
     description = "Creamy tomato curry"
@@ -661,13 +680,10 @@ $body = @{
     chefLabels = @("Spicy")
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
-  -Method POST `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body `
-  -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -675,9 +691,10 @@ $response = Invoke-WebRequest `
 - ✅ Validation error: "platformCategoryId is required"
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 400
-$data = $response.Content | ConvertFrom-Json
+$data = $response.Content | jq .
 $data.message | Should -Match "platformCategoryId"
 ```
 
@@ -696,24 +713,23 @@ $data.message | Should -Match "platformCategoryId"
 - Menu item exists with platformCategoryId = "BREAKFAST"
 
 **Test Steps**:
-```powershell
+```bash
+
 # Get new category ID (MAIN_COURSE)
-$categories = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
-$newCategoryId = (($categories.Content | ConvertFrom-Json).data | Where-Object { $_.key -eq "MAIN_COURSE" }).id
+CATEGORIES=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+$newCategoryId = (($categories.Content | jq .).data | Where-Object { $_.key -eq "MAIN_COURSE" }).id
 
 # Update menu item
 $body = @{
     platformCategoryId = $newCategoryId
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items/$menuItemId" `
-  -Method PATCH `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items/$menuItemId" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -722,9 +738,10 @@ $response = Invoke-WebRequest `
 - ✅ Menu item remains valid
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 200
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 $data.platformCategoryId | Should -Be $newCategoryId
 ```
 
@@ -740,18 +757,16 @@ $data.platformCategoryId | Should -Be $newCategoryId
 **Description**: Verify menu item update fails with invalid category
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     platformCategoryId = "invalid-uuid"
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items/$menuItemId" `
-  -Method PATCH `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body `
-  -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items/$menuItemId" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -759,9 +774,10 @@ $response = Invoke-WebRequest `
 - ✅ `errorCode`: `INVALID_PLATFORM_CATEGORY`
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 400
-$data = $response.Content | ConvertFrom-Json
+$data = $response.Content | jq .
 $data.errorCode | Should -Be "INVALID_PLATFORM_CATEGORY"
 ```
 
@@ -779,11 +795,12 @@ $data.errorCode | Should -Be "INVALID_PLATFORM_CATEGORY"
 **Description**: Verify menu item accepts 5 chef labels (max allowed)
 
 **Test Steps**:
-```powershell
-$categories = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
-$categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
+```bash
+
+CATEGORIES=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+$categoryId = (($categories.Content | jq .).data[0]).id
 
 $body = @{
     name = "Butter Chicken"
@@ -792,12 +809,10 @@ $body = @{
     chefLabels = @("Spicy", "Popular", "Chef's Special", "Creamy", "Rich")
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
-  -Method POST `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -806,9 +821,10 @@ $response = Invoke-WebRequest `
 - ✅ Labels stored as JSONB array
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 201
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 $data.chefLabels.Count | Should -Be 5
 ```
 
@@ -824,11 +840,12 @@ $data.chefLabels.Count | Should -Be 5
 **Description**: Verify menu item creation fails with more than 5 labels
 
 **Test Steps**:
-```powershell
-$categories = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
-$categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
+```bash
+
+CATEGORIES=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+$categoryId = (($categories.Content | jq .).data[0]).id
 
 $body = @{
     name = "Butter Chicken"
@@ -837,13 +854,10 @@ $body = @{
     chefLabels = @("Label1", "Label2", "Label3", "Label4", "Label5", "Label6") # 6 labels
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
-  -Method POST `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body `
-  -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -852,9 +866,10 @@ $response = Invoke-WebRequest `
 - ✅ `message`: "Maximum 5 chef labels allowed"
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 400
-$data = $response.Content | ConvertFrom-Json
+$data = $response.Content | jq .
 $data.errorCode | Should -Be "TOO_MANY_LABELS"
 ```
 
@@ -870,11 +885,12 @@ $data.errorCode | Should -Be "TOO_MANY_LABELS"
 **Description**: Verify menu item creation fails with label > 20 characters
 
 **Test Steps**:
-```powershell
-$categories = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
-$categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
+```bash
+
+CATEGORIES=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+$categoryId = (($categories.Content | jq .).data[0]).id
 
 $body = @{
     name = "Butter Chicken"
@@ -883,13 +899,10 @@ $body = @{
     chefLabels = @("This label is way too long and exceeds 20 characters") # 53 chars
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
-  -Method POST `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body `
-  -SkipHttpErrorCheck
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -898,9 +911,10 @@ $response = Invoke-WebRequest `
 - ✅ `message`: "Chef labels must be 20 characters or less"
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 400
-$data = $response.Content | ConvertFrom-Json
+$data = $response.Content | jq .
 $data.errorCode | Should -Be "LABEL_TOO_LONG"
 ```
 
@@ -916,11 +930,12 @@ $data.errorCode | Should -Be "LABEL_TOO_LONG"
 **Description**: Verify menu item can be created without chef labels
 
 **Test Steps**:
-```powershell
-$categories = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
-$categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
+```bash
+
+CATEGORIES=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+$categoryId = (($categories.Content | jq .).data[0]).id
 
 $body = @{
     name = "Butter Chicken"
@@ -929,12 +944,10 @@ $body = @{
     chefLabels = @() # Empty array
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
-  -Method POST `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -942,9 +955,10 @@ $response = Invoke-WebRequest `
 - ✅ `chefLabels` is empty array `[]`
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 201
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 $data.chefLabels.Count | Should -Be 0
 ```
 
@@ -960,11 +974,12 @@ $data.chefLabels.Count | Should -Be 0
 **Description**: Verify menu item can be created without chefLabels field
 
 **Test Steps**:
-```powershell
-$categories = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
-$categoryId = (($categories.Content | ConvertFrom-Json).data[0]).id
+```bash
+
+CATEGORIES=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+$categoryId = (($categories.Content | jq .).data[0]).id
 
 $body = @{
     name = "Butter Chicken"
@@ -973,12 +988,10 @@ $body = @{
     # chefLabels OMITTED
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items" `
-  -Method POST `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -986,9 +999,10 @@ $response = Invoke-WebRequest `
 - ✅ `chefLabels` defaults to empty array `[]`
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 201
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 $data.chefLabels.Count | Should -Be 0
 ```
 
@@ -1007,17 +1021,16 @@ $data.chefLabels.Count | Should -Be 0
 - Menu item exists with `chefLabels = ["Spicy"]`
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     chefLabels = @("Spicy", "Popular", "Chef's Special")
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chef/menu-items/$menuItemId" `
-  -Method PATCH `
-  -Headers @{ Authorization = "Bearer $chefToken" } `
-  -ContentType "application/json" `
-  -Body $body
+RESPONSE=$(curl -s \
+  -X PATCH \
+  "https://api-staging.chefooz.com/api/v1/chef/menu-items/$menuItemId" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -1025,9 +1038,10 @@ $response = Invoke-WebRequest `
 - ✅ `chefLabels` updated to new array with 3 items
 
 **Validation**:
-```powershell
+```bash
+
 $response.StatusCode | Should -Be 200
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 $data.chefLabels.Count | Should -Be 3
 $data.chefLabels | Should -Contain "Popular"
 ```
@@ -1121,12 +1135,13 @@ console.log('Cache hit rate:', cacheHitRate);
 - Chef has menu items in multiple categories
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu" `
-  -Method GET
+```bash
 
-$menu = ($response.Content | ConvertFrom-Json).data
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/chefs/$chefId/menu")
+
+$menu = ($response.Content | jq .).data
 ```
 
 **Expected Results**:
@@ -1135,7 +1150,8 @@ $menu = ($response.Content | ConvertFrom-Json).data
 - ✅ Groups sorted by `sortOrder`
 
 **Validation**:
-```powershell
+```bash
+
 # Check grouping structure
 $menu.categories | Should -Not -BeNullOrEmpty
 
@@ -1158,12 +1174,13 @@ foreach ($group in $menu.categories) {
 **Description**: Verify search results filtered by category
 
 **Test Steps**:
-```powershell
+```bash
+
 # Get MAIN_COURSE category ID
-$categories = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-  -Method GET
-$mainCourseId = (($categories.Content | ConvertFrom-Json).data | Where-Object { $_.key -eq "MAIN_COURSE" }).id
+CATEGORIES=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
+$mainCourseId = (($categories.Content | jq .).data | Where-Object { $_.key -eq "MAIN_COURSE" }).id
 
 # Search with category filter
 $body = @{
@@ -1173,11 +1190,10 @@ $body = @{
     }
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/search/menu-items" `
-  -Method POST `
-  -ContentType "application/json" `
-  -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/search/menu-items" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected Results**:
@@ -1185,8 +1201,9 @@ $response = Invoke-WebRequest `
 - ✅ All results have `platformCategoryId = $mainCourseId`
 
 **Validation**:
-```powershell
-$results = ($response.Content | ConvertFrom-Json).data.items
+```bash
+
+$results = ($response.Content | jq .).data.items
 
 foreach ($item in $results) {
     $item.platformCategoryId | Should -Be $mainCourseId
@@ -1205,10 +1222,11 @@ foreach ($item in $results) {
 **Description**: Verify Explore screen shows category tabs with item counts
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-  -Uri "https://api-staging.chefooz.com/api/v1/explore/categories" `
-  -Method GET
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/explore/categories")
 ```
 
 **Expected Results**:
@@ -1247,15 +1265,16 @@ $response = Invoke-WebRequest `
 **Description**: Verify GET endpoint p95 response time under 100ms
 
 **Test Steps**:
-```powershell
+```bash
+
 $times = @()
 
 for ($i = 0; $i -lt 1000; $i++) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     
-    $response = Invoke-WebRequest `
-      -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-      -Method GET
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories")
     
     $stopwatch.Stop()
     $times += $stopwatch.ElapsedMilliseconds
@@ -1266,9 +1285,9 @@ $p50 = $sorted[[Math]::Floor(0.50 * $sorted.Count)]
 $p95 = $sorted[[Math]::Floor(0.95 * $sorted.Count)]
 $p99 = $sorted[[Math]::Floor(0.99 * $sorted.Count)]
 
-Write-Host "p50: $p50 ms"
-Write-Host "p95: $p95 ms"
-Write-Host "p99: $p99 ms"
+echo "p50: $p50 ms"
+echo "p95: $p95 ms"
+echo "p99: $p99 ms"
 ```
 
 **Expected Results**:
@@ -1277,7 +1296,8 @@ Write-Host "p99: $p99 ms"
 - ✅ p99 < 150ms
 
 **Validation**:
-```powershell
+```bash
+
 $p50 | Should -BeLessThan 50
 $p95 | Should -BeLessThan 100
 $p99 | Should -BeLessThan 150
@@ -1295,15 +1315,16 @@ $p99 | Should -BeLessThan 150
 **Description**: Verify API handles 100 concurrent requests
 
 **Test Steps**:
-```powershell
+```bash
+
 $jobs = @()
 
 # Start 100 concurrent requests
 for ($i = 0; $i -lt 100; $i++) {
     $jobs += Start-Job -ScriptBlock {
-        Invoke-WebRequest `
-          -Uri "https://api-staging.chefooz.com/api/v1/platform-categories" `
-          -Method GET
+curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/platform-categories"
     }
 }
 
@@ -1318,7 +1339,8 @@ $successCount = ($results | Where-Object { $_.StatusCode -eq 200 }).Count
 - ✅ No rate limiting errors
 
 **Validation**:
-```powershell
+```bash
+
 $successCount | Should -Be 100
 ```
 
@@ -1365,26 +1387,29 @@ Execution Time: 0.045 ms
 
 ### **PowerShell Test Suite**
 
-```powershell
+```bash
+
 # test-platform-categories.ps1
 
 $API_BASE = "https://api-staging.chefooz.com"
 
-Write-Host "🧪 Testing Platform Categories Module..." -ForegroundColor Cyan
+echo "🧪 Testing Platform Categories Module..." -ForegroundColor Cyan
 
 # Test 1: Get All Categories
-Write-Host "`n📋 Test 1: Get All Categories" -ForegroundColor Yellow
-$response = Invoke-WebRequest -Uri "$API_BASE/api/v1/platform-categories" -Method GET
-$data = $response.Content | ConvertFrom-Json
+echo "`n📋 Test 1: Get All Categories" -ForegroundColor Yellow
+RESPONSE=$(curl -s \
+  -X GET \
+  "$API_BASE/api/v1/platform-categories")
+$data = $response.Content | jq .
 
 if ($data.success -and $data.data.Count -eq 11) {
-    Write-Host "✅ PASSED: 11 categories retrieved" -ForegroundColor Green
+    echo "✅ PASSED: 11 categories retrieved" -ForegroundColor Green
 } else {
-    Write-Host "❌ FAILED: Expected 11 categories, got $($data.data.Count)" -ForegroundColor Red
+    echo "❌ FAILED: Expected 11 categories, got $($data.data.Count)" -ForegroundColor Red
 }
 
 # Test 2: Validate Sort Order
-Write-Host "`n🔢 Test 2: Validate Sort Order" -ForegroundColor Yellow
+echo "`n🔢 Test 2: Validate Sort Order" -ForegroundColor Yellow
 $categories = $data.data
 $sortOrderValid = $true
 
@@ -1396,13 +1421,13 @@ for ($i = 0; $i -lt ($categories.Count - 1); $i++) {
 }
 
 if ($sortOrderValid) {
-    Write-Host "✅ PASSED: Categories sorted correctly" -ForegroundColor Green
+    echo "✅ PASSED: Categories sorted correctly" -ForegroundColor Green
 } else {
-    Write-Host "❌ FAILED: Sort order invalid" -ForegroundColor Red
+    echo "❌ FAILED: Sort order invalid" -ForegroundColor Red
 }
 
 # Test 3: Validate Icons
-Write-Host "`n🎨 Test 3: Validate Icons" -ForegroundColor Yellow
+echo "`n🎨 Test 3: Validate Icons" -ForegroundColor Yellow
 $expectedIcons = @{
     "BREAKFAST" = "🍳"
     "STARTERS" = "🥗"
@@ -1420,22 +1445,24 @@ $expectedIcons = @{
 $iconsValid = $true
 foreach ($cat in $categories) {
     if ($cat.icon -ne $expectedIcons[$cat.key]) {
-        Write-Host "❌ FAILED: $($cat.key) has wrong icon: $($cat.icon)" -ForegroundColor Red
+        echo "❌ FAILED: $($cat.key) has wrong icon: $($cat.icon)" -ForegroundColor Red
         $iconsValid = $false
     }
 }
 
 if ($iconsValid) {
-    Write-Host "✅ PASSED: All icons correct" -ForegroundColor Green
+    echo "✅ PASSED: All icons correct" -ForegroundColor Green
 }
 
 # Test 4: Performance Test
-Write-Host "`n⚡ Test 4: Performance Test (100 requests)" -ForegroundColor Yellow
+echo "`n⚡ Test 4: Performance Test (100 requests)" -ForegroundColor Yellow
 $times = @()
 
 for ($i = 0; $i -lt 100; $i++) {
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    Invoke-WebRequest -Uri "$API_BASE/api/v1/platform-categories" -Method GET | Out-Null
+curl -s \
+  -X GET \
+  "$API_BASE/api/v1/platform-categories"
     $stopwatch.Stop()
     $times += $stopwatch.ElapsedMilliseconds
 }
@@ -1444,16 +1471,16 @@ $sorted = $times | Sort-Object
 $p95 = $sorted[[Math]::Floor(0.95 * $sorted.Count)]
 $avg = ($times | Measure-Object -Average).Average
 
-Write-Host "Average: $([Math]::Round($avg, 2)) ms" -ForegroundColor Cyan
-Write-Host "p95: $p95 ms" -ForegroundColor Cyan
+echo "Average: $([Math]::Round($avg, 2)) ms" -ForegroundColor Cyan
+echo "p95: $p95 ms" -ForegroundColor Cyan
 
 if ($p95 -lt 100) {
-    Write-Host "✅ PASSED: p95 < 100ms" -ForegroundColor Green
+    echo "✅ PASSED: p95 < 100ms" -ForegroundColor Green
 } else {
-    Write-Host "❌ FAILED: p95 = $p95 ms (expected < 100ms)" -ForegroundColor Red
+    echo "❌ FAILED: p95 = $p95 ms (expected < 100ms)" -ForegroundColor Red
 }
 
-Write-Host "`n✅ All tests completed!" -ForegroundColor Green
+echo "`n✅ All tests completed!" -ForegroundColor Green
 ```
 
 ---

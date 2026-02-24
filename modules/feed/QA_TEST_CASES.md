@@ -53,16 +53,34 @@
 
 #### Test User Accounts
 
-| Username | Password | Tier | feedBoostWeight | creatorBoostState | Purpose |
-|----------|----------|------|----------------|-------------------|---------|
+> ⚠️ **Chefooz uses OTP-only authentication (no passwords)**. Login via mobile phone number + OTP sent via WhatsApp (primary) or Twilio SMS (fallback). Use the `/api/v1/auth/v2/send-otp` → `/api/v1/auth/v2/verify-otp` flow to obtain a JWT token before running tests.
+
+**OTP Auth Flow (curl):**
+```bash
+# Step 1: Request OTP
+REQUEST_ID=$(curl -s -X POST https://api-staging.chefooz.com/api/v1/auth/v2/send-otp \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "+919876543210"}' | jq -r '.data.requestId')
+
+# Step 2: Verify OTP
+JWT_TOKEN=$(curl -s -X POST https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp \
+  -H "Content-Type: application/json" \
+  -d "{\"requestId\": \"$REQUEST_ID\", \"otp\": \"<OTP_FROM_WHATSAPP_OR_SMS>\"}" \
+  | jq -r '.data.accessToken')
+
+export JWT_TOKEN
+```
+
+| Username | Phone | Tier | feedBoostWeight | creatorBoostState | Purpose |
+|----------|-------|------|----------------|-------------------|---------|
 | `test_guest` | N/A | N/A | N/A | N/A | Guest (no auth) |
-| `test_bronze` | `Test123!` | Bronze | 0.6 | ACTIVE | Low reputation |
-| `test_silver` | `Test123!` | Silver | 1.0 | ACTIVE | Medium reputation |
-| `test_gold` | `Test123!` | Gold | 1.5 | ACTIVE | High reputation |
-| `test_diamond` | `Test123!` | Diamond | 1.8 | ACTIVE | Elite reputation |
-| `test_legend` | `Test123!` | Legend | 2.0 | ACTIVE | Top reputation |
-| `test_flagged` | `Test123!` | Silver | 1.0 | FLAGGED_BOOSTING | Gaming detected |
-| `test_suspended` | `Test123!` | Bronze | 0.5 | SUSPENDED | Severe violation |
+| `test_bronze` | `+919876540001` | Bronze | 0.6 | ACTIVE | Low reputation |
+| `test_silver` | `+919876540002` | Silver | 1.0 | ACTIVE | Medium reputation |
+| `test_gold` | `+919876540003` | Gold | 1.5 | ACTIVE | High reputation |
+| `test_diamond` | `+919876540004` | Diamond | 1.8 | ACTIVE | Elite reputation |
+| `test_legend` | `+919876540005` | Legend | 2.0 | ACTIVE | Top reputation |
+| `test_flagged` | `+919876540006` | Silver | 1.0 | FLAGGED_BOOSTING | Gaming detected |
+| `test_suspended` | `+919876540007` | Bronze | 0.5 | SUSPENDED | Severe violation |
 
 ### API Base URLs
 

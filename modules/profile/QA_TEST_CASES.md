@@ -88,7 +88,7 @@
 - Test user credentials (10 test accounts)
 
 **Tools:**
-- Postman/Invoke-WebRequest for API testing
+- Postman/curl for API testing
 - Jest for unit/integration tests
 - Cypress for E2E mobile tests
 - JMeter/k6 for load testing
@@ -2288,62 +2288,69 @@ describe('ProfileService', () => {
 
 ---
 
-### 10.2 Postman/Invoke-WebRequest Collection
+### 10.2 curl API Test Scripts
 
-**PowerShell Script:**
+**Shell Script:**
 
-```powershell
+```bash
 # Profile Module API Tests
 
-$baseUrl = "https://api-staging.chefooz.com/api"
-$jwt = "<JWT_TOKEN>"
+BASE_URL="https://api-staging.chefooz.com/api"
+
+# --- Obtain JWT via OTP auth ---
+# Step 1: Request OTP
+REQUEST_ID=$(curl -s -X POST "$BASE_URL/v1/auth/v2/send-otp" \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "+919876543210"}' | jq -r '.data.requestId')
+
+# Step 2: Verify OTP (enter OTP received via WhatsApp/SMS)
+JWT=$(curl -s -X POST "$BASE_URL/v1/auth/v2/verify-otp" \
+  -H "Content-Type: application/json" \
+  -d "{\"requestId\": \"$REQUEST_ID\", \"otp\": \"<OTP_FROM_WHATSAPP_OR_SMS>\"}" \
+  | jq -r '.data.accessToken')
+
+echo "JWT Token: $JWT"
 
 # TC-PROFILE-001: Get Own Profile
-Write-Host "Running TC-PROFILE-001: Get Own Profile"
-$response = Invoke-WebRequest -Uri "$baseUrl/v1/profile/me" `
-  -Method GET `
-  -Headers @{ Authorization = "Bearer $jwt" }
-
-if ($response.StatusCode -eq 200) {
-  Write-Host "✅ PASS: Status 200 OK"
-  $data = ($response.Content | ConvertFrom-Json).data
-  Write-Host "Username: $($data.username)"
-  Write-Host "Followers: $($data.followersCount)"
-} else {
-  Write-Host "❌ FAIL: Expected 200, got $($response.StatusCode)"
-}
+echo "Running TC-PROFILE-001: Get Own Profile"
+RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$BASE_URL/v1/profile/me" \
+  -H "Authorization: Bearer $JWT")
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+BODY=$(echo "$RESPONSE" | head -1)
+if [ "$HTTP_CODE" -eq 200 ]; then
+  echo "✅ PASS: Status 200 OK"
+  echo "Username: $(echo $BODY | jq -r '.data.username')"
+  echo "Followers: $(echo $BODY | jq -r '.data.followersCount')"
+else
+  echo "❌ FAIL: Expected 200, got $HTTP_CODE"
+fi
 
 # TC-PROFILE-002: Update Profile
-Write-Host "`nRunning TC-PROFILE-002: Update Profile"
-$body = @{
-  bio = "Updated bio from PowerShell"
-  location = "Mumbai, India"
-} | ConvertTo-Json
-
-$response = Invoke-WebRequest -Uri "$baseUrl/v1/profile/me" `
-  -Method PATCH `
-  -Headers @{ Authorization = "Bearer $jwt"; "Content-Type" = "application/json" } `
-  -Body $body
-
-if ($response.StatusCode -eq 200) {
-  Write-Host "✅ PASS: Profile updated"
-} else {
-  Write-Host "❌ FAIL: Update failed"
-}
+echo ""
+echo "Running TC-PROFILE-002: Update Profile"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH "$BASE_URL/v1/profile/me" \
+  -H "Authorization: Bearer $JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"bio": "Updated bio from curl", "location": "Mumbai, India"}')
+if [ "$HTTP_CODE" -eq 200 ]; then
+  echo "✅ PASS: Profile updated"
+else
+  echo "❌ FAIL: Update failed ($HTTP_CODE)"
+fi
 
 # TC-PROFILE-007: Username Availability Check
-Write-Host "`nRunning TC-PROFILE-007: Username Check"
-$response = Invoke-WebRequest -Uri "$baseUrl/v1/profile/username-check?username=unique_test_123" `
-  -Method GET
+echo ""
+echo "Running TC-PROFILE-007: Username Check"
+BODY=$(curl -s -X GET "$BASE_URL/v1/profile/username-check?username=unique_test_123")
+AVAILABLE=$(echo $BODY | jq -r '.data.available')
+if [ "$AVAILABLE" = "true" ]; then
+  echo "✅ PASS: Username available"
+else
+  echo "❌ FAIL: Username taken or error"
+fi
 
-$data = ($response.Content | ConvertFrom-Json).data
-if ($data.available -eq $true) {
-  Write-Host "✅ PASS: Username available"
-} else {
-  Write-Host "❌ FAIL: Username taken or error"
-}
-
-Write-Host "`n=== Test Suite Complete ==="
+echo ""
+echo "=== Test Suite Complete ==="
 ```
 
 ---

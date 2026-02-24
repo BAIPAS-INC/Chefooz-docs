@@ -37,11 +37,28 @@
 
 **Test Data:**
 
+> ⚠️ **Chefooz uses OTP-only authentication (no passwords)**. Login via mobile phone number + OTP sent via WhatsApp (primary) or Twilio SMS (fallback). Use the `/api/v1/auth/v2/send-otp` → `/api/v1/auth/v2/verify-otp` flow to obtain a JWT token before running tests.
+
+**OTP Auth Flow (curl):**
+```bash
+# Step 1: Request OTP
+curl -s -X POST https://api-staging.chefooz.com/api/v1/auth/v2/send-otp \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "+919876543210"}' | jq '.data.requestId'
+
+# Step 2: Verify OTP
+curl -s -X POST https://api-staging.chefooz.com/api/v1/auth/v2/verify-otp \
+  -H "Content-Type: application/json" \
+  -d '{"requestId": "<REQUEST_ID>", "otp": "<OTP_FROM_WHATSAPP_OR_SMS>"}' | jq '.data.accessToken'
+
+export JWT_TOKEN="<ACCESS_TOKEN_FROM_ABOVE>"
+```
+
 | Entity | Test Data |
 |--------|-----------|
-| **Test User 1** | `test-customer-1@chefooz.com` (2 saved addresses) |
-| **Test User 2** | `test-customer-2@chefooz.com` (no addresses) |
-| **Test Chef** | `test-chef-1@chefooz.com` (5 active menu items) |
+| **Test User 1** | Phone: `+919876543210` (2 saved addresses) |
+| **Test User 2** | Phone: `+919876543211` (no addresses) |
+| **Test Chef** | Phone: `+919876543212` (5 active menu items) |
 | **Test Address 1** | 3 km from chef (within base fee range) |
 | **Test Address 2** | 8 km from chef (distance surcharge applies) |
 | **Test Address 3** | 16 km from chef (exceeds 15 km limit) |
@@ -50,8 +67,7 @@
 
 | Tool | Purpose |
 |------|---------|
-| **Postman** | API endpoint testing |
-| **PowerShell** | Windows API scripting (Invoke-WebRequest) |
+| **Postman / curl** | API endpoint testing |
 | **Detox** | React Native E2E testing |
 | **Jest** | Unit tests |
 | **Artillery** | Load testing |
@@ -814,13 +830,12 @@ curl https://api.razorpay.com/v1/orders/order_Mkl1234567890 \
 
 **API Test:**
 
-```powershell
+```bash
 # Invalid format
-Invoke-WebRequest -Method POST `
-  -Uri "https://api.chefooz.com/v1/orders/checkout" `
-  -Headers @{ "Authorization" = "Bearer $token" } `
-  -Body '{"orderId": "invalid", "addressId": "addr-1"}' `
-  -ContentType "application/json"
+curl -s -X POST https://api-staging.chefooz.com/api/v1/orders/checkout \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": "invalid", "addressId": "addr-1"}'
 
 # Expected: 400 Bad Request
 ```
@@ -860,13 +875,12 @@ Invoke-WebRequest -Method POST `
 
 **API Test:**
 
-```powershell
+```bash
 # Attempt to checkout already-paid order
-Invoke-WebRequest -Method POST `
-  -Uri "https://api.chefooz.com/v1/orders/checkout" `
-  -Headers @{ "Authorization" = "Bearer $token" } `
-  -Body '{"orderId": "paid-order-id", "addressId": "addr-1"}' `
-  -ContentType "application/json"
+curl -s -X POST https://api-staging.chefooz.com/api/v1/orders/checkout \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": "paid-order-id", "addressId": "addr-1"}'
 
 # Expected: 403 Forbidden
 ```

@@ -33,7 +33,8 @@ Production: https://api.chefooz.com
 ### Test Users
 
 **Customer 1 (Bronze Tier, 2 Orders)**:
-```powershell
+```bash
+
 $customer1Token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 $customer1Id = "customer1-uuid-123"
 # CRS: Bronze tier, 2 completed orders
@@ -41,7 +42,8 @@ $customer1Id = "customer1-uuid-123"
 ```
 
 **Customer 2 (Gold Tier, 32 Orders)**:
-```powershell
+```bash
+
 $customer2Token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 $customer2Id = "customer2-uuid-456"
 # CRS: Gold tier, 32 completed orders
@@ -49,7 +51,8 @@ $customer2Id = "customer2-uuid-456"
 ```
 
 **Customer 3 (Silver Tier, 15 Orders)**:
-```powershell
+```bash
+
 $customer3Token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 $customer3Id = "customer3-uuid-789"
 # CRS: Silver tier, 15 completed orders
@@ -57,14 +60,16 @@ $customer3Id = "customer3-uuid-789"
 ```
 
 **Admin User**:
-```powershell
+```bash
+
 $adminToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 $adminId = "admin-uuid-999"
 # Role: admin (weight audit access)
 ```
 
 ### Test Headers
-```powershell
+```bash
+
 $headers = @{
     "Authorization" = "Bearer $customer1Token"
     "Content-Type" = "application/json"
@@ -197,7 +202,8 @@ VALUES (
 - No existing review for test-order-001 by Customer1
 
 **Test Steps**:
-```powershell
+```bash
+
 # Step 1: Submit review
 $body = @{
     orderItemId = "test-order-001"
@@ -208,17 +214,15 @@ $body = @{
     comment = "Absolutely delicious! The butter chicken was perfectly spiced."
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
         "Authorization" = "Bearer $customer1Token"
         "Content-Type" = "application/json"
-    } `
-    -Body $body
+    }  -Body $body
 
 # Step 2: Parse response
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Results**:
@@ -236,12 +240,13 @@ $data = ($response.Content | ConvertFrom-Json).data
 ```
 
 **Validation Checks**:
-```powershell
+```bash
+
 # Check 1: HTTP status 201 Created
 if ($response.StatusCode -ne 201) {
-    Write-Host "❌ FAIL: Expected 201, got $($response.StatusCode)"
+    echo "❌ FAIL: Expected 201, got $($response.StatusCode)"
 } else {
-    Write-Host "✅ PASS: Status 201 Created"
+    echo "✅ PASS: Status 201 Created"
 }
 
 # Check 2: Review saved in database
@@ -250,38 +255,38 @@ $dbReview = Invoke-Sqlcmd -Query "SELECT * FROM order_reviews WHERE order_item_i
 # Check 2a: Overall rating calculation (5*0.4 + 5*0.3 + 4*0.2 + 4*0.1 = 4.7)
 $expectedOverall = 4.7
 if ([Math]::Abs($dbReview.overall - $expectedOverall) -lt 0.01) {
-    Write-Host "✅ PASS: Overall rating = $($dbReview.overall) (expected $expectedOverall)"
+    echo "✅ PASS: Overall rating = $($dbReview.overall) (expected $expectedOverall)"
 } else {
-    Write-Host "❌ FAIL: Overall rating = $($dbReview.overall), expected $expectedOverall"
+    echo "❌ FAIL: Overall rating = $($dbReview.overall), expected $expectedOverall"
 }
 
 # Check 2b: Reputation weight = 1.0 (Bronze tier, <3 orders)
 if ($dbReview.reputation_weight -eq 1.0) {
-    Write-Host "✅ PASS: Reputation weight = 1.0 (Bronze tier, <3 orders)"
+    echo "✅ PASS: Reputation weight = 1.0 (Bronze tier, <3 orders)"
 } else {
-    Write-Host "❌ FAIL: Reputation weight = $($dbReview.reputation_weight), expected 1.0"
+    echo "❌ FAIL: Reputation weight = $($dbReview.reputation_weight), expected 1.0"
 }
 
 # Check 2c: Weighted rating = overall * weight (4.7 * 1.0 = 4.7)
 $expectedWeighted = 4.7
 if ([Math]::Abs($dbReview.weighted_rating - $expectedWeighted) -lt 0.01) {
-    Write-Host "✅ PASS: Weighted rating = $($dbReview.weighted_rating) (expected $expectedWeighted)"
+    echo "✅ PASS: Weighted rating = $($dbReview.weighted_rating) (expected $expectedWeighted)"
 } else {
-    Write-Host "❌ FAIL: Weighted rating = $($dbReview.weighted_rating), expected $expectedWeighted"
+    echo "❌ FAIL: Weighted rating = $($dbReview.weighted_rating), expected $expectedWeighted"
 }
 
 # Check 3: Reel upload eligibility
 if ($data.uploadReelEligible -eq $true) {
-    Write-Host "✅ PASS: Upload reel eligible = true"
+    echo "✅ PASS: Upload reel eligible = true"
 } else {
-    Write-Host "❌ FAIL: Upload reel eligible = $($data.uploadReelEligible), expected true"
+    echo "❌ FAIL: Upload reel eligible = $($data.uploadReelEligible), expected true"
 }
 
 # Check 4: Suggested caption includes dish name
 if ($data.suggestedCaption -like "*Butter Chicken*") {
-    Write-Host "✅ PASS: Suggested caption includes dish name"
+    echo "✅ PASS: Suggested caption includes dish name"
 } else {
-    Write-Host "❌ FAIL: Suggested caption = '$($data.suggestedCaption)'"
+    echo "❌ FAIL: Suggested caption = '$($data.suggestedCaption)'"
 }
 ```
 
@@ -299,7 +304,8 @@ if ($data.suggestedCaption -like "*Butter Chicken*") {
 - No existing review for test-order-002 by Customer2
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     orderItemId = "test-order-002"
     taste = 4
@@ -309,14 +315,12 @@ $body = @{
     comment = "Good biryani but delivery was slow."
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
         "Authorization" = "Bearer $customer2Token"
         "Content-Type" = "application/json"
-    } `
-    -Body $body
+    }  -Body $body
 ```
 
 **Expected Results**:
@@ -334,30 +338,31 @@ $response = Invoke-WebRequest `
 ```
 
 **Validation Checks**:
-```powershell
+```bash
+
 $dbReview = Invoke-Sqlcmd -Query "SELECT * FROM order_reviews WHERE order_item_id='test-order-002'"
 
 # Check 1: Overall rating (4*0.4 + 5*0.3 + 4*0.2 + 3*0.1 = 4.0)
 $expectedOverall = 4.0
 if ([Math]::Abs($dbReview.overall - $expectedOverall) -lt 0.01) {
-    Write-Host "✅ PASS: Overall rating = $($dbReview.overall)"
+    echo "✅ PASS: Overall rating = $($dbReview.overall)"
 } else {
-    Write-Host "❌ FAIL: Overall rating = $($dbReview.overall), expected $expectedOverall"
+    echo "❌ FAIL: Overall rating = $($dbReview.overall), expected $expectedOverall"
 }
 
 # Check 2: Reputation weight = 1.15 (Gold tier, 32 orders)
 if ([Math]::Abs($dbReview.reputation_weight - 1.15) -lt 0.01) {
-    Write-Host "✅ PASS: Reputation weight = 1.15 (Gold tier)"
+    echo "✅ PASS: Reputation weight = 1.15 (Gold tier)"
 } else {
-    Write-Host "❌ FAIL: Reputation weight = $($dbReview.reputation_weight), expected 1.15"
+    echo "❌ FAIL: Reputation weight = $($dbReview.reputation_weight), expected 1.15"
 }
 
 # Check 3: Weighted rating = 4.0 * 1.15 = 4.6
 $expectedWeighted = 4.6
 if ([Math]::Abs($dbReview.weighted_rating - $expectedWeighted) -lt 0.01) {
-    Write-Host "✅ PASS: Weighted rating = $($dbReview.weighted_rating) (4.0 * 1.15 = 4.6)"
+    echo "✅ PASS: Weighted rating = $($dbReview.weighted_rating) (4.0 * 1.15 = 4.6)"
 } else {
-    Write-Host "❌ FAIL: Weighted rating = $($dbReview.weighted_rating), expected $expectedWeighted"
+    echo "❌ FAIL: Weighted rating = $($dbReview.weighted_rating), expected $expectedWeighted"
 }
 ```
 
@@ -370,7 +375,8 @@ if ([Math]::Abs($dbReview.weighted_rating - $expectedWeighted) -lt 0.01) {
 **Objective**: Verify review submission succeeds with null comment field
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     orderItemId = "test-order-001"
     taste = 5
@@ -380,14 +386,12 @@ $body = @{
     # comment field omitted (optional)
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
         "Authorization" = "Bearer $customer1Token"
         "Content-Type" = "application/json"
-    } `
-    -Body $body
+    }  -Body $body
 ```
 
 **Expected Results**:
@@ -396,19 +400,20 @@ $response = Invoke-WebRequest `
 - Overall rating = 5.0 (all 5-star dimensions)
 
 **Validation Checks**:
-```powershell
+```bash
+
 $dbReview = Invoke-Sqlcmd -Query "SELECT * FROM order_reviews WHERE order_item_id='test-order-001' AND user_id='customer1-uuid-123'"
 
 if ($dbReview.comment -eq $null) {
-    Write-Host "✅ PASS: Comment is NULL (optional field)"
+    echo "✅ PASS: Comment is NULL (optional field)"
 } else {
-    Write-Host "❌ FAIL: Comment = '$($dbReview.comment)', expected NULL"
+    echo "❌ FAIL: Comment = '$($dbReview.comment)', expected NULL"
 }
 
 if ($dbReview.overall -eq 5.0) {
-    Write-Host "✅ PASS: Overall rating = 5.0"
+    echo "✅ PASS: Overall rating = 5.0"
 } else {
-    Write-Host "❌ FAIL: Overall rating = $($dbReview.overall), expected 5.0"
+    echo "❌ FAIL: Overall rating = $($dbReview.overall), expected 5.0"
 }
 ```
 
@@ -419,7 +424,8 @@ if ($dbReview.overall -eq 5.0) {
 **Objective**: Verify 280 character comment limit is enforced
 
 **Test Steps**:
-```powershell
+```bash
+
 # Exactly 280 characters
 $maxComment = "A".PadRight(280, "B")
 
@@ -432,14 +438,12 @@ $body = @{
     comment = $maxComment
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
         "Authorization" = "Bearer $customer1Token"
         "Content-Type" = "application/json"
-    } `
-    -Body $body
+    }  -Body $body
 ```
 
 **Expected Results**:
@@ -447,13 +451,14 @@ $response = Invoke-WebRequest `
 - Comment saved successfully (280 chars exactly)
 
 **Validation Checks**:
-```powershell
+```bash
+
 $dbReview = Invoke-Sqlcmd -Query "SELECT * FROM order_reviews WHERE order_item_id='test-order-001'"
 
 if ($dbReview.comment.Length -eq 280) {
-    Write-Host "✅ PASS: Comment length = 280 (max allowed)"
+    echo "✅ PASS: Comment length = 280 (max allowed)"
 } else {
-    Write-Host "❌ FAIL: Comment length = $($dbReview.comment.Length), expected 280"
+    echo "❌ FAIL: Comment length = $($dbReview.comment.Length), expected 280"
 }
 ```
 
@@ -466,7 +471,8 @@ if ($dbReview.comment.Length -eq 280) {
 **Objective**: Verify 404 error when orderItemId doesn't exist
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     orderItemId = "non-existent-order-uuid"
     taste = 5
@@ -476,30 +482,28 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-WebRequest `
-        -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-        -Method POST `
-        -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
             "Authorization" = "Bearer $customer1Token"
             "Content-Type" = "application/json"
-        } `
-        -Body $body
-    Write-Host "❌ FAIL: Expected 404 error, got 201"
+        }  -Body $body
+    echo "❌ FAIL: Expected 404 error, got 201"
 } catch {
     $error = $_.Exception.Response
     $statusCode = $error.StatusCode.value__
-    $errorBody = $_.ErrorDetails.Message | ConvertFrom-Json
+    $errorBody = $_.ErrorDetails.Message | jq .
     
     if ($statusCode -eq 404) {
-        Write-Host "✅ PASS: Status 404 Not Found"
+        echo "✅ PASS: Status 404 Not Found"
     } else {
-        Write-Host "❌ FAIL: Expected 404, got $statusCode"
+        echo "❌ FAIL: Expected 404, got $statusCode"
     }
     
     if ($errorBody.errorCode -eq "ORDER_NOT_FOUND") {
-        Write-Host "✅ PASS: Error code = ORDER_NOT_FOUND"
+        echo "✅ PASS: Error code = ORDER_NOT_FOUND"
     } else {
-        Write-Host "❌ FAIL: Error code = $($errorBody.errorCode), expected ORDER_NOT_FOUND"
+        echo "❌ FAIL: Error code = $($errorBody.errorCode), expected ORDER_NOT_FOUND"
     }
 }
 ```
@@ -523,7 +527,8 @@ try {
 - Order test-order-003 has deliveryStatus = 'PICKED_UP' (not delivered yet)
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     orderItemId = "test-order-003"
     taste = 5
@@ -533,29 +538,27 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-WebRequest `
-        -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-        -Method POST `
-        -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
             "Authorization" = "Bearer $customer1Token"
             "Content-Type" = "application/json"
-        } `
-        -Body $body
-    Write-Host "❌ FAIL: Expected 400 error, got 201"
+        }  -Body $body
+    echo "❌ FAIL: Expected 400 error, got 201"
 } catch {
     $statusCode = $_.Exception.Response.StatusCode.value__
-    $errorBody = $_.ErrorDetails.Message | ConvertFrom-Json
+    $errorBody = $_.ErrorDetails.Message | jq .
     
     if ($statusCode -eq 400) {
-        Write-Host "✅ PASS: Status 400 Bad Request"
+        echo "✅ PASS: Status 400 Bad Request"
     } else {
-        Write-Host "❌ FAIL: Expected 400, got $statusCode"
+        echo "❌ FAIL: Expected 400, got $statusCode"
     }
     
     if ($errorBody.errorCode -eq "ORDER_NOT_DELIVERED") {
-        Write-Host "✅ PASS: Error code = ORDER_NOT_DELIVERED"
+        echo "✅ PASS: Error code = ORDER_NOT_DELIVERED"
     } else {
-        Write-Host "❌ FAIL: Error code = $($errorBody.errorCode)"
+        echo "❌ FAIL: Error code = $($errorBody.errorCode)"
     }
 }
 ```
@@ -580,7 +583,8 @@ try {
 - Customer1 attempts to review it
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     orderItemId = "test-order-004"
     taste = 5
@@ -590,29 +594,27 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-WebRequest `
-        -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-        -Method POST `
-        -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
             "Authorization" = "Bearer $customer1Token" # Customer1 token
             "Content-Type" = "application/json"
-        } `
-        -Body $body
-    Write-Host "❌ FAIL: Expected 403 error, got 201"
+        }  -Body $body
+    echo "❌ FAIL: Expected 403 error, got 201"
 } catch {
     $statusCode = $_.Exception.Response.StatusCode.value__
-    $errorBody = $_.ErrorDetails.Message | ConvertFrom-Json
+    $errorBody = $_.ErrorDetails.Message | jq .
     
     if ($statusCode -eq 403) {
-        Write-Host "✅ PASS: Status 403 Forbidden"
+        echo "✅ PASS: Status 403 Forbidden"
     } else {
-        Write-Host "❌ FAIL: Expected 403, got $statusCode"
+        echo "❌ FAIL: Expected 403, got $statusCode"
     }
     
     if ($errorBody.errorCode -eq "REVIEW_NOT_AUTHORIZED") {
-        Write-Host "✅ PASS: Error code = REVIEW_NOT_AUTHORIZED"
+        echo "✅ PASS: Error code = REVIEW_NOT_AUTHORIZED"
     } else {
-        Write-Host "❌ FAIL: Error code = $($errorBody.errorCode)"
+        echo "❌ FAIL: Error code = $($errorBody.errorCode)"
     }
 }
 ```
@@ -636,7 +638,8 @@ try {
 - Customer1 has already submitted review for test-order-001 (from TC-RS-001)
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     orderItemId = "test-order-001"
     taste = 4
@@ -647,29 +650,27 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-WebRequest `
-        -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-        -Method POST `
-        -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
             "Authorization" = "Bearer $customer1Token"
             "Content-Type" = "application/json"
-        } `
-        -Body $body
-    Write-Host "❌ FAIL: Expected 409 error, got 201"
+        }  -Body $body
+    echo "❌ FAIL: Expected 409 error, got 201"
 } catch {
     $statusCode = $_.Exception.Response.StatusCode.value__
-    $errorBody = $_.ErrorDetails.Message | ConvertFrom-Json
+    $errorBody = $_.ErrorDetails.Message | jq .
     
     if ($statusCode -eq 409) {
-        Write-Host "✅ PASS: Status 409 Conflict"
+        echo "✅ PASS: Status 409 Conflict"
     } else {
-        Write-Host "❌ FAIL: Expected 409, got $statusCode"
+        echo "❌ FAIL: Expected 409, got $statusCode"
     }
     
     if ($errorBody.errorCode -eq "REVIEW_ALREADY_EXISTS") {
-        Write-Host "✅ PASS: Error code = REVIEW_ALREADY_EXISTS"
+        echo "✅ PASS: Error code = REVIEW_ALREADY_EXISTS"
     } else {
-        Write-Host "❌ FAIL: Error code = $($errorBody.errorCode)"
+        echo "❌ FAIL: Error code = $($errorBody.errorCode)"
     }
 }
 ```
@@ -690,7 +691,8 @@ try {
 **Objective**: Verify 400 validation error when ratings are out of range (1-5)
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     orderItemId = "test-order-001"
     taste = 6      # Invalid: > 5
@@ -700,31 +702,29 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-WebRequest `
-        -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-        -Method POST `
-        -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
             "Authorization" = "Bearer $customer1Token"
             "Content-Type" = "application/json"
-        } `
-        -Body $body
-    Write-Host "❌ FAIL: Expected 400 error, got 201"
+        }  -Body $body
+    echo "❌ FAIL: Expected 400 error, got 201"
 } catch {
     $statusCode = $_.Exception.Response.StatusCode.value__
-    $errorBody = $_.ErrorDetails.Message | ConvertFrom-Json
+    $errorBody = $_.ErrorDetails.Message | jq .
     
     if ($statusCode -eq 400) {
-        Write-Host "✅ PASS: Status 400 Bad Request"
+        echo "✅ PASS: Status 400 Bad Request"
     } else {
-        Write-Host "❌ FAIL: Expected 400, got $statusCode"
+        echo "❌ FAIL: Expected 400, got $statusCode"
     }
     
     # Check validation error messages
     $messages = $errorBody.message -join ", "
     if ($messages -like "*taste must not be greater than 5*" -and $messages -like "*hygiene must not be less than 1*") {
-        Write-Host "✅ PASS: Validation errors present"
+        echo "✅ PASS: Validation errors present"
     } else {
-        Write-Host "❌ FAIL: Validation errors = $messages"
+        echo "❌ FAIL: Validation errors = $messages"
     }
 }
 ```
@@ -748,7 +748,8 @@ try {
 **Objective**: Verify 400 error when comment exceeds 280 characters
 
 **Test Steps**:
-```powershell
+```bash
+
 # 300 characters (20 over limit)
 $longComment = "A".PadRight(300, "B")
 
@@ -762,30 +763,28 @@ $body = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-WebRequest `
-        -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-        -Method POST `
-        -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
             "Authorization" = "Bearer $customer1Token"
             "Content-Type" = "application/json"
-        } `
-        -Body $body
-    Write-Host "❌ FAIL: Expected 400 error, got 201"
+        }  -Body $body
+    echo "❌ FAIL: Expected 400 error, got 201"
 } catch {
     $statusCode = $_.Exception.Response.StatusCode.value__
-    $errorBody = $_.ErrorDetails.Message | ConvertFrom-Json
+    $errorBody = $_.ErrorDetails.Message | jq .
     
     if ($statusCode -eq 400) {
-        Write-Host "✅ PASS: Status 400 Bad Request"
+        echo "✅ PASS: Status 400 Bad Request"
     } else {
-        Write-Host "❌ FAIL: Expected 400, got $statusCode"
+        echo "❌ FAIL: Expected 400, got $statusCode"
     }
     
     $messages = $errorBody.message -join ", "
     if ($messages -like "*cannot exceed 280 characters*") {
-        Write-Host "✅ PASS: Comment length validation error"
+        echo "✅ PASS: Comment length validation error"
     } else {
-        Write-Host "❌ FAIL: Validation error = $messages"
+        echo "❌ FAIL: Validation error = $messages"
     }
 }
 ```
@@ -816,15 +815,15 @@ try {
   3. Customer3 (Silver, 1.05x): taste=5, hygiene=4, portion=5, delivery=5 (overall=4.8)
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews/dish/product-butter-chicken-uuid" `
-    -Method GET `
-    -Headers @{
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://dev-api.chefooz.com/api/v1/reviews/dish/product-butter-chicken-uuid")
         "Authorization" = "Bearer $customer1Token"
     }
 
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Results**:
@@ -856,35 +855,36 @@ $data = ($response.Content | ConvertFrom-Json).data
 ```
 
 **Validation Checks**:
-```powershell
+```bash
+
 # Check 1: Raw average taste
 $expectedTaste = 4.67
 if ([Math]::Abs($data.averages.taste - $expectedTaste) -lt 0.01) {
-    Write-Host "✅ PASS: Taste average = $($data.averages.taste)"
+    echo "✅ PASS: Taste average = $($data.averages.taste)"
 } else {
-    Write-Host "❌ FAIL: Taste average = $($data.averages.taste), expected $expectedTaste"
+    echo "❌ FAIL: Taste average = $($data.averages.taste), expected $expectedTaste"
 }
 
 # Check 2: Weighted average > raw average (Gold/Silver reviews pulled up)
 if ($data.weightedAverages.overall -gt $data.averages.overall) {
-    Write-Host "✅ PASS: Weighted avg ($($data.weightedAverages.overall)) > raw avg ($($data.averages.overall))"
+    echo "✅ PASS: Weighted avg ($($data.weightedAverages.overall)) > raw avg ($($data.averages.overall))"
 } else {
-    Write-Host "❌ FAIL: Weighted avg should be higher than raw avg"
+    echo "❌ FAIL: Weighted avg should be higher than raw avg"
 }
 
 # Check 3: Distribution totals match totalReviews
 $distributionSum = $data.distribution.'1' + $data.distribution.'2' + $data.distribution.'3' + $data.distribution.'4' + $data.distribution.'5'
 if ($distributionSum -eq $data.totalReviews) {
-    Write-Host "✅ PASS: Distribution sum = $distributionSum matches totalReviews = $($data.totalReviews)"
+    echo "✅ PASS: Distribution sum = $distributionSum matches totalReviews = $($data.totalReviews)"
 } else {
-    Write-Host "❌ FAIL: Distribution sum = $distributionSum, expected $($data.totalReviews)"
+    echo "❌ FAIL: Distribution sum = $distributionSum, expected $($data.totalReviews)"
 }
 
 # Check 4: Total reviews count
 if ($data.totalReviews -eq 3) {
-    Write-Host "✅ PASS: Total reviews = 3"
+    echo "✅ PASS: Total reviews = 3"
 } else {
-    Write-Host "❌ FAIL: Total reviews = $($data.totalReviews), expected 3"
+    echo "❌ FAIL: Total reviews = $($data.totalReviews), expected 3"
 }
 ```
 
@@ -897,15 +897,15 @@ if ($data.totalReviews -eq 3) {
 **Objective**: Verify zero aggregates returned for dish with no reviews
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews/dish/product-no-reviews-uuid" `
-    -Method GET `
-    -Headers @{
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://dev-api.chefooz.com/api/v1/reviews/dish/product-no-reviews-uuid")
         "Authorization" = "Bearer $customer1Token"
     }
 
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Results**:
@@ -937,11 +937,12 @@ $data = ($response.Content | ConvertFrom-Json).data
 ```
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ($data.totalReviews -eq 0 -and $data.averages.overall -eq 0) {
-    Write-Host "✅ PASS: Zero aggregates for dish with no reviews"
+    echo "✅ PASS: Zero aggregates for dish with no reviews"
 } else {
-    Write-Host "❌ FAIL: Expected zero aggregates"
+    echo "❌ FAIL: Expected zero aggregates"
 }
 ```
 
@@ -955,15 +956,15 @@ if ($data.totalReviews -eq 0 -and $data.averages.overall -eq 0) {
 - test-order-001 has 3 reviews submitted at different times
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews/order/test-order-001" `
-    -Method GET `
-    -Headers @{
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://dev-api.chefooz.com/api/v1/reviews/order/test-order-001")
         "Authorization" = "Bearer $customer1Token"
     }
 
-$reviews = ($response.Content | ConvertFrom-Json).data
+$reviews = ($response.Content | jq .).data
 ```
 
 **Expected Results**:
@@ -971,15 +972,16 @@ $reviews = ($response.Content | ConvertFrom-Json).data
 - First review is most recent submission
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ($reviews.Count -gt 1) {
     $firstTimestamp = [datetime]$reviews[0].createdAt
     $secondTimestamp = [datetime]$reviews[1].createdAt
     
     if ($firstTimestamp -gt $secondTimestamp) {
-        Write-Host "✅ PASS: Reviews sorted by date DESC (newest first)"
+        echo "✅ PASS: Reviews sorted by date DESC (newest first)"
     } else {
-        Write-Host "❌ FAIL: Reviews not sorted correctly"
+        echo "❌ FAIL: Reviews not sorted correctly"
     }
 }
 ```
@@ -1008,7 +1010,8 @@ if ($reviews.Count -gt 1) {
 - Customer3 has 15 completed orders (Silver tier)
 
 **Test Steps**:
-```powershell
+```bash
+
 # Submit review as Customer3
 $body = @{
     orderItemId = "test-order-004"
@@ -1018,14 +1021,12 @@ $body = @{
     delivery = 5
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
         "Authorization" = "Bearer $customer3Token"
         "Content-Type" = "application/json"
-    } `
-    -Body $body
+    }  -Body $body
 
 # Check database
 $dbReview = Invoke-Sqlcmd -Query "SELECT * FROM order_reviews WHERE order_item_id='test-order-004'"
@@ -1037,23 +1038,24 @@ $dbReview = Invoke-Sqlcmd -Query "SELECT * FROM order_reviews WHERE order_item_i
 - Weighted rating: 4.5 * 1.05 = 4.725
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ([Math]::Abs($dbReview.overall - 4.5) -lt 0.01) {
-    Write-Host "✅ PASS: Overall = 4.5"
+    echo "✅ PASS: Overall = 4.5"
 } else {
-    Write-Host "❌ FAIL: Overall = $($dbReview.overall), expected 4.5"
+    echo "❌ FAIL: Overall = $($dbReview.overall), expected 4.5"
 }
 
 if ([Math]::Abs($dbReview.reputation_weight - 1.05) -lt 0.01) {
-    Write-Host "✅ PASS: Reputation weight = 1.05 (Silver tier)"
+    echo "✅ PASS: Reputation weight = 1.05 (Silver tier)"
 } else {
-    Write-Host "❌ FAIL: Reputation weight = $($dbReview.reputation_weight), expected 1.05"
+    echo "❌ FAIL: Reputation weight = $($dbReview.reputation_weight), expected 1.05"
 }
 
 if ([Math]::Abs($dbReview.weighted_rating - 4.725) -lt 0.01) {
-    Write-Host "✅ PASS: Weighted rating = 4.725 (4.5 * 1.05)"
+    echo "✅ PASS: Weighted rating = 4.725 (4.5 * 1.05)"
 } else {
-    Write-Host "❌ FAIL: Weighted rating = $($dbReview.weighted_rating), expected 4.725"
+    echo "❌ FAIL: Weighted rating = $($dbReview.weighted_rating), expected 4.725"
 }
 ```
 
@@ -1079,7 +1081,8 @@ if ([Math]::Abs($dbReview.weighted_rating - 4.725) -lt 0.01) {
 - Create test user Customer4 with 65 completed orders (Diamond tier)
 
 **Test Steps**:
-```powershell
+```bash
+
 # Insert Diamond tier user
 Invoke-Sqlcmd -Query @"
 INSERT INTO user_reputation_current (id, user_id, level, score, completed_orders)
@@ -1095,14 +1098,12 @@ $body = @{
     delivery = 4
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
         "Authorization" = "Bearer $customer4Token"
         "Content-Type" = "application/json"
-    } `
-    -Body $body
+    }  -Body $body
 
 # Check database
 $dbReview = Invoke-Sqlcmd -Query "SELECT * FROM order_reviews WHERE order_item_id='test-order-005'"
@@ -1114,17 +1115,18 @@ $dbReview = Invoke-Sqlcmd -Query "SELECT * FROM order_reviews WHERE order_item_i
 - Weighted rating: 4.9 * 1.20 = 5.88
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ([Math]::Abs($dbReview.reputation_weight - 1.20) -lt 0.01) {
-    Write-Host "✅ PASS: Reputation weight = 1.20 (Diamond tier)"
+    echo "✅ PASS: Reputation weight = 1.20 (Diamond tier)"
 } else {
-    Write-Host "❌ FAIL: Reputation weight = $($dbReview.reputation_weight), expected 1.20"
+    echo "❌ FAIL: Reputation weight = $($dbReview.reputation_weight), expected 1.20"
 }
 
 if ([Math]::Abs($dbReview.weighted_rating - 5.88) -lt 0.01) {
-    Write-Host "✅ PASS: Weighted rating = 5.88 (4.9 * 1.20)"
+    echo "✅ PASS: Weighted rating = 5.88 (4.9 * 1.20)"
 } else {
-    Write-Host "❌ FAIL: Weighted rating = $($dbReview.weighted_rating), expected 5.88"
+    echo "❌ FAIL: Weighted rating = $($dbReview.weighted_rating), expected 5.88"
 }
 ```
 
@@ -1138,7 +1140,8 @@ if ([Math]::Abs($dbReview.weighted_rating - 5.88) -lt 0.01) {
 - Create test user Customer5 with 120 completed orders (Legend tier)
 
 **Test Steps**:
-```powershell
+```bash
+
 # Insert Legend tier user
 Invoke-Sqlcmd -Query @"
 INSERT INTO user_reputation_current (id, user_id, level, score, completed_orders)
@@ -1154,14 +1157,12 @@ $body = @{
     delivery = 5
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
         "Authorization" = "Bearer $customer5Token"
         "Content-Type" = "application/json"
-    } `
-    -Body $body
+    }  -Body $body
 
 # Check database
 $dbReview = Invoke-Sqlcmd -Query "SELECT * FROM order_reviews WHERE order_item_id='test-order-006'"
@@ -1173,17 +1174,18 @@ $dbReview = Invoke-Sqlcmd -Query "SELECT * FROM order_reviews WHERE order_item_i
 - Weighted rating: 5.0 * 1.25 = 6.25 (theoretical max)
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ([Math]::Abs($dbReview.reputation_weight - 1.25) -lt 0.01) {
-    Write-Host "✅ PASS: Reputation weight = 1.25 (Legend tier, max multiplier)"
+    echo "✅ PASS: Reputation weight = 1.25 (Legend tier, max multiplier)"
 } else {
-    Write-Host "❌ FAIL: Reputation weight = $($dbReview.reputation_weight), expected 1.25"
+    echo "❌ FAIL: Reputation weight = $($dbReview.reputation_weight), expected 1.25"
 }
 
 if ([Math]::Abs($dbReview.weighted_rating - 6.25) -lt 0.01) {
-    Write-Host "✅ PASS: Weighted rating = 6.25 (5.0 * 1.25, theoretical max)"
+    echo "✅ PASS: Weighted rating = 6.25 (5.0 * 1.25, theoretical max)"
 } else {
-    Write-Host "❌ FAIL: Weighted rating = $($dbReview.weighted_rating), expected 6.25"
+    echo "❌ FAIL: Weighted rating = $($dbReview.weighted_rating), expected 6.25"
 }
 ```
 
@@ -1209,7 +1211,8 @@ if ([Math]::Abs($dbReview.weighted_rating - 6.25) -lt 0.01) {
 **Objective**: Verify suggested caption extracts correct dish name from order items
 
 **Test Steps**:
-```powershell
+```bash
+
 # Order with multiple items
 $order = @{
     items = @(
@@ -1227,16 +1230,14 @@ $body = @{
     delivery = 5
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
         "Authorization" = "Bearer $customer1Token"
         "Content-Type" = "application/json"
-    } `
-    -Body $body
+    }  -Body $body
 
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Caption**:
@@ -1245,12 +1246,13 @@ $data = ($response.Content | ConvertFrom-Json).data
 ```
 
 **Validation Checks**:
-```powershell
+```bash
+
 $expectedCaption = "My review of Butter Chicken — really tasty!"
 if ($data.suggestedCaption -eq $expectedCaption) {
-    Write-Host "✅ PASS: Suggested caption uses first item name"
+    echo "✅ PASS: Suggested caption uses first item name"
 } else {
-    Write-Host "❌ FAIL: Suggested caption = '$($data.suggestedCaption)', expected '$expectedCaption'"
+    echo "❌ FAIL: Suggested caption = '$($data.suggestedCaption)', expected '$expectedCaption'"
 }
 ```
 
@@ -1261,15 +1263,16 @@ if ($data.suggestedCaption -eq $expectedCaption) {
 **Objective**: Verify reel upload can link back to review using reviewId and orderItemId
 
 **Test Steps**:
-```powershell
-# Step 1: Submit review
-$reviewResponse = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{ "Authorization" = "Bearer $customer1Token"; "Content-Type" = "application/json" } `
-    -Body (@{ orderItemId="test-order-001"; taste=5; hygiene=5; portion=5; delivery=5 } | ConvertTo-Json)
+```bash
 
-$reviewData = ($reviewResponse.Content | ConvertFrom-Json).data
+# Step 1: Submit review
+REVIEWRESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews" \
+  -H "Authorization: Bearer $customer1Token" \
+  -H "Content-Type: application/json")
+
+$reviewData = ($reviewResponse.Content | jq .).data
 
 # Step 2: Upload reel (separate API)
 $reelBody = @{
@@ -1281,14 +1284,14 @@ $reelBody = @{
     duration = 28.5
 } | ConvertTo-Json
 
-$reelResponse = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reels" `
-    -Method POST `
-    -Headers @{ "Authorization" = "Bearer $customer1Token"; "Content-Type" = "application/json" } `
-    -Body $reelBody
+REELRESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reels" \
+  -H "Authorization: Bearer $customer1Token" \
+  -H "Content-Type: application/json")
 
 # Verify reel created with review linkage
-$reel = ($reelResponse.Content | ConvertFrom-Json).data
+$reel = ($reelResponse.Content | jq .).data
 ```
 
 **Expected**:
@@ -1297,11 +1300,12 @@ $reel = ($reelResponse.Content | ConvertFrom-Json).data
 - Analytics can track review-to-reel conversion
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ($reel.reviewId -eq $reviewData.reviewId) {
-    Write-Host "✅ PASS: Reel linked to review"
+    echo "✅ PASS: Reel linked to review"
 } else {
-    Write-Host "❌ FAIL: Reel reviewId = $($reel.reviewId), expected $($reviewData.reviewId)"
+    echo "❌ FAIL: Reel reviewId = $($reel.reviewId), expected $($reviewData.reviewId)"
 }
 ```
 
@@ -1317,15 +1321,15 @@ if ($reel.reviewId -eq $reviewData.reviewId) {
 - Customer2 has 32 reviews (Gold tier)
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews/admin/weight-audit?userId=customer2-uuid-456" `
-    -Method GET `
-    -Headers @{
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://dev-api.chefooz.com/api/v1/reviews/admin/weight-audit?userId=customer2-uuid-456")
         "Authorization" = "Bearer $adminToken"
     }
 
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Results**:
@@ -1355,35 +1359,36 @@ $data = ($response.Content | ConvertFrom-Json).data
 ```
 
 **Validation Checks**:
-```powershell
+```bash
+
 # Check 1: Current tier and score
 if ($data.currentTier -eq "gold" -and $data.currentScore -eq 850) {
-    Write-Host "✅ PASS: Current tier = gold, score = 850"
+    echo "✅ PASS: Current tier = gold, score = 850"
 } else {
-    Write-Host "❌ FAIL: Current tier = $($data.currentTier), score = $($data.currentScore)"
+    echo "❌ FAIL: Current tier = $($data.currentTier), score = $($data.currentScore)"
 }
 
 # Check 2: Reviews array limited to 20
 if ($data.reviews.Count -le 20) {
-    Write-Host "✅ PASS: Reviews array limited to $($data.reviews.Count) (max 20)"
+    echo "✅ PASS: Reviews array limited to $($data.reviews.Count) (max 20)"
 } else {
-    Write-Host "❌ FAIL: Reviews array count = $($data.reviews.Count), expected ≤20"
+    echo "❌ FAIL: Reviews array count = $($data.reviews.Count), expected ≤20"
 }
 
 # Check 3: Each review has weight calculation
 $firstReview = $data.reviews[0]
 if ($firstReview.overall -and $firstReview.weightedRating -and $firstReview.reputationWeight) {
-    Write-Host "✅ PASS: Review includes overall, weightedRating, reputationWeight"
+    echo "✅ PASS: Review includes overall, weightedRating, reputationWeight"
 } else {
-    Write-Host "❌ FAIL: Missing weight calculation fields"
+    echo "❌ FAIL: Missing weight calculation fields"
 }
 
 # Check 4: Weighted rating matches calculation (overall * reputationWeight)
 $calculatedWeighted = $firstReview.overall * $firstReview.reputationWeight
 if ([Math]::Abs($firstReview.weightedRating - $calculatedWeighted) -lt 0.01) {
-    Write-Host "✅ PASS: Weighted rating = overall * reputationWeight"
+    echo "✅ PASS: Weighted rating = overall * reputationWeight"
 } else {
-    Write-Host "❌ FAIL: Weighted rating mismatch"
+    echo "❌ FAIL: Weighted rating mismatch"
 }
 ```
 
@@ -1401,15 +1406,15 @@ if ([Math]::Abs($firstReview.weightedRating - $calculatedWeighted) -lt 0.01) {
 - New reviews show Silver tier (1.05x weight)
 
 **Test Steps**:
-```powershell
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews/admin/weight-audit?userId=customer3-uuid-789" `
-    -Method GET `
-    -Headers @{
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://dev-api.chefooz.com/api/v1/reviews/admin/weight-audit?userId=customer3-uuid-789")
         "Authorization" = "Bearer $adminToken"
     }
 
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 ```
 
 **Expected**:
@@ -1418,12 +1423,13 @@ $data = ($response.Content | ConvertFrom-Json).data
 - Note: Current implementation simplifies to show `currentTier` for all reviews (TODO: track historical tier per review)
 
 **Validation Checks**:
-```powershell
+```bash
+
 # Check: Current tier is Silver
 if ($data.currentTier -eq "silver") {
-    Write-Host "✅ PASS: Current tier = silver"
+    echo "✅ PASS: Current tier = silver"
 } else {
-    Write-Host "❌ FAIL: Current tier = $($data.currentTier), expected silver"
+    echo "❌ FAIL: Current tier = $($data.currentTier), expected silver"
 }
 
 # Note: Historical tier tracking is TODO (requires storing tier at review submission time)
@@ -1436,21 +1442,21 @@ if ($data.currentTier -eq "silver") {
 **Objective**: Verify non-admin users cannot access weight audit endpoint
 
 **Test Steps**:
-```powershell
+```bash
+
 try {
-    $response = Invoke-WebRequest `
-        -Uri "https://dev-api.chefooz.com/api/v1/reviews/admin/weight-audit?userId=customer2-uuid-456" `
-        -Method GET `
-        -Headers @{
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://dev-api.chefooz.com/api/v1/reviews/admin/weight-audit?userId=customer2-uuid-456")
             "Authorization" = "Bearer $customer1Token"  # Non-admin token
         }
-    Write-Host "❌ FAIL: Expected 403 Forbidden, got 200"
+    echo "❌ FAIL: Expected 403 Forbidden, got 200"
 } catch {
     $statusCode = $_.Exception.Response.StatusCode.value__
     if ($statusCode -eq 403) {
-        Write-Host "✅ PASS: Status 403 Forbidden (non-admin blocked)"
+        echo "✅ PASS: Status 403 Forbidden (non-admin blocked)"
     } else {
-        Write-Host "❌ FAIL: Expected 403, got $statusCode"
+        echo "❌ FAIL: Expected 403, got $statusCode"
     }
 }
 ```
@@ -1470,7 +1476,8 @@ try {
 **Objective**: Verify review submission completes within 180ms
 
 **Test Steps**:
-```powershell
+```bash
+
 $body = @{
     orderItemId = "test-order-001"
     taste = 5
@@ -1481,14 +1488,12 @@ $body = @{
 
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews")
         "Authorization" = "Bearer $customer1Token"
         "Content-Type" = "application/json"
-    } `
-    -Body $body
+    }  -Body $body
 
 $stopwatch.Stop()
 $elapsed = $stopwatch.ElapsedMilliseconds
@@ -1497,11 +1502,12 @@ $elapsed = $stopwatch.ElapsedMilliseconds
 **Expected**: <180ms
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ($elapsed -lt 180) {
-    Write-Host "✅ PASS: Review submission = ${elapsed}ms (<180ms)"
+    echo "✅ PASS: Review submission = ${elapsed}ms (<180ms)"
 } else {
-    Write-Host "⚠️  WARNING: Review submission = ${elapsed}ms (target <180ms)"
+    echo "⚠️  WARNING: Review submission = ${elapsed}ms (target <180ms)"
 }
 ```
 
@@ -1512,13 +1518,14 @@ if ($elapsed -lt 180) {
 **Objective**: Verify dish aggregates query completes within 150ms
 
 **Test Steps**:
-```powershell
+```bash
+
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews/dish/product-butter-chicken-uuid" `
-    -Method GET `
-    -Headers @{ "Authorization" = "Bearer $customer1Token" }
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://dev-api.chefooz.com/api/v1/reviews/dish/product-butter-chicken-uuid" \
+  -H "Authorization: Bearer $customer1Token")
 
 $stopwatch.Stop()
 $elapsed = $stopwatch.ElapsedMilliseconds
@@ -1527,11 +1534,12 @@ $elapsed = $stopwatch.ElapsedMilliseconds
 **Expected**: <150ms (50 reviews typical)
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ($elapsed -lt 150) {
-    Write-Host "✅ PASS: Dish aggregates = ${elapsed}ms (<150ms)"
+    echo "✅ PASS: Dish aggregates = ${elapsed}ms (<150ms)"
 } else {
-    Write-Host "⚠️  WARNING: Dish aggregates = ${elapsed}ms (target <150ms)"
+    echo "⚠️  WARNING: Dish aggregates = ${elapsed}ms (target <150ms)"
 }
 ```
 
@@ -1542,13 +1550,14 @@ if ($elapsed -lt 150) {
 **Objective**: Verify weight audit query completes within 200ms
 
 **Test Steps**:
-```powershell
+```bash
+
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews/admin/weight-audit?userId=customer2-uuid-456" `
-    -Method GET `
-    -Headers @{ "Authorization" = "Bearer $adminToken" }
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://dev-api.chefooz.com/api/v1/reviews/admin/weight-audit?userId=customer2-uuid-456" \
+  -H "Authorization: Bearer $adminToken")
 
 $stopwatch.Stop()
 $elapsed = $stopwatch.ElapsedMilliseconds
@@ -1557,11 +1566,12 @@ $elapsed = $stopwatch.ElapsedMilliseconds
 **Expected**: <200ms (20 reviews)
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ($elapsed -lt 200) {
-    Write-Host "✅ PASS: Weight audit = ${elapsed}ms (<200ms)"
+    echo "✅ PASS: Weight audit = ${elapsed}ms (<200ms)"
 } else {
-    Write-Host "⚠️  WARNING: Weight audit = ${elapsed}ms (target <200ms)"
+    echo "⚠️  WARNING: Weight audit = ${elapsed}ms (target <200ms)"
 }
 ```
 
@@ -1574,7 +1584,8 @@ if ($elapsed -lt 200) {
 **Objective**: Verify database unique constraint prevents duplicate reviews from concurrent requests
 
 **Test Steps**:
-```powershell
+```bash
+
 # Launch 3 concurrent review submissions for same order
 $jobs = @()
 1..3 | ForEach-Object {
@@ -1589,11 +1600,11 @@ $jobs = @()
         } | ConvertTo-Json
         
         try {
-            Invoke-WebRequest `
-                -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-                -Method POST `
-                -Headers @{ "Authorization" = "Bearer $token"; "Content-Type" = "application/json" } `
-                -Body $body
+curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews" \
+  -H "Authorization: Bearer $token" \
+  -H "Content-Type: application/json"
         } catch {
             $_.Exception.Message
         }
@@ -1609,14 +1620,15 @@ $jobs | Wait-Job | Receive-Job
 - Database constraint prevents duplicate row insertion
 
 **Validation Checks**:
-```powershell
+```bash
+
 # Check database: only 1 review saved
 $reviewCount = (Invoke-Sqlcmd -Query "SELECT COUNT(*) as cnt FROM order_reviews WHERE order_item_id='test-order-001' AND user_id='customer1-uuid-123'").cnt
 
 if ($reviewCount -eq 1) {
-    Write-Host "✅ PASS: Only 1 review saved (duplicate prevented)"
+    echo "✅ PASS: Only 1 review saved (duplicate prevented)"
 } else {
-    Write-Host "❌ FAIL: Review count = $reviewCount, expected 1"
+    echo "❌ FAIL: Review count = $reviewCount, expected 1"
 }
 ```
 
@@ -1630,7 +1642,8 @@ if ($reviewCount -eq 1) {
 - Product has 5 reviews, all with 1-star ratings (taste=1, hygiene=1, portion=1, delivery=1)
 
 **Test Steps**:
-```powershell
+```bash
+
 # Insert 5 low reviews
 1..5 | ForEach-Object {
     Invoke-Sqlcmd -Query @"
@@ -1640,12 +1653,12 @@ if ($reviewCount -eq 1) {
 }
 
 # Query aggregates
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews/dish/product-bad-dish-uuid" `
-    -Method GET `
-    -Headers @{ "Authorization" = "Bearer $customer1Token" }
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://dev-api.chefooz.com/api/v1/reviews/dish/product-bad-dish-uuid" \
+  -H "Authorization: Bearer $customer1Token")
 
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 ```
 
 **Expected**:
@@ -1653,17 +1666,18 @@ $data = ($response.Content | ConvertFrom-Json).data
 - Distribution: `{1: 5, 2: 0, 3: 0, 4: 0, 5: 0}`
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ($data.averages.overall -eq 1.0) {
-    Write-Host "✅ PASS: All 1-star reviews → average = 1.0"
+    echo "✅ PASS: All 1-star reviews → average = 1.0"
 } else {
-    Write-Host "❌ FAIL: Average = $($data.averages.overall), expected 1.0"
+    echo "❌ FAIL: Average = $($data.averages.overall), expected 1.0"
 }
 
 if ($data.distribution.'1' -eq 5 -and $data.distribution.'5' -eq 0) {
-    Write-Host "✅ PASS: Distribution shows 5 one-star reviews"
+    echo "✅ PASS: Distribution shows 5 one-star reviews"
 } else {
-    Write-Host "❌ FAIL: Distribution = $($data.distribution | ConvertTo-Json)"
+    echo "❌ FAIL: Distribution = $($data.distribution | ConvertTo-Json)"
 }
 ```
 
@@ -1677,7 +1691,8 @@ if ($data.distribution.'1' -eq 5 -and $data.distribution.'5' -eq 0) {
 - Order has empty `items` array (edge case, should not happen in production)
 
 **Test Steps**:
-```powershell
+```bash
+
 # Insert order with empty items array
 Invoke-Sqlcmd -Query @"
 INSERT INTO orders (id, user_id, product_id, delivery_status, status, items)
@@ -1693,13 +1708,13 @@ $body = @{
     delivery = 5
 } | ConvertTo-Json
 
-$response = Invoke-WebRequest `
-    -Uri "https://dev-api.chefooz.com/api/v1/reviews" `
-    -Method POST `
-    -Headers @{ "Authorization" = "Bearer $customer1Token"; "Content-Type" = "application/json" } `
-    -Body $body
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://dev-api.chefooz.com/api/v1/reviews" \
+  -H "Authorization: Bearer $customer1Token" \
+  -H "Content-Type: application/json")
 
-$data = ($response.Content | ConvertFrom-Json).data
+$data = ($response.Content | jq .).data
 ```
 
 **Expected Caption**:
@@ -1708,11 +1723,12 @@ $data = ($response.Content | ConvertFrom-Json).data
 ```
 
 **Validation Checks**:
-```powershell
+```bash
+
 if ($data.suggestedCaption -eq "My review of this dish — really tasty!") {
-    Write-Host "✅ PASS: Suggested caption defaults to 'this dish' when no items"
+    echo "✅ PASS: Suggested caption defaults to 'this dish' when no items"
 } else {
-    Write-Host "❌ FAIL: Suggested caption = '$($data.suggestedCaption)'"
+    echo "❌ FAIL: Suggested caption = '$($data.suggestedCaption)'"
 }
 ```
 
@@ -1776,7 +1792,8 @@ if ($data.suggestedCaption -eq "My review of this dish — really tasty!") {
 
 ### PowerShell Script (Master Test Suite)
 
-```powershell
+```bash
+
 # Review Module - Master Test Suite
 # Run all 30 test cases and generate summary report
 
@@ -1792,37 +1809,37 @@ $passCount = 0
 $failCount = 0
 $warningCount = 0
 
-Write-Host "Starting Review Module Test Suite..." -ForegroundColor Cyan
-Write-Host "Base URL: $baseUrl" -ForegroundColor Yellow
-Write-Host ""
+echo "Starting Review Module Test Suite..." -ForegroundColor Cyan
+echo "Base URL: $baseUrl" -ForegroundColor Yellow
+echo ""
 
 # --- Review Submission Tests ---
-Write-Host "=== Review Submission Tests ===" -ForegroundColor Green
+echo "=== Review Submission Tests ===" -ForegroundColor Green
 
 # TC-RS-001: Submit Valid Review (Bronze)
-Write-Host "TC-RS-001: Submit valid review (Bronze tier)..."
+echo "TC-RS-001: Submit valid review (Bronze tier)..."
 # ... (test implementation from above)
 
 # TC-RS-002: Submit Valid Review (Gold)
-Write-Host "TC-RS-002: Submit valid review (Gold tier)..."
+echo "TC-RS-002: Submit valid review (Gold tier)..."
 # ... (test implementation from above)
 
 # ... (continue for all tests)
 
 # --- Test Summary ---
-Write-Host ""
-Write-Host "=== Test Summary ===" -ForegroundColor Cyan
-Write-Host "Total Tests: 30"
-Write-Host "✅ Passed: $passCount" -ForegroundColor Green
-Write-Host "❌ Failed: $failCount" -ForegroundColor Red
-Write-Host "⚠️  Warnings: $warningCount" -ForegroundColor Yellow
+echo ""
+echo "=== Test Summary ===" -ForegroundColor Cyan
+echo "Total Tests: 30"
+echo "✅ Passed: $passCount" -ForegroundColor Green
+echo "❌ Failed: $failCount" -ForegroundColor Red
+echo "⚠️  Warnings: $warningCount" -ForegroundColor Yellow
 
 if ($failCount -eq 0) {
-    Write-Host ""
-    Write-Host "🎉 All tests passed!" -ForegroundColor Green
+    echo ""
+    echo "🎉 All tests passed!" -ForegroundColor Green
 } else {
-    Write-Host ""
-    Write-Host "⚠️  Some tests failed. Review output above." -ForegroundColor Yellow
+    echo ""
+    echo "⚠️  Some tests failed. Review output above." -ForegroundColor Yellow
 }
 ```
 

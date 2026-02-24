@@ -49,11 +49,10 @@ export JWT_SECRET=test_secret_123
 // Seed default flags
 await featureFlagService.initializeDefaults();
 
-// Create test admin user
+// Create test admin user (phone-based, no password)
 const admin = await userRepo.create({
-  email: 'admin@chefooz.com',
+  phone: '+919876543220',
   role: 'admin',
-  password: await bcrypt.hash('password123', 10),
 });
 await userRepo.save(admin);
 

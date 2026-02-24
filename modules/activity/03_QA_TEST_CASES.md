@@ -18,7 +18,8 @@
 ## 🛠️ **Test Environment Setup**
 
 ### **Prerequisites**
-```powershell
+```bash
+
 # 1. Backend running
 cd apps/chefooz-apis
 npm run start:dev
@@ -29,24 +30,25 @@ npm run start:dev
 ```
 
 ### **Test Data Setup**
-```powershell
+```bash
+
 # Create test users
 $user1Token = "eyJhbGciOiJIUzI1NiIsInR..." # Chef A
 $user2Token = "eyJhbGciOiJIUzI1NiIsInR..." # Chef B
 
 # Create test reel (Chef A)
-$reelResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/reels" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user1Token" } `
-  -ContentType "application/json" `
-  -Body (@{
+REELRESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/reels" \
+  -H "Authorization: Bearer $user1Token" \
+  -H "Content-Type: application/json")
     caption = "Test Reel for Activity"
     mediaUrls = @(
       @{ url = "https://example.com/video.mp4"; type = "video" }
     )
   } | ConvertTo-Json)
 
-$reelId = ($reelResponse.Content | ConvertFrom-Json).data.id
+$reelId = ($reelResponse.Content | jq .).data.id
 ```
 
 ---
@@ -58,20 +60,22 @@ $reelId = ($reelResponse.Content | ConvertFrom-Json).data.id
 **Scenario**: User B likes User A's reel → Activity recorded for User A
 
 **Steps**:
-```powershell
+```bash
+
 # Step 1: User B likes User A's reel
-$likeResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/engagements/like" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user2Token" } `
-  -ContentType "application/json" `
-  -Body (@{ reelId = $reelId } | ConvertTo-Json)
+LIKERESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/engagements/like" \
+  -H "Authorization: Bearer $user2Token" \
+  -H "Content-Type: application/json")
 
 # Step 2: User A checks notification feed
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=1" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=1" \
+  -H "Authorization: Bearer $user1Token")
 
-$feed = ($feedResponse.Content | ConvertFrom-Json).data
+$feed = ($feedResponse.Content | jq .).data
 ```
 
 **Expected**:
@@ -110,22 +114,24 @@ $feed = ($feedResponse.Content | ConvertFrom-Json).data
 **Scenario**: User B comments on User A's reel → Activity recorded
 
 **Steps**:
-```powershell
-$commentResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/comments" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user2Token" } `
-  -ContentType "application/json" `
-  -Body (@{
+```bash
+
+COMMENTRESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/comments" \
+  -H "Authorization: Bearer $user2Token" \
+  -H "Content-Type: application/json")
     mediaId = $reelId
     text = "Great recipe! 🍕"
   } | ConvertTo-Json)
 
 # Check User A's feed
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=1" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=1" \
+  -H "Authorization: Bearer $user1Token")
 
-$feed = ($feedResponse.Content | ConvertFrom-Json).data
+$feed = ($feedResponse.Content | jq .).data
 ```
 
 **Expected**:
@@ -156,17 +162,19 @@ $feed = ($feedResponse.Content | ConvertFrom-Json).data
 **Scenario**: User B follows User A → Activity recorded
 
 **Steps**:
-```powershell
-$followResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/follows" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user2Token" } `
-  -ContentType "application/json" `
-  -Body (@{ targetUserId = $user1Id } | ConvertTo-Json)
+```bash
+
+FOLLOWRESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/follows" \
+  -H "Authorization: Bearer $user2Token" \
+  -H "Content-Type: application/json")
 
 # Check User A's feed
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=1" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=1" \
+  -H "Authorization: Bearer $user1Token")
 ```
 
 **Expected**:
@@ -203,13 +211,14 @@ jest.spyOn(activityService, 'createActivity').mockRejectedValue(
 ```
 
 **Steps**:
-```powershell
+```bash
+
 # User B likes reel (should succeed even if activity fails)
-$likeResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/engagements/like" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user2Token" } `
-  -ContentType "application/json" `
-  -Body (@{ reelId = $reelId } | ConvertTo-Json)
+LIKERESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/engagements/like" \
+  -H "Authorization: Bearer $user2Token" \
+  -H "Content-Type: application/json")
 ```
 
 **Expected**:
@@ -226,13 +235,15 @@ $likeResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/e
 **Scenario**: Fetch notification timeline (what others did to you)
 
 **Steps**:
-```powershell
-# User A checks their notification feed
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$feed = ($feedResponse.Content | ConvertFrom-Json).data
+# User A checks their notification feed
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=20" \
+  -H "Authorization: Bearer $user1Token")
+
+$feed = ($feedResponse.Content | jq .).data
 ```
 
 **Expected**:
@@ -262,21 +273,24 @@ $feed = ($feedResponse.Content | ConvertFrom-Json).data
 **Scenario**: Paginate through notification feed using activity ID cursor
 
 **Steps**:
-```powershell
-# Page 1
-$page1 = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=5" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$nextCursor = ($page1.Content | ConvertFrom-Json).data.nextCursor
+# Page 1
+PAGE1=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=5" \
+  -H "Authorization: Bearer $user1Token")
+
+$nextCursor = ($page1.Content | jq .).data.nextCursor
 
 # Page 2
-$page2 = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=5&cursor=$nextCursor" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+PAGE2=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=5&cursor=$nextCursor" \
+  -H "Authorization: Bearer $user1Token")
 
-$items1 = ($page1.Content | ConvertFrom-Json).data.items
-$items2 = ($page2.Content | ConvertFrom-Json).data.items
+$items1 = ($page1.Content | jq .).data.items
+$items2 = ($page2.Content | jq .).data.items
 ```
 
 **Validation**:
@@ -291,13 +305,15 @@ $items2 = ($page2.Content | ConvertFrom-Json).data.items
 **Scenario**: New user with no activities
 
 **Steps**:
-```powershell
+```bash
+
 # Create new user with no social interactions
 $newUserToken = "..." # New JWT
 
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $newUserToken" }
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=20" \
+  -H "Authorization: Bearer $newUserToken")
 ```
 
 **Expected**:
@@ -323,13 +339,15 @@ $feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/a
 **Scenario**: Activity exists but actor account deleted
 
 **Steps**:
-```powershell
+```bash
+
 # 1. User B likes User A's reel (activity created)
 # 2. Delete User B's account
 # 3. User A checks feed
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=20" \
+  -H "Authorization: Bearer $user1Token")
 ```
 
 **Expected**:
@@ -361,13 +379,15 @@ $feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/a
 **Scenario**: Fetch aggregated history of user's own actions
 
 **Steps**:
-```powershell
-# User A checks their own activity history
-$historyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$history = ($historyResponse.Content | ConvertFrom-Json).data
+# User A checks their own activity history
+HISTORYRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?limit=20" \
+  -H "Authorization: Bearer $user1Token")
+
+$history = ($historyResponse.Content | jq .).data
 ```
 
 **Expected**:
@@ -400,12 +420,14 @@ $history = ($historyResponse.Content | ConvertFrom-Json).data
 **Scenario**: View only reels you liked
 
 **Steps**:
-```powershell
-$historyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?type=LIKE&limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$history = ($historyResponse.Content | ConvertFrom-Json).data
+HISTORYRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?type=LIKE&limit=20" \
+  -H "Authorization: Bearer $user1Token")
+
+$history = ($historyResponse.Content | jq .).data
 ```
 
 **Expected**:
@@ -431,12 +453,14 @@ $history = ($historyResponse.Content | ConvertFrom-Json).data
 **Scenario**: View comments you posted
 
 **Steps**:
-```powershell
-$historyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?type=COMMENT&limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$history = ($historyResponse.Content | ConvertFrom-Json).data
+HISTORYRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?type=COMMENT&limit=20" \
+  -H "Authorization: Bearer $user1Token")
+
+$history = ($historyResponse.Content | jq .).data
 ```
 
 **Expected**:
@@ -464,12 +488,14 @@ $history = ($historyResponse.Content | ConvertFrom-Json).data
 **Scenario**: View users you followed
 
 **Steps**:
-```powershell
-$historyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?type=FOLLOW&limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$history = ($historyResponse.Content | ConvertFrom-Json).data
+HISTORYRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?type=FOLLOW&limit=20" \
+  -H "Authorization: Bearer $user1Token")
+
+$history = ($historyResponse.Content | jq .).data
 ```
 
 **Expected**:
@@ -500,12 +526,14 @@ $history = ($historyResponse.Content | ConvertFrom-Json).data
 **Scenario**: View reels you saved to collections
 
 **Steps**:
-```powershell
-$historyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?type=SAVE&limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$history = ($historyResponse.Content | ConvertFrom-Json).data
+HISTORYRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?type=SAVE&limit=20" \
+  -H "Authorization: Bearer $user1Token")
+
+$history = ($historyResponse.Content | jq .).data
 ```
 
 **Expected**:
@@ -528,21 +556,24 @@ $history = ($historyResponse.Content | ConvertFrom-Json).data
 **Scenario**: Paginate through user history using timestamp cursor
 
 **Steps**:
-```powershell
-# Page 1
-$page1 = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?limit=10" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$nextCursor = ($page1.Content | ConvertFrom-Json).data.nextCursor
+# Page 1
+PAGE1=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?limit=10" \
+  -H "Authorization: Bearer $user1Token")
+
+$nextCursor = ($page1.Content | jq .).data.nextCursor
 
 # Page 2
-$page2 = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?cursor=$nextCursor&limit=10" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+PAGE2=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?cursor=$nextCursor&limit=10" \
+  -H "Authorization: Bearer $user1Token")
 
-$items1 = ($page1.Content | ConvertFrom-Json).data.items
-$items2 = ($page2.Content | ConvertFrom-Json).data.items
+$items1 = ($page1.Content | jq .).data.items
+$items2 = ($page2.Content | jq .).data.items
 ```
 
 **Validation**:
@@ -557,13 +588,15 @@ $items2 = ($page2.Content | ConvertFrom-Json).data.items
 **Scenario**: User liked a reel that was later deleted
 
 **Steps**:
-```powershell
+```bash
+
 # 1. User A likes reel (recorded in engagements)
 # 2. Reel owner deletes reel (soft-delete)
 # 3. User A checks history
-$historyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?type=LIKE&limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+HISTORYRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?type=LIKE&limit=20" \
+  -H "Authorization: Bearer $user1Token")
 ```
 
 **Expected**:
@@ -592,12 +625,14 @@ $historyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v
 **Scenario**: Check badge count for unread notifications
 
 **Steps**:
-```powershell
-$countResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/unread-count" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$count = ($countResponse.Content | ConvertFrom-Json).data.count
+COUNTRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/unread-count" \
+  -H "Authorization: Bearer $user1Token")
+
+$count = ($countResponse.Content | jq .).data.count
 ```
 
 **Expected**:
@@ -621,25 +656,29 @@ $count = ($countResponse.Content | ConvertFrom-Json).data.count
 **Scenario**: Mark specific notification as read
 
 **Steps**:
-```powershell
-# Get activity ID from feed
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=1" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$activityId = ($feedResponse.Content | ConvertFrom-Json).data.items[0].id
+# Get activity ID from feed
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=1" \
+  -H "Authorization: Bearer $user1Token")
+
+$activityId = ($feedResponse.Content | jq .).data.items[0].id
 
 # Mark as read
-$markResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/read/$activityId" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+MARKRESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/activity/read/$activityId" \
+  -H "Authorization: Bearer $user1Token")
 
 # Verify updated
-$verifyResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=1" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+VERIFYRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=1" \
+  -H "Authorization: Bearer $user1Token")
 
-$isRead = ($verifyResponse.Content | ConvertFrom-Json).data.items[0].isRead
+$isRead = ($verifyResponse.Content | jq .).data.items[0].isRead
 ```
 
 **Expected**:
@@ -653,21 +692,27 @@ $isRead = ($verifyResponse.Content | ConvertFrom-Json).data.items[0].isRead
 **Scenario**: Bulk update all unread notifications
 
 **Steps**:
-```powershell
+```bash
+
 # Check initial unread count
-$countBefore = (Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/unread-count" `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }).Content | ConvertFrom-Json
+COUNTBEFORE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/unread-count" \
+  -H "Authorization: Bearer $user1Token")
 
 # Mark all as read
-$markResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/read-all" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+MARKRESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/activity/read-all" \
+  -H "Authorization: Bearer $user1Token")
 
-$markedCount = ($markResponse.Content | ConvertFrom-Json).data.count
+$markedCount = ($markResponse.Content | jq .).data.count
 
 # Verify unread count is now 0
-$countAfter = (Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/unread-count" `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }).Content | ConvertFrom-Json
+COUNTAFTER=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/unread-count" \
+  -H "Authorization: Bearer $user1Token")
 ```
 
 **Expected**:
@@ -681,19 +726,21 @@ $countAfter = (Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/ac
 **Scenario**: User tries to mark another user's activity
 
 **Steps**:
-```powershell
-# Get User A's activity ID
-$feedA = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=1" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$activityIdA = ($feedA.Content | ConvertFrom-Json).data.items[0].id
+# Get User A's activity ID
+FEEDA=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=1" \
+  -H "Authorization: Bearer $user1Token")
+
+$activityIdA = ($feedA.Content | jq .).data.items[0].id
 
 # User B tries to mark User A's activity
-$markResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/read/$activityIdA" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user2Token" } `
-  -SkipHttpErrorCheck
+MARKRESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/activity/read/$activityIdA" \
+  -H "Authorization: Bearer $user2Token")
 ```
 
 **Expected**:
@@ -717,22 +764,25 @@ $markResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/a
 **Scenario**: Marked activities stay read across sessions
 
 **Steps**:
-```powershell
+```bash
+
 # Mark activity as read
 $activityId = "..."
-Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/read/$activityId" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/activity/read/$activityId" \
+  -H "Authorization: Bearer $user1Token"
 
 # Wait 5 seconds
 Start-Sleep -Seconds 5
 
 # Fetch feed again (new request)
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=20" \
+  -H "Authorization: Bearer $user1Token")
 
-$activity = ($feedResponse.Content | ConvertFrom-Json).data.items | Where-Object { $_.id -eq $activityId }
+$activity = ($feedResponse.Content | jq .).data.items | Where-Object { $_.id -eq $activityId }
 ```
 
 **Expected**:
@@ -747,7 +797,8 @@ $activity = ($feedResponse.Content | ConvertFrom-Json).data.items | Where-Object
 **Scenario**: Paginate through large feed with max limit
 
 **Steps**:
-```powershell
+```bash
+
 $allItems = @()
 $cursor = $null
 
@@ -755,16 +806,17 @@ do {
   $url = "https://api-staging.chefooz.com/api/v1/activity?limit=50"
   if ($cursor) { $url += "&cursor=$cursor" }
   
-  $response = Invoke-WebRequest -Uri $url `
-    -Method GET `
-    -Headers @{ "Authorization" = "Bearer $user1Token" }
+RESPONSE=$(curl -s \
+  -X GET \
+  "$url" \
+  -H "Authorization: Bearer $user1Token")
   
-  $data = ($response.Content | ConvertFrom-Json).data
+  $data = ($response.Content | jq .).data
   $allItems += $data.items
   $cursor = $data.nextCursor
 } while ($cursor)
 
-Write-Host "Total items fetched: $($allItems.Count)"
+echo "Total items fetched: $($allItems.Count)"
 ```
 
 **Validation**:
@@ -779,19 +831,22 @@ Write-Host "Total items fetched: $($allItems.Count)"
 **Scenario**: Paginate through user history using timestamp
 
 **Steps**:
-```powershell
-$page1 = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?limit=5" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$cursor = ($page1.Content | ConvertFrom-Json).data.nextCursor
+PAGE1=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?limit=5" \
+  -H "Authorization: Bearer $user1Token")
 
-$page2 = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?cursor=$cursor&limit=5" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+$cursor = ($page1.Content | jq .).data.nextCursor
 
-$items1 = ($page1.Content | ConvertFrom-Json).data.items
-$items2 = ($page2.Content | ConvertFrom-Json).data.items
+PAGE2=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?cursor=$cursor&limit=5" \
+  -H "Authorization: Bearer $user1Token")
+
+$items1 = ($page1.Content | jq .).data.items
+$items2 = ($page2.Content | jq .).data.items
 ```
 
 **Validation**:
@@ -806,12 +861,14 @@ $items2 = ($page2.Content | ConvertFrom-Json).data.items
 **Scenario**: Client requests limit > 50, backend enforces max
 
 **Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=100" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+```bash
 
-$items = ($response.Content | ConvertFrom-Json).data.items
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=100" \
+  -H "Authorization: Bearer $user1Token")
+
+$items = ($response.Content | jq .).data.items
 ```
 
 **Expected**:
@@ -827,10 +884,11 @@ $items = ($response.Content | ConvertFrom-Json).data.items
 **Scenario**: Unauthorized access denied
 
 **Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity" `
-  -Method GET `
-  -SkipHttpErrorCheck
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity")
 ```
 
 **Expected**:
@@ -846,10 +904,11 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activ
 ### **Test 6.2: User History Requires JWT**
 
 **Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me" `
-  -Method GET `
-  -SkipHttpErrorCheck
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me")
 ```
 
 **Expected**:
@@ -862,19 +921,22 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activ
 **Scenario**: User A cannot see User B's feed
 
 **Steps**:
-```powershell
+```bash
+
 # User A's feed
-$feedA = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+FEEDA=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=20" \
+  -H "Authorization: Bearer $user1Token")
 
 # User B's feed
-$feedB = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user2Token" }
+FEEDB=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=20" \
+  -H "Authorization: Bearer $user2Token")
 
-$itemsA = ($feedA.Content | ConvertFrom-Json).data.items
-$itemsB = ($feedB.Content | ConvertFrom-Json).data.items
+$itemsA = ($feedA.Content | jq .).data.items
+$itemsB = ($feedB.Content | jq .).data.items
 ```
 
 **Validation**:
@@ -891,27 +953,29 @@ $itemsB = ($feedB.Content | ConvertFrom-Json).data.items
 **Scenario**: User likes their own reel → No activity recorded
 
 **Steps**:
-```powershell
-# User A creates reel
-$reelResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/reels" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user1Token" } `
-  -Body (@{ caption = "My Reel" } | ConvertTo-Json)
+```bash
 
-$reelId = ($reelResponse.Content | ConvertFrom-Json).data.id
+# User A creates reel
+REELRESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/reels" \
+  -H "Authorization: Bearer $user1Token")
+
+$reelId = ($reelResponse.Content | jq .).data.id
 
 # User A likes their own reel
-Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/engagements/like" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user1Token" } `
-  -Body (@{ reelId = $reelId } | ConvertTo-Json)
+curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/engagements/like" \
+  -H "Authorization: Bearer $user1Token"
 
 # Check User A's feed
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=20" \
+  -H "Authorization: Bearer $user1Token")
 
-$selfLikeActivity = ($feedResponse.Content | ConvertFrom-Json).data.items | 
+$selfLikeActivity = ($feedResponse.Content | jq .).data.items | 
   Where-Object { $_.type -eq "like" -and $_.entityId -eq $reelId }
 ```
 
@@ -923,19 +987,21 @@ $selfLikeActivity = ($feedResponse.Content | ConvertFrom-Json).data.items |
 ### **Test 7.2: Comment on Own Reel (No Activity)**
 
 **Steps**:
-```powershell
+```bash
+
 # User A comments on their own reel
-Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/comments" `
-  -Method POST `
-  -Headers @{ "Authorization" = "Bearer $user1Token" } `
-  -Body (@{ mediaId = $reelId; text = "Self comment" } | ConvertTo-Json)
+curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/comments" \
+  -H "Authorization: Bearer $user1Token"
 
 # Check feed
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=20" \
+  -H "Authorization: Bearer $user1Token")
 
-$selfCommentActivity = ($feedResponse.Content | ConvertFrom-Json).data.items | 
+$selfCommentActivity = ($feedResponse.Content | jq .).data.items | 
   Where-Object { $_.type -eq "comment" -and $_.entityId -eq $reelId }
 ```
 
@@ -967,22 +1033,24 @@ $selfCommentActivity = ($feedResponse.Content | ConvertFrom-Json).data.items |
 **Scenario**: Measure notification feed response time
 
 **Steps**:
-```powershell
+```bash
+
 $times = @()
 
 for ($i = 0; $i -lt 100; $i++) {
   $start = Get-Date
   
-  Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=20" `
-    -Method GET `
-    -Headers @{ "Authorization" = "Bearer $user1Token" } | Out-Null
+curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=20" \
+  -H "Authorization: Bearer $user1Token"
   
   $end = Get-Date
   $times += ($end - $start).TotalMilliseconds
 }
 
 $p95 = ($times | Sort-Object)[[Math]::Floor($times.Count * 0.95)]
-Write-Host "P95 response time: $p95 ms"
+echo "P95 response time: $p95 ms"
 ```
 
 **Expected**:
@@ -993,22 +1061,24 @@ Write-Host "P95 response time: $p95 ms"
 ### **Test 8.2: Unread Count Query Time (< 50ms)**
 
 **Steps**:
-```powershell
+```bash
+
 $times = @()
 
 for ($i = 0; $i -lt 50; $i++) {
   $start = Get-Date
   
-  Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/unread-count" `
-    -Method GET `
-    -Headers @{ "Authorization" = "Bearer $user1Token" } | Out-Null
+curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/unread-count" \
+  -H "Authorization: Bearer $user1Token"
   
   $end = Get-Date
   $times += ($end - $start).TotalMilliseconds
 }
 
 $avg = ($times | Measure-Object -Average).Average
-Write-Host "Average response time: $avg ms"
+echo "Average response time: $avg ms"
 ```
 
 **Expected**:
@@ -1021,17 +1091,19 @@ Write-Host "Average response time: $avg ms"
 **Scenario**: Multi-source fetch performance
 
 **Steps**:
-```powershell
+```bash
+
 $start = Get-Date
 
-Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?limit=50" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" } | Out-Null
+curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?limit=50" \
+  -H "Authorization: Bearer $user1Token"
 
 $end = Get-Date
 $duration = ($end - $start).TotalMilliseconds
 
-Write-Host "User history fetch time: $duration ms"
+echo "User history fetch time: $duration ms"
 ```
 
 **Expected**:
@@ -1061,12 +1133,14 @@ Write-Host "User history fetch time: $duration ms"
 **Scenario**: Metadata field is null or empty
 
 **Steps**:
-```powershell
+```bash
+
 # Manually create activity with null metadata (via SQL)
 # Then fetch feed
-$feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" }
+FEEDRESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=20" \
+  -H "Authorization: Bearer $user1Token")
 ```
 
 **Expected**:
@@ -1080,11 +1154,12 @@ $feedResponse = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/a
 **Scenario**: Malformed cursor in user history
 
 **Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?cursor=invalid-date&limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" } `
-  -SkipHttpErrorCheck
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?cursor=invalid-date&limit=20" \
+  -H "Authorization: Bearer $user1Token")
 ```
 
 **Expected**:
@@ -1096,11 +1171,12 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activ
 ### **Test 9.3: Limit = 0**
 
 **Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity?limit=0" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" } `
-  -SkipHttpErrorCheck
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity?limit=0" \
+  -H "Authorization: Bearer $user1Token")
 ```
 
 **Expected**:
@@ -1112,11 +1188,12 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activ
 ### **Test 9.4: Invalid Activity Type Filter**
 
 **Steps**:
-```powershell
-$response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/me?type=INVALID&limit=20" `
-  -Method GET `
-  -Headers @{ "Authorization" = "Bearer $user1Token" } `
-  -SkipHttpErrorCheck
+```bash
+
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/me?type=INVALID&limit=20" \
+  -H "Authorization: Bearer $user1Token")
 ```
 
 **Expected**:
@@ -1130,20 +1207,21 @@ $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activ
 **Scenario**: Two devices mark same activity as read simultaneously
 
 **Steps**:
-```powershell
+```bash
+
 $activityId = "..."
 
 # Simulate concurrent requests
 $job1 = Start-Job -ScriptBlock {
-  Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/read/$using:activityId" `
-    -Method POST `
-    -Headers @{ "Authorization" = "Bearer $using:user1Token" }
+curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/activity/read/$using:activityId"
 }
 
 $job2 = Start-Job -ScriptBlock {
-  Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/read/$using:activityId" `
-    -Method POST `
-    -Headers @{ "Authorization" = "Bearer $using:user1Token" }
+curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/activity/read/$using:activityId"
 }
 
 Wait-Job $job1, $job2
@@ -1159,7 +1237,8 @@ Wait-Job $job1, $job2
 
 ### **Helper 1: Create Test Activity**
 
-```powershell
+```bash
+
 function Create-TestActivity {
   param(
     [string]$actorToken,
@@ -1169,16 +1248,16 @@ function Create-TestActivity {
   
   switch ($action) {
     "like" {
-      Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/engagements/like" `
-        -Method POST `
-        -Headers @{ "Authorization" = "Bearer $actorToken" } `
-        -Body (@{ reelId = $targetReelId } | ConvertTo-Json)
+curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/engagements/like" \
+  -H "Authorization: Bearer $actorToken"
     }
     "comment" {
-      Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/comments" `
-        -Method POST `
-        -Headers @{ "Authorization" = "Bearer $actorToken" } `
-        -Body (@{ mediaId = $targetReelId; text = "Test comment" } | ConvertTo-Json)
+curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/comments" \
+  -H "Authorization: Bearer $actorToken"
     }
   }
 }
@@ -1191,36 +1270,40 @@ Create-TestActivity -actorToken $user2Token -targetReelId $reelId -action "like"
 
 ### **Helper 2: Get Unread Count**
 
-```powershell
+```bash
+
 function Get-UnreadCount {
   param([string]$token)
   
-  $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/unread-count" `
-    -Method GET `
-    -Headers @{ "Authorization" = "Bearer $token" }
+RESPONSE=$(curl -s \
+  -X GET \
+  "https://api-staging.chefooz.com/api/v1/activity/unread-count" \
+  -H "Authorization: Bearer $token")
   
-  return ($response.Content | ConvertFrom-Json).data.count
+  return ($response.Content | jq .).data.count
 }
 
 # Usage
 $count = Get-UnreadCount -token $user1Token
-Write-Host "Unread notifications: $count"
+echo "Unread notifications: $count"
 ```
 
 ---
 
 ### **Helper 3: Mark All Read**
 
-```powershell
+```bash
+
 function Clear-Notifications {
   param([string]$token)
   
-  $response = Invoke-WebRequest -Uri "https://api-staging.chefooz.com/api/v1/activity/read-all" `
-    -Method POST `
-    -Headers @{ "Authorization" = "Bearer $token" }
+RESPONSE=$(curl -s \
+  -X POST \
+  "https://api-staging.chefooz.com/api/v1/activity/read-all" \
+  -H "Authorization: Bearer $token")
   
-  $count = ($response.Content | ConvertFrom-Json).data.count
-  Write-Host "Marked $count activities as read"
+  $count = ($response.Content | jq .).data.count
+  echo "Marked $count activities as read"
 }
 
 # Usage
@@ -1231,7 +1314,8 @@ Clear-Notifications -token $user1Token
 
 ### **Helper 4: Fetch Full History**
 
-```powershell
+```bash
+
 function Get-FullHistory {
   param(
     [string]$token,
@@ -1246,11 +1330,12 @@ function Get-FullHistory {
     if ($type) { $url += "&type=$type" }
     if ($cursor) { $url += "&cursor=$cursor" }
     
-    $response = Invoke-WebRequest -Uri $url `
-      -Method GET `
-      -Headers @{ "Authorization" = "Bearer $token" }
+RESPONSE=$(curl -s \
+  -X GET \
+  "$url" \
+  -H "Authorization: Bearer $token")
     
-    $data = ($response.Content | ConvertFrom-Json).data
+    $data = ($response.Content | jq .).data
     $allItems += $data.items
     $cursor = $data.nextCursor
   } while ($cursor)
@@ -1260,14 +1345,15 @@ function Get-FullHistory {
 
 # Usage
 $allLikes = Get-FullHistory -token $user1Token -type "LIKE"
-Write-Host "Total likes: $($allLikes.Count)"
+echo "Total likes: $($allLikes.Count)"
 ```
 
 ---
 
 ### **Helper 5: Performance Test**
 
-```powershell
+```bash
+
 function Test-EndpointPerformance {
   param(
     [string]$url,
@@ -1279,7 +1365,10 @@ function Test-EndpointPerformance {
   
   for ($i = 0; $i -lt $iterations; $i++) {
     $start = Get-Date
-    Invoke-WebRequest -Uri $url -Headers @{ "Authorization" = "Bearer $token" } | Out-Null
+curl -s \
+  -X GET \
+  "$url" \
+  -H "Authorization: Bearer $token"
     $end = Get-Date
     $times += ($end - $start).TotalMilliseconds
   }
@@ -1289,7 +1378,7 @@ function Test-EndpointPerformance {
   $p95 = $sorted[[Math]::Floor($times.Count * 0.95)]
   $p99 = $sorted[[Math]::Floor($times.Count * 0.99)]
   
-  Write-Host "P50: $p50 ms | P95: $p95 ms | P99: $p99 ms"
+  echo "P50: $p50 ms | P95: $p95 ms | P99: $p99 ms"
 }
 
 # Usage
