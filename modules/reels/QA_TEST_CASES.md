@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Test Coverage**: Functional, Security, Performance, Integration  
 **Version**: 1.0  
-**Last Updated**: 2026-02-14
+**Last Updated**: 2026-02-27
 
 ---
 
@@ -17,8 +17,8 @@
 | **Security** | 12 | 100% | Critical |
 | **Performance** | 8 | 75% | Medium |
 | **Integration** | 10 | 80% | High |
-| **Regression** | 15 | 100% | High |
-| **Total** | 90 | 89% | - |
+| **Regression** | 16 | 94% | High |
+| **Total** | 91 | 88% | - |
 
 ### Test Environment
 
@@ -1266,6 +1266,23 @@ scenarios:
 
 ---
 
+#### TC-R016: Profile reel viewer uses full viewport when tab bar is hidden
+**Bug**: Next reel peeked into view when opening profile reels (tab bar hidden) because reel height subtracted tab bar size.  
+**Fixed**: 2026-02-27  
+**Priority**: Medium  
+**Automation**: ⏸️ Manual
+
+**Test Steps**:
+1. Open any profile, tap a reel to launch the profile reel viewer (tab bar hidden).
+2. Confirm viewport height matches full device window (no tab bar overlay).
+3. Scroll to next reel and release.
+
+**Expected Result**:
+- Only one reel is fully visible at a time (no partial peek of the next reel).
+- Snap pagination aligns with reel boundaries on both scroll and idle states.
+
+---
+
 ## 📊 Test Data
 
 ### Sample Reels
@@ -1480,5 +1497,5 @@ Increase menu item query batch size or implement pagination.
 ---
 
 **Document Version**: 1.0  
-**Last Updated**: 2026-02-14  
+**Last Updated**: 2026-02-27  
 **Next Review**: 2026-03-14

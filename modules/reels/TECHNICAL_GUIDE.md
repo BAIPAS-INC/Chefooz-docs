@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Tech Stack**: NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis (Valkey)  
 **Version**: 1.0  
-**Last Updated**: 2026-02-14
+**Last Updated**: 2026-02-27
 
 ---
 
@@ -1843,6 +1843,29 @@ await this.cacheService.srem(`reel:${mediaId}:likes`, userId); // On unlike acti
 
 ---
 
+### Issue 6: Profile viewer shows next reel peeking
+
+**Symptom**: On tab-less routes (profile reel viewer), the next reel becomes partially visible at the bottom.
+
+**Diagnosis**:
+1. `getReelViewportHeight` subtracts the tab bar height by default.
+2. When the tab bar is hidden, the resulting height under-sizes `snapToInterval`, leaving extra viewport space.
+
+**Solution**:
+```typescript
+// Tab-less profile reel viewer uses the full window height
+const VIEWPORT_HEIGHT = getReelViewportHeight(insets.bottom, insets.top, { includeTabBar: false });
+
+<FlatList
+  snapToInterval={VIEWPORT_HEIGHT}
+  getItemLayout={(_, index) => ({ length: VIEWPORT_HEIGHT, offset: VIEWPORT_HEIGHT * index, index })}
+  // ...other props
+/>
+```
+3. Keep `snapToInterval` and `getItemLayout` aligned to the same height whenever the tab bar is hidden.
+
+---
+
 ## 📚 Related Documentation
 
 - **Reel Schema**: `apps/chefooz-apis/src/database/schemas/reel.schema.ts`
@@ -1864,5 +1887,5 @@ await this.cacheService.srem(`reel:${mediaId}:likes`, userId); // On unlike acti
 ---
 
 **Document Version**: 1.0  
-**Last Updated**: 2026-02-14  
+**Last Updated**: 2026-02-27  
 **Next Review**: 2026-03-14
