@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Tech Stack**: NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis (Valkey)  
 **Version**: 1.0  
-**Last Updated**: 2026-02-27
+**Last Updated**: 2026-02-28
 
 ---
 
@@ -23,6 +23,31 @@
 12. [Performance Optimization](#performance-optimization)
 13. [Security Considerations](#security-considerations)
 14. [Troubleshooting](#troubleshooting)
+
+---
+
+## 🚧 Upload V2 UI Gating (Temporary)
+
+### Scope
+
+- File changed: `apps/chefooz-app/src/app/reels/upload-v2/edit.tsx`
+- UI-only change in mobile upload flow.
+
+### What is hidden
+
+- Right rail action removed: **Text** (`format-text`)
+- Right rail action removed: **Filter** (`palette`)
+- Filter chip indicator hidden from preview layer
+
+### What remains enabled
+
+- Data model support for `textOverlays` and `filter` remains in reel schema/contracts.
+- Upload screen still preserves previously stored values if present in draft/store state.
+- All backend endpoints and media processing contracts are unchanged.
+
+### Rollback
+
+- Re-enable by restoring the removed `actionRailItems` entries and the filter chip block in `edit.tsx`.
 
 ---
 

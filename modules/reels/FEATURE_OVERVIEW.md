@@ -3,13 +3,20 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Purpose**: Short-form video content management and retrieval  
 **Version**: 1.0  
-**Last Updated**: 2026-02-14
+**Last Updated**: 2026-02-28
 
 ---
 
 ## 📋 Executive Summary
 
 The Reels module manages short-form video content on the Chefooz platform, handling reel retrieval, user engagement tracking, and content lifecycle management. It supports three distinct reel types (User Review, Promotional, Menu Showcase) with different monetization strategies and business purposes.
+
+### Upload V2 Temporary UI Availability (2026-02-28)
+
+- In the mobile upload edit screen (`/reels/upload-v2/edit`), **Text** and **Filter** actions are temporarily hidden from the right action rail.
+- The filter indicator chip is also hidden to avoid exposing the filter editing entry point.
+- Existing backend/storage support for `textOverlays` and `filter` remains unchanged.
+- This is a UX gating change only; no API contract or reel schema behavior changes.
 
 ### Key Business Value
 

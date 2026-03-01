@@ -5,7 +5,7 @@
 **Date**: 2026-02-14  
 **Total Test Cases**: 62  
 **Estimated Testing Time**: 8-10 hours (full suite)  
-**Last Updated**: 2026-02-14
+**Last Updated**: 2026-02-28
 
 ---
 
@@ -495,6 +495,50 @@ WHERE phone LIKE '%9876543210%';
 
 ## 2. UX/UI Tests
 
+### Test Case: AUTH-UX-NEW-003 — Suggested usernames are compact and under username input
+
+**Priority**: High  
+**Type**: UX/UI  
+**Platform**: Android + iOS  
+**Automation**: [@manual]
+
+**Steps:**
+1. Navigate to onboarding username screen
+2. Type at least 2 characters in username input
+3. Observe suggestions layout
+
+**Expected Result:**
+- ✅ `Suggested for you` appears directly under username input (inside username card)
+- ✅ Suggestions are compact chips (not a large standalone card block)
+- ✅ Tapping chip fills username input immediately
+
+---
+
+### Test Case: AUTH-UX-NEW-004 — Use another mobile number resets onboarding safely
+
+**Priority**: Critical  
+**Type**: UX/UI + Regression  
+**Platform**: Android + iOS  
+**Automation**: [@manual]
+
+**Preconditions:**
+- User has completed OTP verification and is on username screen
+
+**Steps:**
+1. Tap `Use another mobile number`
+2. Confirm restart in alert dialog
+3. Observe navigation target
+4. Relaunch app and verify auth state
+
+**Expected Result:**
+- ✅ Confirmation dialog shown before destructive action
+- ✅ Current auth session is cleared
+- ✅ App navigates to `/auth/enter-phone`
+- ✅ User can start login with a different phone number
+- ✅ App does not trap user on username onboarding after restart
+
+---
+
 ### Test Case: AUTH-UX-001 — Loading States During OTP Send
 
 **Priority**: High  
@@ -770,6 +814,56 @@ ORDER BY createdAt DESC LIMIT 1;
 ---
 
 ## 4. Error Handling Tests
+
+### Test Case: AUTH-E-NEW-001 — Invalid leading-digit phone does not crash and does not hit API
+
+**Priority**: Critical  
+**Type**: Error Handling / Regression  
+**Roles**: All  
+**Platform**: Android + iOS  
+**Automation**: [@manual]
+
+**Prerequisites:**
+- App on `Enter Phone` screen
+- Network logging enabled
+
+**Test Data:**
+- Phone: `1234567890`
+
+**Steps:**
+1. Enter `1234567890` in phone input
+2. Tap `Continue`
+3. Observe UI and network logs
+
+**Expected Result:**
+- ✅ App shows user-friendly validation alert: `Please enter a valid Indian mobile number`
+- ✅ No request sent to `POST /api/v1/auth/v2/send-otp`
+- ✅ No native crash/red screen occurs
+- ✅ No RN bridge error: `Value for message can not be cast from ReadableNativeArray to string`
+
+---
+
+### Test Case: AUTH-E-NEW-002 — Backend validation array message is rendered safely
+
+**Priority**: High  
+**Type**: Error Handling / Regression  
+**Roles**: All  
+**Platform**: Android + iOS  
+**Automation**: [@manual]
+
+**Prerequisites:**
+- Force backend to return validation payload with `message: ["..."]`
+
+**Steps:**
+1. Trigger send-otp error response containing message array
+2. Observe alert rendering on app
+
+**Expected Result:**
+- ✅ Alert shows string text (joined validation message)
+- ✅ App remains stable (no cast crash)
+- ✅ Error is visible to user in readable format
+
+---
 
 ### Test Case: AUTH-ERR-001 — Invalid Phone Number Format
 
@@ -1376,8 +1470,81 @@ SELECT * FROM otp_sessions WHERE phone = '+919876543210';
 
 ---
 
+## 8. Session Preservation Tests (added 2026-03-01)
+
+These tests cover the four bugs fixed in the 2026-03-01 session-preservation patch.
+
+### TC-SP-01: App restart with valid token + no internet — user must stay logged in
+
+| Field | Detail |
+|---|---|
+| **Priority** | P0 |
+| **Related bug** | Bug 2 — catch-all logout on network error |
+| **Pre-conditions** | User previously logged in; device set to airplane mode |
+| **Steps** | 1. Enable airplane mode. 2. Force-kill and relaunch the app. |
+| **Expected** | User lands on their home feed (or the last screen). No redirect to login. A subtle "offline" indicator is acceptable. |
+| **Pass criteria** | `isAuthenticated: true` in store; no call to `logout()`. |
+| **Fail criteria** | User redirected to `/auth/enter-phone`. |
+
+---
+
+### TC-SP-02: App restart with valid token + server returns 500 — user must stay logged in
+
+| Field | Detail |
+|---|---|
+| **Priority** | P0 |
+| **Related bug** | Bug 2 |
+| **Pre-conditions** | User previously logged in; mock `/api/v1/auth/me` to return HTTP 500 (via Charles Proxy or backend override) |
+| **Steps** | 1. Kill app. 2. Start mock. 3. Relaunch app. |
+| **Expected** | User stays on home screen; no logout. |
+| **Pass criteria** | Session preserved. |
+| **Fail criteria** | Redirect to login screen. |
+
+---
+
+### TC-SP-03: Token expires mid-session — next API call must trigger full logout
+
+| Field | Detail |
+|---|---|
+| **Priority** | P0 |
+| **Related bug** | Bug 1 — 401 interceptor did not call full logout |
+| **Pre-conditions** | User is logged in; manually expire/revoke the JWT on the backend or use a short-TTL test token |
+| **Steps** | 1. Trigger any authenticated API call (e.g. open profile). |
+| **Expected** | App navigates to `/auth/enter-phone`. Zustand store shows `isAuthenticated: false`, `token: null`, `user: null`. |
+| **Pass criteria** | Login screen shown; store is clean; SecureStore `auth_token` key deleted. |
+| **Fail criteria** | User stays on screen; 401 is silently swallowed; repeated 401 loops. |
+
+---
+
+### TC-SP-04: App restart with valid token + internet — navigation guard must not flash login screen
+
+| Field | Detail |
+|---|---|
+| **Priority** | P1 |
+| **Related bug** | Bug 3 — `initialize()` did not set `isAuthenticated: true` eagerly |
+| **Pre-conditions** | User previously completed onboarding; valid token in SecureStore |
+| **Steps** | 1. Kill app. 2. Relaunch. 3. Observe transition from splash screen to home. |
+| **Expected** | No flash of the login screen. App transitions directly from splash → home feed. |
+| **Pass criteria** | Zero frames on `/auth/enter-phone` between splash and home. |
+| **Fail criteria** | Brief flicker of the phone-number entry screen before home loads. |
+
+---
+
+### TC-SP-05: Explicit logout clears all storage and redirects to login
+
+| Field | Detail |
+|---|---|
+| **Priority** | P0 |
+| **Pre-conditions** | User is logged in |
+| **Steps** | 1. Tap logout (Settings or profile page). |
+| **Expected** | Navigated to `/auth/enter-phone`. `auth_token`, `accessToken`, `refreshToken` all deleted from SecureStore. React Query cache cleared. |
+| **Pass criteria** | All conditions above met. |
+| **Fail criteria** | Any key remains in SecureStore; cached API data visible after re-login with a different account. |
+
+---
+
 **QA_TEST_CASES_COMPLETE ✅**
 
 **Total Lines**: 800+  
-**Last Updated**: 2026-02-14  
+**Last Updated**: 2026-03-01  
 **Next Review**: After first QA round feedback

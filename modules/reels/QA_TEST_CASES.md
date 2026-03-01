@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Test Coverage**: Functional, Security, Performance, Integration  
 **Version**: 1.0  
-**Last Updated**: 2026-02-27
+**Last Updated**: 2026-02-28
 
 ---
 
@@ -39,6 +39,62 @@
 ---
 
 ## 🧪 Functional Test Cases
+
+### Category 0: Upload V2 UI Gating (Temporary)
+
+#### TC-UPL-UI-001: Text action hidden in edit screen right rail
+**Priority**: High  
+**Automation**: ❌ Manual
+
+**Pre-conditions**:
+- App launched to mobile upload flow
+- Navigate to `/reels/upload-v2/edit`
+
+**Test Steps**:
+1. Open edit screen with selected media
+2. Inspect right action rail items
+
+**Expected Result**:
+- Right action rail does **not** show `Text` action
+- No tap target exists to open `TextEditModal` for creating a new overlay
+
+---
+
+#### TC-UPL-UI-002: Filter action hidden in edit screen right rail
+**Priority**: High  
+**Automation**: ❌ Manual
+
+**Pre-conditions**:
+- App launched to mobile upload flow
+- Navigate to `/reels/upload-v2/edit` with video media
+
+**Test Steps**:
+1. Open edit screen with selected video
+2. Inspect right action rail items
+
+**Expected Result**:
+- Right action rail does **not** show `Filter` action
+- No direct rail tap target opens `FilterPickerSheet`
+
+---
+
+#### TC-UPL-UI-003: Filter chip hidden when filter state exists
+**Priority**: Medium  
+**Automation**: ❌ Manual
+
+**Pre-conditions**:
+- Upload store has existing `filter` value (from saved draft/state)
+- Edit screen opened with media
+
+**Test Steps**:
+1. Open `/reels/upload-v2/edit`
+2. Inspect lower-left chip area and preview overlays
+
+**Expected Result**:
+- Filter chip is not displayed
+- UI does not expose edit entry point for filter while gate is active
+
+---
 
 ### Category 1: Reel Detail Retrieval (GET /detail/:mediaId)
 

@@ -15,6 +15,25 @@
 
 The Authentication module implements a **WhatsApp-first OTP authentication system** with SMS fallback, providing passwordless phone number-based authentication for the Chefooz platform. This guide provides comprehensive technical documentation for implementing, maintaining, and troubleshooting the authentication system.
 
+### Username Screen UX Patch (2026-03-01)
+
+- File updated: `apps/chefooz-app/src/app/onboarding/username.tsx`
+- `Suggested for you` is rendered as a compact inline chip section under username input inside the same card.
+- Added `Use another mobile number` action with confirmation dialog.
+- Confirmed restart flow behavior:
+  - calls `useAuthStore.getState().logout()`
+  - clears `lastPhoneNumber` and `lastDeviceId` from SecureStore
+  - routes to `/auth/enter-phone` via `router.replace`
+- Purpose: prevent onboarding lock-in after app restart and provide explicit account switch exit path.
+
+### Frontend QA Fix (2026-02-28)
+
+- File updated: `apps/chefooz-app/src/app/auth/enter-phone.tsx`
+- Added `getSafeErrorMessage()` to normalize backend error payloads where `message` can be `string | string[]`.
+- Updated OTP error alert to always pass a string to `Alert.alert('Error', message)`.
+- Added pre-submit client validation for Indian mobile pattern `^[6-9]\d{9}$`.
+- This prevents Android RN bridge cast errors when backend returns validation arrays.
+
 **What You'll Learn:**
 - 📌 Complete authentication architecture with flow diagrams
 - 📌 Database schema and entity relationships
@@ -1713,10 +1732,93 @@ For technical issues:
 
 ---
 
+## 🔧 Session Preservation Bugfixes (2026-03-01)
+
+Four bugs were found and fixed that caused invalid session destruction and broken 401 handling.
+
+### Bug 1 — Critical: 401 interceptor did not trigger a full logout
+
+**File**: `apps/chefooz-app/src/services/apiClient.ts`
+
+The Axios 401 response interceptor only deleted the `auth_token` key from `expo-secure-store`. It did **not** update the Zustand store, so `isAuthenticated` stayed `true`, `user` and `token` remained in memory, and subsequent requests continued to attach the stale (already-rejected) token. The user was never redirected to the login screen.
+
+**Fix**: Added `setAuthLogoutHandler(fn)` export on `apiClient.ts`. The app shell (`_layout.tsx`) registers the full `handleAuthExpired` handler (logout + redirect) on mount. The 401 interceptor now calls that handler, falling back to a bare SecureStore wipe only if it was never registered.
+
+```
+setAuthLogoutHandler  →  exported from apiClient.ts
+registered in _layout.tsx  →  useEffect([router])
+called by 401 interceptor  →  logout() + router.replace('/auth/enter-phone')
+```
+
+---
+
+### Bug 2 — Critical: Any network error on app start logged the user out
+
+**File**: `apps/chefooz-app/src/app/_layout.tsx` — `fetchUserProfile` catch block
+
+The catch block that wraps the `authService.me()` call on app startup treated **every** exception (network timeout, server 500, airplane mode) identically to a 401 — calling `logout()` unconditionally. A user with a perfectly valid, non-expired session was permanently logged out if the device had no internet when the app opened.
+
+**Fix**: The catch block now reads the error status code. Only a `401` triggers `logout()`. All other errors (network failures, 5xx) log a warning and call `useAuthStore.setState({ isAuthenticated: true, isLoading: false })` to preserve the session.
+
+```ts
+// Before — destroys valid sessions on any error
+} catch (error) {
+  await useAuthStore.getState().logout(); // ❌ wrong
+}
+
+// After — only destroys on confirmed 401
+} catch (error: any) {
+  const status = error?.statusCode ?? error?.status;
+  if (status === 401) {
+    await useAuthStore.getState().logout(); // ✅ correct
+  } else {
+    useAuthStore.setState({ isAuthenticated: true, isLoading: false }); // ✅ preserve
+  }
+}
+```
+
+---
+
+### Bug 3 — Minor: `initialize()` did not set `isAuthenticated: true` eagerly
+
+**File**: `apps/chefooz-app/src/store/auth.store.ts`
+
+When a stored token was found in SecureStore, `initialize()` set `{ token, isLoading: false }` but left `isAuthenticated: false`. The navigation guard in `AuthGate` runs after `isLoading` flips to `false`. During the ~100 ms window between `initialize()` resolving and `authService.me()` completing, the guard saw `!isAuthenticated && !inAuthGroup` and scheduled a redirect to `/auth/enter-phone` (only masked by the `setTimeout(100)` guard).
+
+**Fix**: `initialize()` now sets `isAuthenticated: true` alongside the token. If `/me` subsequently returns a 401, the catch block (Bug 2 fix) calls `logout()` to clear it.
+
+```ts
+// Before
+set({ token, isLoading: false });
+
+// After
+set({ token, isAuthenticated: true, isLoading: false });
+```
+
+---
+
+### Bug 4 — Dead code: `handleAuthExpired` was never called from the Axios interceptor
+
+**File**: `apps/chefooz-app/src/app/_layout.tsx`
+
+A `handleAuthExpired` function was attached to the Zustand store state as a dynamic property, but nothing in `apiClient.ts` ever retrieved or called it. It was effectively dead code. Fixed as part of Bug 1 — the handler is now registered via the `setAuthLogoutHandler` export, which the 401 interceptor actively calls.
+
+---
+
+### Summary of changed files
+
+| File | Change |
+|------|--------|
+| `apps/chefooz-app/src/services/apiClient.ts` | Added `setAuthLogoutHandler` export; 401 handler now calls full logout |
+| `apps/chefooz-app/src/app/_layout.tsx` | Registers handler with `setAuthLogoutHandler`; catch block only logs out on 401 |
+| `apps/chefooz-app/src/store/auth.store.ts` | `initialize()` sets `isAuthenticated: true` when token found |
+
+---
+
 ## ✅ TECHNICAL_GUIDE_COMPLETE ✅
 
-**Document Version**: 1.0.0  
-**Last Updated**: February 14, 2026  
+**Document Version**: 1.1.0  
+**Last Updated**: 2026-03-01  
 **Lines**: 900+  
 **Status**: Production Ready  
 

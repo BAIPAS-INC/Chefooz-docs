@@ -1,7 +1,7 @@
 # 🔐 Authentication Module — Feature Overview
 
 **Status**: ✅ COMPLETE  
-**Date**: 2026-02-14  
+**Date**: 2026-02-28  
 **Author**: AI Assistant  
 **Related Docs**: 
 - [OTP Auth Setup Guide](../../../application-guides/OTP_AUTH_SETUP.md)
@@ -12,6 +12,18 @@
 ## 📋 Overview
 
 The Authentication module is Chefooz's passwordless entry system that enables users to securely access the platform using only their mobile phone number. Built on a modern OTP (One-Time Password) architecture with WhatsApp-first delivery and SMS fallback, this module handles user registration, login, and profile completion flows while maintaining enterprise-grade security standards.
+
+### Onboarding UX Update (2026-03-01)
+
+- Username onboarding now shows **compact “Suggested for you” chips directly under the username input** for faster selection.
+- Added explicit escape/restart action on username screen: **Use another mobile number**.
+- Restart action signs out current in-progress auth session and routes user to phone-entry screen.
+
+### QA Bugfix Note (2026-02-28)
+
+- `Enter Phone` screen now performs strict Indian mobile validation (`^[6-9]\d{9}$`) before calling send OTP.
+- OTP send error rendering now safely converts backend validation `message` values to string when server returns an array.
+- Prevents frontend native crash/error: `Value for message can not be cast from ReadableNativeArray to string`.
 
 **What Makes It Special:**
 - Zero passwords to remember — completely phone-based authentication
