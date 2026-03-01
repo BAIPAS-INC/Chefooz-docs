@@ -242,18 +242,20 @@ Backend returns CDN URL immediately (no processing needed)
 - **DTO Field**: `UploadReelDto.coverTimestampSec: number` (default: 1.0s)
 - **Use Case**: Choose most appealing frame instead of auto-generated first frame
 
-### **3. Text Overlays** (Instagram-Style)
-- **Client Flow**: User adds text stickers with position, scale, rotation
-- **Backend Processing**: FFmpeg burns text into video (not removable after processing)
-- **DTO Field**: `UploadReelDto.textOverlays: TextOverlayDto[]`
+### **3. Text Overlays** (View-Based, Beta)
+- **Client Flow**: User adds text stickers with position, scale, rotation via `OverlayCanvas.tsx` on top of `VideoView`
+- **Rendering**: Client-side React Native view overlay — **not burned into video**. Stored as metadata in `Reel.overlays[]`.
+- **DTO Field**: `UploadReelDto.overlays: ReelOverlay[]` (single source of truth)
 - **Max Limit**: 10 overlays per video
 - **Overlay Properties**:
   - `content`: Text string (max 200 chars)
   - `position`: `{ x: 0-1, y: 0-1 }` (normalized screen coordinates)
   - `scale`: Size multiplier (e.g., 1.2 = 120%)
   - `rotation`: Degrees (0-360)
-  - `startTime`/`endTime`: Visibility window in seconds
+  - `startTime`/`endTime`: Visibility window in seconds (wired at playback)
   - `style`: Font, color, shadow, background
+- **Why not FFmpeg drawtext**: font path fragility (Mac vs Linux), emoji/UTF-8 breakage, no rotation support, no italic/custom fonts. View-based approach is richer, instant, and device-consistent.
+- **Future**: VideoEditorSDK or WebGL compositing (post-Beta)
 
 ### **4. Image Filters** (TikTok/Instagram-Style)
 - **Client Flow**: User selects filter preset (vibrant, vintage, cinematic, etc.)

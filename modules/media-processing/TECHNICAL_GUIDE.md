@@ -654,144 +654,23 @@ async convertImageToVideo(
 
 ### 3.4 VideoFiltersService
 
-**Purpose**: Text overlay burning, image filters.
+**Purpose**: Music overlay mixing, image/color filters. Aspect-ratio normalisation is done inside `applyMultipleEffects`.
+
+> **Note (2026-03-01)**: `applyTextOverlays` and `buildTextFilterChain` have been **deprecated** and will be removed in the next cleanup pass. Text overlays are now rendered client-side via `OverlayCanvas.tsx` (view overlay on `VideoView`). The methods exist as dead code with `@deprecated` tags and `any[]` type stubs but are not called by any production path.
+>
+> **Reason for removal**: FFmpeg `drawtext` filter is fragile — font paths differ between macOS/Linux, emoji and UTF-8 characters break encoding, rotation is unsupported, and font matching is approximate. The React Native view approach delivers identical quality with full design fidelity.
 
 **Key Methods**:
 
-#### `applyTextOverlays(inputPath, outputPath, overlays, videoMetadata)`
-Burn text overlays permanently into video.
+#### `applyMultipleEffects(inputPath, outputPath, effects)`
+Orchestrates music + filter pipeline. Text overlays removed from this pipeline.
 
 ```typescript
-async applyTextOverlays(
-  inputPath: string,
-  outputPath: string,
-  overlays: ReelOverlay[],
-  videoMetadata: VideoMetadata
-): Promise<void> {
-  const TARGET_WIDTH = 1080;
-  const TARGET_HEIGHT = 1920;
-
-  // Step 1: Normalize aspect ratio to 9:16 (force 1080x1920 canvas)
-  const normalizationFilters = [
-    `scale=${TARGET_WIDTH}:${TARGET_HEIGHT}:force_original_aspect_ratio=decrease`,
-    `pad=${TARGET_WIDTH}:${TARGET_HEIGHT}:(ow-iw)/2:(oh-ih)/2:black`
-  ];
-
-  let filterChain = normalizationFilters.join(',');
-  const tempFiles: string[] = [];
-
-  try {
-    // Step 2: Build drawtext filters for each overlay
-    if (overlays.length > 0) {
-      const textFilePaths: string[] = [];
-      for (let i = 0; i < overlays.length; i++) {
-        const filePath = path.join(workDir, `overlay_text_${Date.now()}_${i}.txt`);
-        await fs.writeFile(filePath, overlays[i].content, 'utf8');
-        tempFiles.push(filePath);
-        textFilePaths.push(filePath);
-      }
-
-      const textFilters = this.buildTextFilterChain(overlays, TARGET_WIDTH, TARGET_HEIGHT, textFilePaths);
-      filterChain += ',' + textFilters;
-    }
-
-    // Step 3: Apply filter chain with FFmpeg
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg(inputPath)
-        .complexFilter(filterChain)
-        .outputOptions([
-          '-c:v libx264',
-          '-preset medium',
-          '-crf 23',
-          '-profile:v main',
-          '-pix_fmt yuv420p',
-          '-c:a copy',
-          '-movflags +faststart',
-        ])
-        .output(outputPath)
-        .on('end', () => resolve())
-        .on('error', (err) => reject(err))
-        .run();
-    });
-  } finally {
-    // Cleanup temp text files
-    await Promise.all(tempFiles.map(f => fs.unlink(f).catch(() => {})));
-  }
-}
-```
-
-#### `buildTextFilterChain(overlays, canvasWidth, canvasHeight, textFiles)`
-Build FFmpeg `drawtext` filter chain for all overlays.
-
-```typescript
-private buildTextFilterChain(
-  overlays: ReelOverlay[],
-  canvasWidth: number,
-  canvasHeight: number,
-  textFiles: string[]
-): string {
-  const REFERENCE_PREVIEW_WIDTH = 390;
-  const scaleFactor = canvasWidth / REFERENCE_PREVIEW_WIDTH; // 1080 / 390 = 2.77
-
-  const filters = overlays.map((overlay, index) => {
-    // Font size scaling
-    const previewFontSize = overlay.style.fontSize || 24;
-    const userScale = Math.max(0.3, Math.min(overlay.scale, 5.0));
-    const videoFontSize = Math.round(previewFontSize * scaleFactor * userScale);
-    const clampedFontSize = Math.max(16, Math.min(videoFontSize, 300));
-
-    // Position mapping (normalized 0-1 → absolute pixels)
-    const normalizedX = Math.max(0, Math.min(1, overlay.position.x));
-    const normalizedY = Math.max(0, Math.min(1, overlay.position.y));
-    const leftX = Math.round(normalizedX * canvasWidth);
-    const topY = Math.round(normalizedY * canvasHeight);
-
-    const xExpr = `max(0, min(${leftX}, ${canvasWidth}-text_w))`;
-    const yExpr = `max(0, min(${topY}, ${canvasHeight}-text_h))`;
-
-    // Font and color
-    const fontColor = this.convertColorToFFmpeg(overlay.style.color);
-    const fontFile = this.selectFontFile(overlay.style.fontWeight);
-
-    // Background style
-    let boxOpts = '';
-    switch (overlay.style.background) {
-      case 'pill':
-        const boxPadding = Math.max(8, Math.round(clampedFontSize * 0.5));
-        boxOpts = `:box=1:boxcolor=black@0.6:boxborderw=${boxPadding}`;
-        break;
-      case 'shadow':
-        const shadowY = Math.max(2, Math.round(clampedFontSize * 0.08));
-        boxOpts = `:shadowx=0:shadowy=${shadowY}:shadowcolor=black@0.75`;
-        break;
-    }
-
-    // Text content (use textfile for multi-line support)
-    const escapedPath = this.escapeFFmpegPath(textFiles[index]);
-    const contentOption = `textfile='${escapedPath}'`;
-
-    // Timing
-    const enableExpr = `between(t,${overlay.startTime},${overlay.endTime})`;
-
-    return `drawtext=${contentOption}:expansion=none:fontfile=${fontFile}:fontsize=${clampedFontSize}:fontcolor=${fontColor}:x='${xExpr}':y='${yExpr}'${boxOpts}:enable='${enableExpr}'`;
-  });
-
-  return filters.join(',');
-}
-```
-
-**FFmpeg `drawtext` Filter Anatomy**:
-```
-drawtext=
-  textfile='/tmp/overlay_text_123.txt':  ← Multi-line text from file
-  expansion=none:                        ← Don't expand variables
-  fontfile=/usr/share/fonts/...:         ← Font path
-  fontsize=48:                           ← Font size (pixels)
-  fontcolor=0xFFFFFF:                    ← Hex color
-  x='max(0, min(108, 1080-text_w))':     ← X position (clamped)
-  y='max(0, min(192, 1920-text_h))':     ← Y position (clamped)
-  box=1:boxcolor=black@0.6:boxborderw=24: ← Pill background
-  enable='between(t,0,5.5)'              ← Timing (0s to 5.5s)
+await videoFilters.applyMultipleEffects(inputPath, outputPath, {
+  musicOverlay,  // optional: mix music audio
+  filter,        // optional: apply color/eq filter
+  videoMetadata,
+});
 ```
 
 #### `applyImageFilter(inputPath, outputPath, filter)`
