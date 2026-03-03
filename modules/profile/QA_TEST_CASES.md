@@ -2540,6 +2540,95 @@ describe('Profile Module E2E', () => {
 
 ---
 
+### TC-PROFILE-UX-001: Saved tab shows inline grid without redirect card
+
+**Type:** UI Enhancement / Regression
+**Feature area:** Profile → Saved Tab
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- User has at least one saved reel
+
+**Steps:**
+1. Navigate to Profile (own)
+2. Tap the **Saved** tab
+
+**Expected result:** Saved reels grid renders immediately inline — no intermediate redirect card, no separate screen navigation required
+**Actual result (before fix):** A redirect card with a "View Saved" button was shown, requiring a second tap to reach the saved reels screen
+**Fix applied:** Replaced redirect card with inline `FlatList` grid using `useSavedReels()` hook
+**Regression test:** Tap Saved tab → grid should render without any intervening navigation
+**Status:** Fixed ✅
+
+---
+
+### TC-PROFILE-UX-002: Tapping a saved reel plays it directly in feed
+
+**Type:** UI Enhancement / Regression
+**Feature area:** Profile → Saved Tab → Reel tap
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- User has at least one saved reel
+
+**Steps:**
+1. Profile → Saved tab (grid renders)
+2. Tap any reel thumbnail
+
+**Expected result:** Feed opens and scrolls to the tapped reel; reel plays immediately
+**Actual result (before fix):** A modal appeared showing Reel ID and metadata with a "View in Feed" CTA, requiring an extra tap
+**Fix applied:** `handleReelPress` now calls `router.push('/(tabs)/feed?highlightReel=<mediaId>')` directly; modal and related state removed
+**Regression test:** Tap reel in saved grid → confirm feed opens at correct reel with no intermediate modal
+**Status:** Fixed ✅
+
+---
+
+### TC-PROFILE-UX-003: Saved tab empty state
+
+**Type:** Edge case
+**Feature area:** Profile → Saved Tab
+**Priority:** P2
+
+**Preconditions:**
+- User is logged in
+- User has NO saved reels
+
+**Steps:**
+1. Profile → Saved tab
+
+**Expected result:** Empty state icon + "No saved reels yet" message + hint text displayed inline
+**Status:** Fixed ✅
+
+---
+
+### TC-PROFILE-BUG-004: Saved tab shows identical placeholder tiles instead of thumbnails
+
+**Type:** Bug Regression
+**Feature area:** Profile → Saved Tab grid
+**Priority:** P1
+
+**Preconditions:**
+- User has 2+ saved reels
+
+**Steps:**
+1. Navigate to Profile → Saved tab
+2. Observe the grid tiles
+
+**Expected result:** Each tile shows the reel's video thumbnail (different for each reel)
+**Actual result (before fix):** Every tile was an identical dark square with a bookmark icon — users couldn't tell reels apart and perceived it as "only 1 reel"
+**Root cause:** `SavedReelResponseDto` and `SavedReelListItem` did not include `thumbnailUrl`. Backend `getSavedReels` never resolved thumbnails from MongoDB. Frontend rendered a static placeholder for every item.
+**Fix applied:**
+- Backend DTO: added `thumbnailUrl?: string` to `SavedReelResponseDto`
+- Backend service: batch-fetches thumbnails from MongoDB using `reelModel.find({ _id: { $in: mediaIds } }).select('thumbnailUrl').lean()` — single query, no N+1
+- Shared types: added `thumbnailUrl?: string` to `SavedReelListItem`
+- Frontend grid: renders `<Image source={{ uri: item.thumbnailUrl }} />` when available; falls back to bookmark icon placeholder otherwise
+- Grid items now use explicit pixel dimensions (`SAVED_ITEM_SIZE`) computed from screen width — eliminates any `flex:1 + aspectRatio:1` layout uncertainty
+**Regression test:** Save 3 different reels → Profile → Saved tab → each tile must show a distinct thumbnail
+**Status:** Fixed ✅
+
+---
+
 **Week 1 Progress:**
 - ✅ Auth Module (3 docs, 4,154 lines)
 - ✅ User Module (3 docs, 4,003 lines)

@@ -2033,6 +2033,49 @@ aws s3 rm s3://chefooz-media-output/profiles/ --recursive --exclude "*" --includ
 | **Review Cycle** | Quarterly |
 | **Related Modules** | Auth, Social, Reels, Reviews, Chef |
 
+
+---
+
+## Saved Reels Tab — UX Simplification (March 2026)
+
+### Change summary
+
+The Saved tab was previously a redirect card that pushed to a separate screen (`/profile/me/saved`), which in turn showed a modal on tapping a reel. Both intermediate layers have been removed.
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `apps/chefooz-app/src/app/(tabs)/profile.tsx` | Saved tab now renders inline `FlatList` grid using `useSavedReels()`. Tap navigates to `/(tabs)/feed?highlightReel=<mediaId>` |
+| `apps/chefooz-app/src/app/profile/[username].tsx` | Same inline grid for own-profile view on public profile page |
+| `apps/chefooz-app/src/app/profile/[username]/saved.tsx` | Removed fullscreen `Modal`, `selectedReelIndex` state, `handleCloseViewer`, `formatDate` import, and `ReelCard` import. Tap now calls `router.push('/(tabs)/feed?highlightReel=...')` directly |
+| `apps/chefooz-app/src/app/profile/_profile.styles.ts` | Removed `savedRedirect*` styles; added `savedLoadingContainer`, `savedEmptyContainer`, `savedGridItem`, `savedGridTile`, `savedGridBadge`, `savedGridBadgeText` |
+
+### Responsive approach
+
+- Grid cells: `flex: 1, aspectRatio: 1` per column (3 cols) with `margin: normalize(2)`
+- Empty/loading states: `normalize()` for spacing, `normalizeFontSize()` for text
+
+### Navigation contract
+
+`/(tabs)/feed?highlightReel=<mediaId>` — the feed screen already handles the `highlightReel` param and scrolls to the matching reel.
+
+*Last Updated: March 3, 2026*
+
+### Saved Reels Grid — Thumbnail Resolution (March 2026)
+
+| Layer | Change |
+|---|---|
+| `SavedReelResponseDto` (backend DTO) | Added `thumbnailUrl?: string` |
+| `getSavedReels` (service) | Batch-fetches `thumbnailUrl` from MongoDB `reelModel.find({ _id: { $in: mediaIds } }).select('thumbnailUrl').lean()` — one query regardless of page size |
+| `SavedReelListItem` (shared types) | Added `thumbnailUrl?: string` |
+| `savedGridItem` style | Changed from `flex:1, aspectRatio:1` to explicit `width: SAVED_ITEM_SIZE, height: SAVED_ITEM_SIZE` (screen-width computed) |
+| `savedGridThumb` / `savedGridPlaceholder` | New styles for conditional thumbnail / fallback icon rendering |
+| `profile.tsx`, `[username].tsx` inline grid | Renders `<Image>` when `thumbnailUrl` exists; bookark icon fallback otherwise |
+| `saved.tsx` dedicated screen | Same thumbnail + fallback pattern; `reelThumbnail` style added |
+
+*Last Updated: March 3, 2026*
+
 ---
 
 **[END OF TECHNICAL GUIDE]**

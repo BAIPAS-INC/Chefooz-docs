@@ -980,6 +980,32 @@ WHERE (userId = :targetId AND blockedUserId = :viewerId)
 
 ---
 
+## Saved Reels Tab (Updated — March 2026)
+
+### Behaviour
+
+When the user taps the **Saved** tab on their own profile, they now see an inline 3-column thumbnail grid of all saved reels — identical to the Reels/Reviews/Menu tabs. Tapping a reel navigates directly to the feed with that reel highlighted (via `highlightReel` query param).
+
+### What was removed
+
+The old flow had three redundant steps that were removed:
+
+| Removed step | Replacement |
+|---|---|
+| "View Saved" redirect card inside the Saved tab | Inline grid renders immediately |
+| Separate `/profile/me/saved` route as intermediate screen | No separate screen needed — grid lives in-tab |
+| Tap-to-reel modal showing Reel ID + "View in Feed" CTA | Tap goes straight to feed with `highlightReel` |
+
+### New flow
+
+```
+Profile → Saved tab → (grid renders inline) → Tap reel → Feed (reel plays)
+```
+
+*Last Updated: March 3, 2026*
+
+---
+
 **[END OF FEATURE OVERVIEW]**
 
 ---
