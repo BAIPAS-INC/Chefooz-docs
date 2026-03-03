@@ -1881,7 +1881,36 @@ describe('Activity Module (E2E)', () => {
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: January 2025  
+---
+
+## 🎨 **Activity Screen — UI Styling Approach** *(Updated March 2026)*
+
+### Responsive Scaling
+All styles on `apps/chefooz-app/src/app/profile/activity.tsx` use `normalize()` and `normalizeFontSize()` from `@chefooz-app/utils/responsive`. No hardcoded pixel values are present.
+
+| Token type | Utility | Example |
+|---|---|---|
+| Spacing / padding / margin / borderRadius | `normalize(value)` | `paddingHorizontal: normalize(16)` |
+| Font sizes / lineHeight | `normalizeFontSize(value)` | `fontSize: normalizeFontSize(14)` |
+| Fixed dimensions (icon circle) | `normalize(value)` | `width: normalize(42)` |
+
+### Theme Token Usage
+- Background → `theme.colors.background`
+- Card surface → `theme.colors.surface` (applied inline on press state)
+- Active filter border + tint → `theme.colors.primary` (purple `#B84CB0`)
+- Icon colors → `theme.colors.danger`, `theme.colors.primary`, `theme.colors.info`, `theme.colors.success`
+- Text → `theme.colors.textPrimary` / `theme.colors.textSecondary`
+- Empty state icon tint → `${theme.colors.primary}10`
+
+### Bugs Fixed (March 2026)
+- **Missing `activityItem` style**: The `StyleSheet.create` block was missing the `activityItem` key entirely, causing a runtime crash on all devices.
+- **`tivityItemPressed` typo**: A broken key name in `StyleSheet.create` that silently failed to apply pressed feedback.
+- **Wrong active filter color**: Filter pill border was hardcoded to `#FF6B35` (legacy orange) instead of `theme.colors.primary` (brand purple).
+- **Removed unused `TouchableOpacity` import**.
+
+---
+
+**Document Version**: 1.1  
+**Last Updated**: March 2026  
 **Complexity**: High (dual-feed system, multi-source aggregation)  
 **Dependencies**: User, UserFollow, Engagement, Comment, Reel modules

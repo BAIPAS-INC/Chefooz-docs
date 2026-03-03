@@ -1437,8 +1437,75 @@ Test-EndpointPerformance -url "https://api-staging.chefooz.com/api/v1/activity" 
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: January 2025  
-**Test Coverage**: 38 test cases across 9 categories  
+---
+
+## 🐛 **Regression Tests — UI Enhancement (March 2026)**
+
+### TC-ACTIVITY-REG-01: activityItem style renders without crash
+
+**Type:** Bug Regression / Automated  
+**Feature area:** Profile Activity Screen (`/profile/activity`)  
+**Priority:** P0
+
+**Preconditions:**
+- User is logged in
+- User has at least one activity (like, comment, follow, or save)
+
+**Steps:**
+1. Navigate to Profile tab
+2. Tap "Your Activity" / navigate to `/profile/activity`
+3. Observe the activity list rendering
+
+**Expected result:** List renders correctly with card-style items showing icon, title, and timestamp  
+**Actual result (before fix):** Runtime crash — `styles.activityItem` was `undefined` because the style was missing from `StyleSheet.create`  
+**Fix applied:** Added `activityItem` style with card layout, padding, border radius, and elevation  
+**Status:** Fixed ✅
+
+---
+
+### TC-ACTIVITY-REG-02: Active filter pill uses brand primary color
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Filter tabs on Profile Activity Screen  
+**Priority:** P1
+
+**Preconditions:**
+- User is on `/profile/activity`
+
+**Steps:**
+1. Tap any non-"All" filter pill (e.g. "Likes")
+2. Observe the active pill border and background color
+
+**Expected result:** Active pill border is Chefooz purple (`#B84CB0` / `theme.colors.primary`)  
+**Actual result (before fix):** Active pill border was `#FF6B35` (legacy orange — wrong brand color)  
+**Fix applied:** Replaced hardcoded `#FF6B35` with `theme.colors.primary` applied inline  
+**Status:** Fixed ✅
+
+---
+
+### TC-ACTIVITY-REG-03: Responsive layout on small screens
+
+**Type:** Manual / Visual  
+**Feature area:** Profile Activity Screen  
+**Priority:** P1
+
+**Preconditions:**
+- Test on a 320px wide device (or emulator set to 320px)
+
+**Steps:**
+1. Navigate to `/profile/activity`
+2. Scroll through activity items
+3. Check filter pills, icon circles, and text wrap
+
+**Expected result:** All elements scale proportionally; no overflow or clipping  
+**Actual result (before fix):** Hardcoded pixel values caused cramped layout on small screens  
+**Fix applied:** All styles converted to `normalize()` / `normalizeFontSize()`  
+**Status:** Fixed ✅
+
+---
+
+**Document Version**: 1.1  
+**Last Updated**: March 2026  
+**Test Coverage**: 41 test cases across 9 categories + 3 regression tests  
 **Automation**: PowerShell scripts provided for all scenarios  
-**Next Review**: After mobile UI implementation (Q2 2025)
+**Next Review**: Q3 2026
