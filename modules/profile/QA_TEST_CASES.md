@@ -2468,6 +2468,78 @@ describe('Profile Module E2E', () => {
 
 ---
 
+## 🐛 Bug Regression Test Cases (March 2026 QA Round)
+
+### TC-PROFILE-BUG-001: 'Earn with Chefooz' Section Visible for Existing Chef/Rider
+
+**Type:** Bug Regression
+**Feature area:** Settings Screen
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in with `role: 'chef'` OR `role: 'rider'`
+
+**Steps:**
+1. Log in as a chef or rider user
+2. Navigate to Profile → Settings
+3. Scroll to the "EARN WITH CHEFOOZ" section
+
+**Expected result:** The "EARN WITH CHEFOOZ" section is hidden entirely for users who are already a chef or rider
+**Actual result (before fix):** Section was always visible due to broken boolean logic: `user?.role !== 'rider' || user?.role !== 'chef'` — this is a logical tautology (always `true`)
+**Fix applied:** Changed `||` to `&&` in `apps/chefooz-app/src/app/profile/settings.tsx` so the section only shows when the user is neither a chef NOR a rider
+**Regression test:** Sign in as `user?.role === 'chef'`; confirm the EARN WITH CHEFOOZ section is absent from settings
+**Status:** Fixed ✅
+
+---
+
+### TC-PROFILE-BUG-002: Activity Page - Bad Padding in Body
+
+**Type:** Bug Regression
+**Feature area:** Profile Activity Screen
+**Priority:** P2
+
+**Preconditions:**
+- User is logged in
+- User has activity items (likes, comments, follows, saves)
+
+**Steps:**
+1. Navigate to Profile → Settings → Your Activity
+2. Observe the layout of the activity list
+
+**Expected result:** Activity items have consistent row padding with visible left/right margins and correct bottom safe area spacing
+**Actual result (before fix):** Items had no enclosing style (`activityItem` style was missing entirely). Style key `tivityItemPressed` (missing `ac` prefix) was broken and had no effect. Double-counted `insets.bottom` caused excessive bottom whitespace
+**Fix applied:**
+- Added missing `activityItem` style with `paddingHorizontal: 16, paddingVertical: 14` row layout
+- Fixed style key typo `tivityItemPressed` → `activityItemPressed`
+- Removed `+ insets.bottom` from FlatList `paddingBottom` (SafeAreaView with `edges=['bottom']` already applies it)
+**Regression test:** Open activity screen on a device with a notch/safe area; confirm no double bottom gap
+**Status:** Fixed ✅
+
+---
+
+### TC-PROFILE-BUG-003: Followers/Following Empty from Settings Path
+
+**Type:** Bug Regression
+**Feature area:** Settings → Social → Followers / Following
+**Priority:** P1
+
+**Preconditions:**
+- User has followers/following
+- Access path: Settings → SOCIAL section
+
+**Steps:**
+1. Navigate to Profile → Settings
+2. Scroll to SOCIAL section
+3. Tap "Followers" or "Following"
+
+**Expected result:** Followers/Following list loads with the correct user's data
+**Actual result (before fix):** Navigated with `userId=undefined` when `user?.id` was falsy during render, resulting in the API being called with no userId and returning empty results
+**Fix applied:** Added `if (user?.id)` guard before calling `router.push()` so navigation only occurs when user ID is confirmed available
+**Regression test:** Navigate to followers from settings while auth is fully initialized; confirm list is not empty for a user with followers
+**Status:** Fixed ✅
+
+---
+
 **Week 1 Progress:**
 - ✅ Auth Module (3 docs, 4,154 lines)
 - ✅ User Module (3 docs, 4,003 lines)

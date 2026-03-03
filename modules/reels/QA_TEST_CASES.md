@@ -1552,6 +1552,106 @@ Increase menu item query batch size or implement pagination.
 
 ---
 
+## 🐛 Bug Regression Test Cases (March 2026 QA Round)
+
+### TC-REELS-BUG-001: Like Icon Not Filled After Liking a Reel (Heart Stays Outlined)
+
+**Type:** Bug Regression
+**Feature area:** Reel - Engagement / Like
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- At least one reel visible in the feed
+
+**Steps:**
+1. Open the feed
+2. Tap the heart icon on any reel
+3. Observe the heart icon immediately after tapping
+4. Scroll away from the reel and then scroll back
+
+**Expected result:** Heart icon turns filled (red/solid) and stays filled when scrolling back
+**Actual result (before fix):**
+- Optimistic update incremented like count but did NOT set `isLiked: true` in the React Query cache
+- `React.memo` equality check only compared `item.id` and `isVisible`, blocking re-renders when cache updated
+- `useState(item.stats?.isLiked || false)` never re-ran after initial render, so icon reverted to outlined on any re-mount
+**Fix applied (3 locations):**
+1. `libs/api-client/src/lib/hooks/useEngagement.ts` — optimistic update now toggles `isLiked`/`isSaved` boolean and correctly adjusts count by ±1 (not always +1)
+2. `apps/chefooz-app/src/components/ReelCard.tsx` — added `useEffect` to sync `isLiked` state from `item.stats?.isLiked` on prop changes
+3. `apps/chefooz-app/src/components/ReelCard.tsx` — `React.memo` now also compares `item.stats?.isLiked` to allow re-renders on engagement cache changes
+**Regression test:**
+1. Tap like on a reel
+2. Scroll to next reel and back
+3. Confirm heart is still filled
+4. Tap unlike — confirm count decrements correctly
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-BUG-002: Video Plays During Text Overlay Editing (Upload Edit Screen)
+
+**Type:** Bug Regression
+**Feature area:** Upload Edit - Text Overlay
+**Priority:** P2
+
+**Preconditions:**
+- User has selected or recorded a video in the upload flow
+- Video is playing in preview on the edit screen
+
+**Steps:**
+1. Open the upload edit screen with a video
+2. Tap the "Text" button on the right action rail
+3. Observe the video in the background while `TextEditModal` is open
+
+**Expected result:** Video pauses when the text edit modal opens; resumes when it closes
+**Actual result (before fix):** Video continued playing in the background while the user was editing text, causing distraction and potential audio interference
+**Fix applied:** Added `useEffect` in `apps/chefooz-app/src/app/reels/upload-v2/edit.tsx` to call `player.pause()` when `showTextEditModal` becomes `true` and `player.play()` when it becomes `false`
+**Regression test:**
+1. Select a video on the upload edit screen
+2. Tap the "Text" button
+3. Confirm video is silent/paused
+4. Dismiss the text modal
+5. Confirm video resumes playing
+**Status:** Fixed ✅
+
+---
+
 **Document Version**: 1.0  
-**Last Updated**: 2026-02-27  
+**Last Updated**: 2026-03-03  
 **Next Review**: 2026-03-14
+
+---
+
+### TC-REELS-BUG-003: Like Count Shows 0 After Liking — Heart Not Preserved Across Reel Views
+
+**Type:** Bug Regression  
+**Feature area:** Feed / Reel engagement — Like action  
+**Priority:** P0
+
+**Preconditions:**
+- User is authenticated
+- Feed contains at least one reel the user has not yet liked
+
+**Steps:**
+1. Open the feed, scroll to a reel
+2. Tap the heart icon — count should increment and heart should fill red
+3. Scroll past the reel, then scroll back
+4. Observe the heart icon and count
+
+**Expected result:** Heart is filled red; like count persists  
+**Actual result (before fix):** Heart shows outline; count shows 0
+
+**Root causes (multi-layer):**
+1. `handleLikeEngagement` used `$setOnInsert + { active: true }` upsert — second tap was idempotent (never toggled), so UI and server diverged
+2. Backend returned stats without `isLiked` in the response, so `mergeEngagementStats` could not set correct state
+3. `mapReelToFeedItem` received `userId=undefined` (controller never extracted it), so `isLiked` was always `false` on feed refetch
+4. `chefooz.tsx` never tracked `isTabFocused`, so the viewability seed never ran — `isVisible` stayed `false` — `ReelCard` useEffect never synced
+
+**Fix applied:**
+- `feed.service.ts`: `handleLikeEngagement` now reads existing record and toggles `active` flag; includes `isLiked` in response
+- `feed.service.ts`: `getFeed` accepts and passes `userId` to `mapReelToFeedItem`
+- `feed.controller.ts`: `@UseGuards(OptionalJwtAuthGuard)` added to GET /feed; `userId` extracted from `req.user`
+- `useEngagement.ts`: `mergeEngagementStats` uses server-returned `isLiked`/`isSaved` when present; falls back to toggle
+- `ReelCard.tsx`: local `localLikesCount` state for instant feedback; syncs from underlying cache item
+
+**Status:** Fixed ✅

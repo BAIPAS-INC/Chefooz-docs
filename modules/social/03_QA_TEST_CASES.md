@@ -2142,4 +2142,35 @@ const testConfig = {
 
 ---
 
+## 🐛 Bug Regression Test Cases (March 2026 QA Round)
+
+### TC-SOCIAL-BUG-001: Followers/Following Empty from Settings Path
+
+**Type:** Bug Regression
+**Feature area:** Social - Followers/Following List (accessed from Settings)
+**Priority:** P1
+
+**Preconditions:**
+- User is authenticated and has followers/following
+- Navigate via: Profile → Settings → SOCIAL section → Followers (or Following)
+
+**Steps:**
+1. Log in as any user with existing followers
+2. Go to Profile → Open Settings screen
+3. Scroll to the SOCIAL section
+4. Tap "Followers"
+5. Observe whether the list shows followers
+
+**Expected result:** Follower list loads correctly and shows the user's followers (same as tapping Followers from the profile page)
+**Actual result (before fix):** List showed empty. When `user?.id` was falsy at render time, navigation pushed `/social/followers?userId=undefined` causing the `useFollowers` hook to be disabled (`enabled: !!userId` = false)
+**Fix applied:** Added `if (user?.id)` guard in `settings.tsx` before calling `router.push()` for both Followers and Following. This prevents navigating with an undefined userId
+**Regression test:**
+1. Log in and verify `user.id` is populated
+2. Go to Settings → Tap Followers
+3. Confirm list loads correctly
+4. Match count against profile page followers count
+**Status:** Fixed ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**

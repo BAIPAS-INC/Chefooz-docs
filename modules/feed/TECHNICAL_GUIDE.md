@@ -1,7 +1,7 @@
 # Feed Module - Technical Guide
 
 **Version:** 1.0  
-**Last Updated:** February 14, 2026  
+**Last Updated:** March 3, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Domain Logic:** `libs/domain/src/feed/`  
 **Tech Stack:** NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis/Valkey
@@ -21,6 +21,11 @@
 9. [Error Handling](#error-handling)
 10. [Testing Approach](#testing-approach)
 11. [Deployment Notes](#deployment-notes)
+
+## Recent Fixes
+
+- 2026-03-03: Client engagement cache merge now preserves `isLiked`/`isSaved` flags and aliases `savedCount` to `saves`, preventing like counts from resetting after refetches/tab switches.
+- 2026-03-03: Feed UI seeds `visibleItemIds` with the first reel when focused so autoplay starts without requiring an initial scroll.
 
 ---
 

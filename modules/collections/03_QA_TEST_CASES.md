@@ -1,7 +1,7 @@
 # Collections Module - QA Test Cases
 
 **Version:** 1.0  
-**Last Updated:** February 14, 2026  
+**Last Updated:** March 3, 2026 (TC-COLL-BUG-002 added)  
 **Module:** Collections  
 **Test Coverage**: API, Business Logic, Security, Performance
 
@@ -1106,6 +1106,28 @@ $jobs | Wait-Job | Receive-Job
 
 ## Edge Cases
 
+### TC-COLL-030: Add to collection uses mediaId (no reel not found)
+
+**Type:** Bug Regression  
+**Feature area:** Collection add/save  
+**Priority:** P0
+
+**Preconditions:**
+- User logged in
+- Collection exists for the user
+- Reel available in feed with both `id` and `mediaId` fields
+
+**Steps:**
+1. From a reel card, long press Save to open collection sheet.
+2. Select an existing collection.
+3. Confirm the save.
+
+**Expected result:** API call succeeds without `Reel not found`; reel is added to collection and saved state reflects immediately.  
+**Actual result (before fix):** API returned `Reel not found` because the client sent `id` instead of `mediaId` to collections endpoints.  
+**Fix applied:** Pass `mediaId` consistently from reel cards and correct `/api/v1/collections/create` + save-status routes.  
+**Regression test:** libs/api-client/src/lib/hooks/useEngagement.spec.ts (identifier handling)  
+**Status:** Fixed ✅
+
 ### TC-EDGE-001: Delete Collection Preserves Saved Status
 
 **Objective**: Verify cascade delete doesn't unsave reels
@@ -1208,5 +1230,91 @@ RESPONSE=$(curl -s \
 
 **[QA_COMPLETE ✅]**  
 **Module**: Collections  
-**Test Cases**: 30 scenarios across 9 categories  
-**Date**: February 14, 2026
+**Test Cases**: 31 scenarios across 9 categories  
+**Date**: March 3, 2026
+
+---
+
+### TC-COLL-BUG-001: "Reel Not Found" Error When Saving to Collection
+
+**Type:** Bug Regression  
+**Feature area:** Collections — Save to collection / addToCollection  
+**Priority:** P0
+
+**Preconditions:**
+- User is authenticated
+- User has at least one collection
+
+**Steps:**
+1. Open feed, long-press the save icon on a reel
+2. CollectionSheet opens
+3. Tap an existing collection OR enter a new collection name and tap confirm
+4. Observe error toast
+
+**Expected result:** Reel is saved to the selected collection  
+**Actual result (before fix):** Toast shows "Reel not found" error
+
+**Root cause:**
+- `collections.service.ts` methods `toggleSave` and `addToCollection` looked up reels with `reelModel.findOne({ mediaId: dto.mediaId })`
+- The `mediaId` field on the Reel document is an **optional** field for Media upload linking — it is not the reel's MongoDB `_id`
+- The client sends `item.id` (the MongoDB `_id` string), not the optional `mediaId` upload field
+- The lookup therefore returned `null` for all reels whose `mediaId` field was unset (the majority)
+
+**Fix applied:**
+- Both `toggleSave` and `addToCollection` now first check if `dto.mediaId` is a valid 24-char hex ObjectId
+- If yes: `findById(dto.mediaId)` — falls back to `findOne({ mediaId })` for backward compatibility
+- If not an ObjectId: `findOne({ mediaId: dto.mediaId })` as before
+
+**Regression test:** `apps/chefooz-apis/src/modules/collections/collections.service.ts`  
+**Status:** Fixed ✅
+---
+
+### TC-COLL-BUG-002: Reel Saved to Collection but Missing from Profile → Saves Tab
+
+**Type:** Bug Regression  
+**Feature area:** CollectionSheet — save flow / toggleSave missing  
+**Priority:** P0
+
+**Preconditions:**
+- User is authenticated
+- User is on the reel feed / home feed
+- Reel has NOT been previously saved (isSaved = false)
+
+**Steps:**
+1. Tap the bookmark icon on a reel
+2. CollectionSheet opens
+3. Tap "Create new collection", type "food", tap the confirm checkmark
+4. Sheet dismisses (collection "food" is created in DB)
+5. Navigate to Profile → Saves tab
+6. Observe: reel does NOT appear in Saves
+
+**Expected result:** Reel appears in Profile → Saves and also in the "food" collection  
+**Actual result (before fix):** Reel present in `collection_items` table but **absent** from `saved_reels` table — invisible in Profile → Saves
+
+**Root cause:**
+- `CollectionSheet` called `addToCollection` (writes to `collection_items`) but **never called `toggleSave`** (writes to `saved_reels`)
+- `SaveButton.handlePress` only opened the CollectionSheet; `useToggleSave` was imported and instantiated inside `SaveButton` but was completely dead code — never invoked
+- Profile → Saves reads exclusively from `saved_reels`, so reels only added via collection sheet were never visible there
+
+**Fix applied:**
+- `CollectionSheet` now imports `useToggleSave` from `@chefooz-app/api-client`
+- New `ensureSaved()` helper calls `toggleSave({ mediaId })` for the current reel if `isReelSaved` is `false`, then sets `isReelSaved = true` to prevent double-toggling in the same sheet session
+- `ensureSaved()` is called inside both:
+  - `handleToggleCollection` — when user taps an existing collection (add direction only)
+  - `handleCreateCollection` — immediately before `addToCollection` on the new collection
+- `CollectionSheet` now accepts an `isSaved?: boolean` prop (defaulting to `false`), synced from `item.stats?.isSaved` in both `ReelCard` and `FeedReelCard`
+- `SaveButton` cleaned up: removed unused `useToggleSave` import and `toggleSaveMutation` declaration
+
+**Files changed:**
+- `apps/chefooz-app/src/components/collections/CollectionSheet.tsx`
+- `apps/chefooz-app/src/components/collections/SaveButton.tsx`
+- `apps/chefooz-app/src/components/ReelCard.tsx`
+- `apps/chefooz-app/src/components/home-feed/FeedReelCard.tsx`
+
+**Regression test:** Confirm via manual test:
+1. Save a reel via CollectionSheet (new collection)
+2. Check `saved_reels` table has a record for user + mediaId
+3. Confirm reel visible in Profile → Saves tab
+4. Confirm reel visible in the created collection
+
+**Status:** Fixed ✅

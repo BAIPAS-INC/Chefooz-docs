@@ -1,7 +1,7 @@
 # Feed Module - QA Test Cases
 
 **Version:** 1.0  
-**Last Updated:** February 14, 2026  
+**Last Updated:** March 3, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Test Environment:** Staging (staging.chefooz.app)  
 **Total Test Cases:** 89
@@ -2360,6 +2360,48 @@ DELETE FROM engagements WHERE user_id LIKE 'test_%'
 
 ## Regression Tests
 
+### TC-FEED-090: First reel auto-plays without scrolling
+
+**Type:** Bug Regression  
+**Feature area:** Feed autoplay  
+**Priority:** P0
+
+**Preconditions:**
+- User is logged in
+- At least 1 reel exists in feed
+
+**Steps:**
+1. Open /(tabs)/feed from a cold start (do not scroll).
+2. Wait 2 seconds without touching the screen.
+3. Switch to another tab, then return to feed without scrolling.
+
+**Expected result:** First visible reel starts playing automatically both on initial load and after tab return. No manual tap is required.  
+**Actual result (before fix):** Video remained paused until the user scrolled, so autoplay never started.  
+**Fix applied:** Seed `visibleItemIds` with the first reel when focused so expo-video auto-plays immediately.  
+**Regression test:** libs/api-client/src/lib/hooks/useEngagement.spec.ts (engagement state) + manual autoplay check  
+**Status:** Fixed ✅
+
+### TC-FEED-091: Like state persists after engagement response
+
+**Type:** Bug Regression  
+**Feature area:** Feed engagement  
+**Priority:** P0
+
+**Preconditions:**
+- User logged in
+- Reel present in feed
+
+**Steps:**
+1. Like a reel on feed.
+2. Wait for the UI to settle, then pull to refresh or switch tabs and return.
+3. Observe like icon and like count for the same reel.
+
+**Expected result:** Heart remains filled and like count reflects the increment (does not reset to 0) across tab switches and refetches.  
+**Actual result (before fix):** Like count returned to 0 and the icon unfilled because the cache dropped `isLiked` when merging server stats.  
+**Fix applied:** Merge server engagement stats while preserving `isLiked`/`isSaved` flags and aliasing `savedCount`.  
+**Regression test:** libs/api-client/src/lib/hooks/useEngagement.spec.ts  
+**Status:** Fixed ✅
+
 ### TC-REG-001: Menu Reel Feature Flag (ON/OFF)
 
 **Priority**: HIGH  
@@ -2510,7 +2552,202 @@ mongo chefooz_test --eval "db.reels.count()"
 
 ---
 
+## 🐛 Bug Regression Test Cases (March 2026 QA Round)
+
+### TC-FEED-BUG-001: Feed Videos Do Not Autoplay After Snap-Scrolling
+
+**Type:** Bug Regression
+**Feature area:** Feed - Video Autoplay / ViewabilityConfig
+**Priority:** P1
+
+**Preconditions:**
+- User is on the feed tab
+- Multiple reels visible
+- User scrolls by snap-scrolling (one reel at a time)
+
+**Steps:**
+1. Open the feed tab
+2. Wait for the first reel to autoplay
+3. Swipe up to the next reel
+4. Observe whether the next reel autoplays
+
+**Expected result:** The new reel begins playing immediately (within ~100ms of snap settling)
+**Actual result (before fix):** The `itemVisiblePercentThreshold` was set to `90` — due to viewport rounding and status bar height, snap-scrolled items typically only reached ~88-89% visibility, so `onViewableItemsChanged` never fired. Videos did not autoplay.
+**Fix applied:**
+- `apps/chefooz-app/src/hooks/useVisibleRows.ts`: Reduced `itemVisiblePercentThreshold` from `90` to `70`
+- `apps/chefooz-app/src/hooks/useVisibleRows.ts`: Reduced `minimumViewTime` from `200ms` to `100ms` for faster autoplay response
+**Regression test:**
+1. Open feed
+2. Snap-scroll to next reel
+3. Confirm video autoplays within ~1s without tapping
+4. Snap-scroll across 5 reels rapidly — all should autoplay
+**Status:** Fixed ✅
+
+---
+
+### TC-FEED-BUG-002: Feed Scroll Position Resets to Top on Every Tab Re-Focus
+
+**Type:** Bug Regression
+**Feature area:** Feed - Tab Navigation / Autoplay State
+**Priority:** P1
+
+**Preconditions:**
+- User is on the feed tab watching a reel at position 3+
+- User switches away to another tab (e.g. Explore or Profile)
+- User switches back to the feed tab
+
+**Steps:**
+1. Open the feed tab
+2. Scroll down to the 3rd or 4th reel
+3. Switch to the Explore tab
+4. Switch back to the Feed tab
+5. Observe scroll position and autoplay behavior
+
+**Expected result:** Feed returns to the last-viewed reel position; that reel resumes autoplaying immediately
+**Actual result (before fix):** `useFocusEffect` on tab gain called `setForceRefreshKey(prev => prev + 1)` which changed the FlatList `key` prop, fully remounting the list and resetting scroll to the top. Additionally, `setVisibleItemIds([])` on gain meant no item was marked visible, so autoplay did not trigger.
+**Fix applied:** `apps/chefooz-app/src/app/(tabs)/feed.tsx` — rewrote `useFocusEffect`:
+- On focus GAIN: only calls `setIsTabFocused(true)`. `visibleItemIds` is preserved from the previous session, so the last-visible video resumes immediately.
+- On focus LOSS: calls `setIsTabFocused(false)` + `setVisibleItemIds([])` to cleanly stop all videos.
+- `forceRefreshKey` is no longer modified on focus transitions; the FlatList key is now stable.
+**Regression test:**
+1. Scroll feed to reel at position 4
+2. Switch to Profile tab
+3. Switch back to Feed
+4. Confirm: scroll is at reel 4 (not top), video starts playing
+**Status:** Fixed ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**  
 **Feed Module - QA Test Cases**  
 **Generated:** February 14, 2026  
-**Lines:** ~1,850
+**Lines:** ~1,850  
+**Last Updated:** March 3, 2026
+
+---
+
+### TC-FEED-BUG-003: Feed Videos Don't Autoplay on Chefooz Home Tab
+
+**Type:** Bug Regression  
+**Feature area:** chefooz.tsx — Reel autoplay / visibility seeding  
+**Priority:** P0
+
+**Preconditions:**
+- App is freshly opened or returning to Home tab after visiting another tab
+
+**Steps:**
+1. Open the app and navigate to the Chefooz (home) tab
+2. Observe the first reel in the feed
+
+**Expected result:** First reel starts playing automatically (like Instagram/TikTok)  
+**Actual result (before fix):** Video is static; only plays after user swipes
+
+**Root cause:**
+- `chefooz.tsx` did not track `isTabFocused` — it was always implicitly `true` but `visibleItemIds` was never seeded on initial load
+- `onViewableItemsChanged` only fires after user interaction; without a seed, the first visible item was never marked as visible
+- `viewabilityConfig` used `itemVisiblePercentThreshold: 80` with no `waitForInteraction: false`, blocking immediate trigger
+
+**Fix applied:**
+- Added `isTabFocused` state to `chefooz.tsx`; set `true` on focus, `false` on blur
+- Added `useEffect` to seed `visibleItemIds[0]` when `isTabFocused && feedItems.length > 0 && visibleItemIds.length === 0`
+- Updated `viewabilityConfig` to `{ itemVisiblePercentThreshold: 70, minimumViewTime: 100, waitForInteraction: false }`
+- `renderReelItem` now passes `isTabFocused && visibleItemIds.includes(item.id)` to `isVisible`
+
+**Status:** Fixed ✅
+
+---
+
+### TC-FEED-BUG-004: isLiked Always False on Feed Refetch (userId Not Passed to getFeed)
+
+**Type:** Bug Regression  
+**Feature area:** GET /api/v1/feed — authenticated per-user like state  
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in and has previously liked one or more reels
+
+**Steps:**
+1. Like a reel in the feed
+2. Pull-to-refresh or navigate away and back
+3. Observe the heart icon on the previously liked reel
+
+**Expected result:** Heart is filled red  
+**Actual result (before fix):** Heart shows as outline (isLiked: false)
+
+**Root cause:**
+- `feed.controller.ts` GET endpoint had no auth guard; `userId` was never extracted from the request
+- `feed.service.ts getFeed()` did not accept a `userId` parameter; always passed `undefined` to `mapReelToFeedItem`
+- Guest feed was cached without per-user like state — authenticated users got the same cached response as guests
+
+**Fix applied:**
+- Added `@UseGuards(OptionalJwtAuthGuard)` + `@ApiBearerAuth()` to GET /feed in `feed.controller.ts`
+- `getFeed(query, userId?)` signature updated in service
+- Cache key now excludes authenticated users (`!userId` condition) — authenticated feed always queries fresh
+
+**Status:** Fixed ✅
+
+---
+
+### TC-FEED-BUG-005: Video Immediately Pauses After Scrolling Into View
+
+**Type:** Bug Regression  
+**Feature area:** ReelPlayer — auto-play/pause effect deduplication  
+**Priority:** P0
+
+**Preconditions:**
+- Feed is loaded with at least 2 reels
+- Device is Android or iOS
+
+**Steps:**
+1. Open feed; first reel plays (or doesn't — see TC-FEED-BUG-003)
+2. Snap-scroll to the next reel
+3. Observe the video
+
+**Expected result:** Video starts playing automatically  
+**Actual result (before fix):** Video pauses immediately — confirmed by log:
+```
+🎮 Player: <id> {"isVisible": false, "playing": true, "status": "readyToPlay"}
+✅ Video ready: <id>
+⏸️ Pause: <id>
+```
+
+**Root cause:**
+Race between `expo-video` status (`readyToPlay`) and the FlatList viewability callback (`isVisible`):
+1. Video buffers and becomes `readyToPlay` while `isVisible` is still `false` (viewability hasn't fired yet)
+2. The 150ms debounced play/pause effect fires → `isVisible: false` → pauses the player
+3. `onViewableItemsChanged` fires shortly after → `isVisible` becomes `true`
+4. The effect re-runs, but hits the deduplication guard: `status` is still `readyToPlay` and `player.playing` is still `false` (unchanged from the pause cycle) → **returns early** → play logic is never reached
+
+**Fix applied:**
+- `ReelPlayer.tsx`: Added `lastIsVisibleRef` to the deduplication check
+- Guard now requires `status`, `player.playing`, **and** `isVisible` to all be unchanged before short-circuiting
+- When `isVisible` flips `false→true`, the guard passes and the play logic executes correctly
+
+**Status:** Fixed ✅
+
+**Type:** Bug Regression  
+**Feature area:** GET /api/v1/feed — authenticated per-user like state  
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in and has previously liked one or more reels
+
+**Steps:**
+1. Like a reel in the feed
+2. Pull-to-refresh or navigate away and back
+3. Observe the heart icon on the previously liked reel
+
+**Expected result:** Heart is filled red  
+**Actual result (before fix):** Heart shows as outline (isLiked: false)
+
+**Root cause:**
+- `feed.controller.ts` GET endpoint had no auth guard; `userId` was never extracted from the request
+- `feed.service.ts getFeed()` did not accept a `userId` parameter; always passed `undefined` to `mapReelToFeedItem`
+- Guest feed was cached without per-user like state — authenticated users got the same cached response as guests
+
+**Fix applied:**
+- Added `@UseGuards(OptionalJwtAuthGuard)` + `@ApiBearerAuth()` to GET /feed in `feed.controller.ts`
+- `getFeed(query, userId?)` signature updated in service
+- Cache key now excludes authenticated users (`!userId` condition) — authenticated feed always queries fresh
+
+**Status:** Fixed ✅

@@ -2017,6 +2017,28 @@ $env:TEST_MENU_ITEM_ID = "menu-item-uuid"
 
 ---
 
+### TC-CART-BUG-001: Empty Cart 'Explore Reels' Button Crash
+
+**Type:** Bug Regression
+**Feature area:** Cart - Empty State
+**Priority:** P0
+
+**Preconditions:**
+- User is logged in
+- Cart is empty (all items removed or no items added)
+
+**Steps:**
+1. Navigate to the cart screen with no items
+2. Tap the "Explore Reels" button in the empty state
+
+**Expected result:** App navigates to the Chefooz home feed tab without crashing
+**Actual result (before fix):** App crashed with "undefined is not a function" error — `router.push('/chefooz')` resolved to an invalid Expo Router path
+**Fix applied:** Changed route from `router.push('/chefooz')` to `router.replace('/(tabs)/chefooz')`
+**Regression test:** Verify navigation via manual tap on device
+**Status:** Fixed ✅
+
+---
+
 **Document Version**: 1.0  
 **Last Updated**: February 14, 2026  
 **Module**: Cart (Week 6 - Order Flow)  

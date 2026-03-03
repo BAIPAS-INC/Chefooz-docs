@@ -1674,6 +1674,39 @@ Run-AllTests
 
 ---
 
+## 🐛 Bug Regression Test Cases (March 2026 QA Round)
+
+### TC-CHEF-KITCHEN-BUG-001: Chef Menu Screen Shows "Please Log In" on App Launch
+
+**Type:** Bug Regression
+**Feature area:** Chef Kitchen - Menu Management / Auth Race Condition
+**Priority:** P1
+
+**Preconditions:**
+- An authenticated chef opens the app cold (first launch or after fresh install)
+- Chef navigates directly to the Menu tab
+
+**Steps:**
+1. Launch the app as a chef
+2. Navigate to the Kitchen / Menu tab immediately
+3. Observe the screen content during the first ~300ms
+
+**Expected result:** Screen shows a loading spinner while auth initializes; once `user.id` is resolved, the menu loads normally
+**Actual result (before fix):** `useAuthStore.isAuthenticated` is set to `true` immediately from stored JWT, but `user.id` is populated later by the `/me` API call. During this window, `!userId` was `true` and the screen showed "Please log in" momentarily.
+**Fix applied:** `apps/chefooz-app/src/app/chef/menu/index.tsx` — added guard:
+```ts
+if (authIsLoading || (isAuthenticated && !userId)) {
+  return <ActivityIndicator />;
+}
+```
+**Regression test:**
+1. Clear app state / log in fresh as chef
+2. Navigate to Chef Kitchen Menu tab as fast as possible after launch
+3. Confirm: loading spinner shows briefly, then menu loads — NOT "Please log in"
+**Status:** Fixed ✅
+
+---
+
 **[QA_TEST_CASES_COMPLETE ✅]**
 
 *For feature overview, see `01_FEATURE_OVERVIEW.md`. For technical implementation, see `02_TECHNICAL_GUIDE.md`.*
@@ -1681,7 +1714,7 @@ Run-AllTests
 ---
 
 **Document Version**: 1.0  
-**Last Updated**: February 2026  
-**Total Test Cases**: 59  
+**Last Updated**: March 2026 (Bug regression TCs added)  
+**Total Test Cases**: 60  
 **Estimated Test Execution Time**: ~4 hours (manual), ~30 minutes (automated)  
 **Next Review**: Q2 2026 (Add caching tests)

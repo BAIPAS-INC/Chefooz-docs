@@ -1,7 +1,7 @@
 # Collections Module - Technical Guide
 
 **Version:** 1.0  
-**Last Updated:** February 14, 2026  
+**Last Updated:** March 3, 2026  
 **Module:** `apps/chefooz-apis/src/modules/collections/`  
 **Tech Stack:** NestJS, PostgreSQL (TypeORM), MongoDB (Mongoose)
 
@@ -17,6 +17,11 @@
 6. [Error Handling](#error-handling)
 7. [Performance Optimization](#performance-optimization)
 8. [Testing](#testing)
+
+## Recent Fixes
+
+- 2026-03-03: Corrected client endpoints to use `/api/v1/collections/create` and `/api/v1/collections/saved/status/:mediaId` to align with NestJS controller.
+- 2026-03-03: Collection mutations now send `mediaId` (Mongo ObjectId) from reel cards, preventing `Reel not found` responses when saving.
 
 ---
 
@@ -1230,6 +1235,24 @@ describe('CollectionsController (e2e)', () => {
 
 ---
 
+## Edge Cases & Known Constraints
+
+### Adding to a collection must also create a saved_reels record
+
+**Constraint (March 2026):** `addToCollection` writes to the `collection_items` table only.  
+It does NOT automatically create a `saved_reels` record (that requires `toggleSave`).
+
+**Consumer responsibility:** Any UI that calls `addToCollection` MUST also call `toggleSave`
+if the reel is not already saved, otherwise the reel will be in the collection but will **not** 
+appear in the Profile → Saves tab.
+
+**Implementation:** `CollectionSheet` handles this automatically via `ensureSaved()` — which 
+calls `toggleSave` once per sheet session the first time the user adds a reel to any collection.
+
+> See **TC-COLL-BUG-002** in `03_QA_TEST_CASES.md` for the regression test.
+
+---
+
 ## Related Documentation
 
 - **Feature Overview**: `01_FEATURE_OVERVIEW.md` (Business context)
@@ -1241,4 +1264,4 @@ describe('CollectionsController (e2e)', () => {
 **[TECHNICAL_COMPLETE ✅]**  
 **Module**: Collections  
 **Documentation**: Technical Guide  
-**Date**: February 14, 2026
+**Date**: March 3, 2026
