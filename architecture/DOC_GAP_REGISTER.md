@@ -33,7 +33,7 @@ This register tracks **known documentation gaps** in `/docs/` — features, modu
 | AG-001 | AppShell implementation (tab layout, safe area, bottom nav) | `docs/architecture/SYSTEM_OVERVIEW.md` (AppShell section) | 🔴 MISSING | `application-guides/APPSHELL_IMPLEMENTATION.md` | — |
 | AG-002 | AppHeader rollout (header component across all screens) | `docs/architecture/SYSTEM_OVERVIEW.md` (AppHeader section) | 🔴 MISSING | `application-guides/APPHEADER_ROLLOUT_COMPLETE.md` | — |
 | AG-003 | Tab navigation fixes (tab switch bugs, state resets) | `docs/architecture/SYSTEM_OVERVIEW.md` (Navigation section) | 🔴 MISSING | `application-guides/TAB_NAVIGATION_FIX_COMPLETE.md` | — |
-| AG-004 | Theme migration Phase 1 (token system, colour overhaul) | `docs/architecture/TECH_STACK_DECISIONS.md` (UI Theme section) | 🔴 MISSING | `application-guides/THEME_MIGRATION_PHASE1_COMPLETE.md` | — |
+| AG-004 | Theme migration Phase 1 (token system, colour overhaul) | `docs/architecture/TECH_STACK_DECISIONS.md` (UI Theme section) | ✅ RESOLVED | `application-guides/THEME_MIGRATION_PHASE1_COMPLETE.md` | 2026-03-04 |
 
 ---
 

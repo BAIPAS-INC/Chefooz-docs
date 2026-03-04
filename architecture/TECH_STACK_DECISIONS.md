@@ -790,7 +790,60 @@ Store JWT tokens exclusively in **`expo-secure-store`** (hardware-backed encrypt
 | **Auth strategy** | OTP + JWT | — | ADR-017 |
 | **OTP delivery (primary)** | WhatsApp Cloud API (Meta) | — | ADR-017 |
 | **OTP delivery (fallback)** | Twilio SMS | — | ADR-017 |
+| **Dark mode library** | expo-linear-gradient + RN `useColorScheme` | Expo SDK | ADR-019 |
+| **Theme preference storage** | AsyncStorage | `@react-native-async-storage/async-storage` | ADR-019 |
+
+---
+
+## ADR-019 — Dark Mode & Theme System (CDL v2, March 2026)
+
+**Status:** Implemented  
+**Last Updated:** 2026-03-04
+
+### Context
+
+The app launched with a light-only theme system split across two locations:
+- `src/constants/theme.ts` — static raw-value constants (used in 76 files)
+- `src/theme/index.ts` — `ChefoozTheme` object (used in 137 files)
+
+React Native `Text` on Android can inherit the system dark-mode text colour (white) when no explicit `color` is set. Because the app had no dark mode support, devices with dark mode enabled were showing white text on white backgrounds in several screens.
+
+### Decision
+
+Adopted the **single-source-of-truth token model** (CDL v2):
+
+```
+src/theme/tokens.ts        ← Raw palette (colors, radius, spacing, z-index, duration)
+src/theme/index.ts         ← lightTheme + darkTheme objects built from tokens
+src/theme/provider.tsx     ← ChefoozThemeProvider (system detection + persistence)
+src/theme/GradientBackground.tsx  ← Screen-level background with brand gradient overlay
+src/theme/gradients.tsx    ← All gradient components (now theme-aware)
+src/constants/theme.ts     ← Compatibility shim wiring to tokens (76 legacy files)
+```
+
+**Dark mode mechanics:**
+1. `useColorScheme()` from React Native detects system preference
+2. User can override via Settings → Appearance (system / light / dark)
+3. Preference persisted to `AsyncStorage` key `chefooz_theme_pref`
+4. React Native Paper receives a matching `MD3DarkTheme` or `MD3LightTheme` automatically
+
+**Dark mode visual design:**
+- Near-black surface system: `#0A0A0A` (bg) → `#1C1C1E` (cards) → `#2C2C2E` (elevated)
+- Brand gradient appears as a subtle diagonal tinted overlay:
+  - Top-left: brand purple at 9% opacity
+  - Center: fully transparent  
+  - Bottom-right: brand coral at 6% opacity
+- All text tokens use WCAG AA compliant contrast values
+
+### Consequences
+
+- `StatusBar` is now `<ThemedStatusBar />` (icons switch between light/dark automatically)
+- All new components MUST use `useChefoozTheme()` — never hardcode colors
+- Legacy `CHEFOOZ_COLORS` constants still work but are marked `@deprecated`
+- `GradientBorder` inner surface now correctly uses `colors.surface` (was hardcoded `#FFFFFF`)
+- The CRS-gating `ThemeProvider` (providers/ThemeProvider.tsx) remains unchanged — it manages premium cosmetic themes independently
 
 ---
 
 [SLICE_COMPLETE ✅]
+
