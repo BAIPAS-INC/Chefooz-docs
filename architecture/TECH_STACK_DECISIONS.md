@@ -845,5 +845,36 @@ src/constants/theme.ts     ← Compatibility shim wiring to tokens (76 legacy fi
 
 ---
 
-[SLICE_COMPLETE ✅]
+## ADR-020 — StatusBar Consolidation (CDL v2 Phase 2, March 2026)
+
+**Status:** Implemented  
+**Last Updated:** 2026-03-05
+
+### Context
+
+After ADR-019 established the theming infrastructure, QA found that many screens had their own `StatusBar` component from `react-native` (legacy API) that was conflicting with the root `ThemedStatusBar` set in `_layout.tsx`. This caused two problems:
+
+1. **API mixing:** `react-native/StatusBar` uses `barStyle="light-content|dark-content"` whereas `expo-status-bar/StatusBar` uses `style="light|dark"`. Android and iOS treat these differently.
+2. **Dark mode breakage:** Hardcoded `barStyle="dark-content"` in screens overrode the global `ThemedStatusBar`, forcing dark icons on dark backgrounds in dark mode.
+
+### Decision
+
+**Consolidation strategy:**
+
+| Screen type | Strategy | Reason |
+|---|---|---|
+| Regular screens (light bg) | Remove per-screen StatusBar entirely | Defer to root `ThemedStatusBar` in `_layout.tsx` which auto-derives icon color from `theme.isDark` |
+| Immersive screens (video/hero image — always dark bg) | Keep per-screen `StatusBar` from `expo-status-bar` with `style="light"` | These screens always need light icons regardless of system theme |
+| `AppHeader.tsx` | Auto-derives bar style: `statusBarStyle ?? (transparent ? 'light' : (isDark ? 'light' : 'dark'))` | AppHeader renders a StatusBar so screens using it get correct auto behavior |
+
+**Files changed (25 total):**
+- Removed per-screen `react-native` StatusBar from 8 regular screens (profile/activity, profile/orders, onboarding/username, reels/upload-v2/link-order, link-menu, share, chef/orders, chef/order/[orderId])
+- Converted 10 immersive screens to `expo-status-bar` `style="light"` (feed, profile tab, explore, chef/[chefId], profile/[username], explore/category, profile/reels/[reelId], reels/[reelId], (tabs)/reels/[reelId], OnboardingPager)
+- Updated `AppHeader.tsx` to use `expo-status-bar` with auto-derived style
+
+### Rule
+
+> All StatusBar usage MUST use `expo-status-bar`. Never import `StatusBar` from `react-native`. If you need a per-screen override, use `<StatusBar style="light|dark|auto" />` from `expo-status-bar`.
+
+---
 

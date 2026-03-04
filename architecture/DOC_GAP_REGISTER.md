@@ -34,6 +34,7 @@ This register tracks **known documentation gaps** in `/docs/` — features, modu
 | AG-002 | AppHeader rollout (header component across all screens) | `docs/architecture/SYSTEM_OVERVIEW.md` (AppHeader section) | 🔴 MISSING | `application-guides/APPHEADER_ROLLOUT_COMPLETE.md` | — |
 | AG-003 | Tab navigation fixes (tab switch bugs, state resets) | `docs/architecture/SYSTEM_OVERVIEW.md` (Navigation section) | 🔴 MISSING | `application-guides/TAB_NAVIGATION_FIX_COMPLETE.md` | — |
 | AG-004 | Theme migration Phase 1 (token system, colour overhaul) | `docs/architecture/TECH_STACK_DECISIONS.md` (UI Theme section) | ✅ RESOLVED | `application-guides/THEME_MIGRATION_PHASE1_COMPLETE.md` | 2026-03-04 |
+| AG-005 | StatusBar consolidation (expo-status-bar + auto dark mode) | `docs/architecture/TECH_STACK_DECISIONS.md` (ADR-020) | ✅ RESOLVED | — | 2026-03-05 |
 
 ---
 
