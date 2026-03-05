@@ -1,7 +1,7 @@
 # Explore Module - Technical Guide
 
-**Version:** 1.0  
-**Last Updated:** February 14, 2026  
+**Version:** 1.1  
+**Last Updated:** March 2026  
 **Module:** `apps/chefooz-apis/src/modules/explore/`  
 **Domain Logic:** `libs/domain/src/lib/explore-*.ts`  
 **Tech Stack:** NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis/Valkey
@@ -1072,6 +1072,48 @@ reels.forEach(reel => { reel.chef = userMap.get(reel.userId); });
 2. **Shorter TTL for Real-Time Sections** (new_dish: 15 min)
 3. **Invalidate on User Actions** (like, follow → clear recommendations)
 4. **Use Cursor-Based Pagination** (avoid offset LIMIT queries)
+
+---
+
+## SmartSearchBar — Gradient Header (UI Enhancement March 2026)
+
+**File**: `apps/chefooz-app/src/components/explore/SmartSearchBar.tsx`
+
+### Styling Approach
+
+- Container is `<LinearGradient>` from `expo-linear-gradient` (replaces plain `<View>`)
+- Gradient colours computed inside the component (not in `makeStyles`) because `colors` used as const arrays
+- `style` on `LinearGradient` includes `backgroundColor: colors.background` as a paint-behind fallback
+
+### Dark / Light Gradient Values
+
+```ts
+// Dark mode
+['rgba(192, 49, 191, 0.18)', 'rgba(20, 20, 20, 0.0)', 'rgba(252, 120, 48, 0.12)']
+
+// Light mode
+['rgba(192, 49, 191, 0.07)', 'rgba(255, 255, 255, 0.0)', 'rgba(252, 120, 48, 0.05)']
+```
+
+Direction: `start={{ x: 0, y: 0 }}` → `end={{ x: 1, y: 1 }}` (diagonal top-left → bottom-right)
+
+### Search Pill Background
+
+| Mode | Background | Shadow |
+|------|-----------|--------|
+| Light | `#FFFFFF` | iOS: `rgba(192,49,191,0.20)` shadow, opacity 0.28, radius 8 |
+| Dark  | `colors.surfaceElevated` (`#2C2C2E`) | iOS: black shadow, opacity 0.45, radius 8 |
+| Android | Both modes | `elevation: 3` (light) / `elevation: 5` (dark) |
+
+### Constraints
+
+- The `gradientColors` tuple must be `[string, string, string]` — TypeScript `as const` applied on the tuple
+- Do not pass `isDark` into `makeStyles` for gradient colours since LinearGradient needs the array before StyleSheet is applied
+- The `TextInput` import was removed — the component is tap-only (navigates to `/search`)
+
+### Explore Screen Background Fix
+
+All `SafeAreaView` wrappers in `explore.tsx` now receive `{ backgroundColor: theme.colors.background }` as an inline style override. The `styles.container` static StyleSheet retains `flex: 1` only, with the theme-reactive colour provided at render time.
 
 ---
 

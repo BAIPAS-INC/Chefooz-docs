@@ -1,7 +1,7 @@
 # Explore Module - Feature Overview
 
-**Version:** 1.0  
-**Last Updated:** February 14, 2026  
+**Version:** 1.1  
+**Last Updated:** March 2026  
 **Module:** `apps/chefooz-apis/src/modules/explore/`  
 **Domain Logic:** `libs/domain/src/lib/explore-*.ts`
 
@@ -774,6 +774,36 @@ async aggregateTrendingScores(): Promise<void> {
 | `/v1/explore/search` | GET | Required | 10/sec | Unified search (legacy) |
 
 **Note**: See `TECHNICAL_GUIDE.md` for detailed API specs and request/response schemas.
+
+---
+
+## Header & Search Bar (UI Enhancement — March 2026)
+
+### SmartSearchBar Redesign
+
+The `SmartSearchBar` component (sticky header at the top of the Explore tab) was redesigned for a more polished look in both light and dark mode.
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| **Container background** | Plain (no background, only border-bottom) | `LinearGradient` — brand purple→coral tint at low opacity |
+| **Search icon** | Emoji `🔍` | `Ionicons` `search` (left) + `mic-outline` (right) |
+| **Search pill background** | Border-only | White elevated card (light) / `surfaceElevated` (dark) |
+| **Search pill shadow** | None | iOS shadow / Android elevation (brand-tinted in light mode) |
+| **Separator** | `borderBottomWidth: 1` | Removed — gradient provides visual separation |
+
+### Color Behaviour
+
+- **Light mode**: gradient `rgba(192,49,191,0.07)` → transparent → `rgba(252,120,48,0.05)` over white `colors.background`
+- **Dark mode**: gradient `rgba(192,49,191,0.18)` → transparent → `rgba(252,120,48,0.12)` over dark `colors.background`
+- Gradient direction: top-left → bottom-right (`start {x:0,y:0}` → `end {x:1,y:1}`)
+
+### Explore Screen (explore.tsx) Fixes
+
+- All `SafeAreaView` containers now have `backgroundColor: theme.colors.background` (prevents white flash in dark mode)
+- `ScrollView` now has `backgroundColor: theme.colors.background`
+- `StatusBar` added to the default layout path (was missing; previously only present in the variant layout path)
+- Removed unused `transparent` import from `react-native-paper` internals
+- Added missing `Ionicons` import (was used in empty state button but not imported)
 
 ---
 
