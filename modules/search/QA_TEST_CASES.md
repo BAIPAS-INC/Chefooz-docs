@@ -1198,3 +1198,48 @@ describe('Search Module E2E', () => {
 **Documentation**: QA Test Cases  
 **Total Test Cases**: 48  
 **Date**: February 14, 2026
+
+---
+
+## Dark Mode Regression Tests (Added March 2026)
+
+### TC-SEARCH-DM-001: Search Screen Background in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Search screen (`app/search/index.tsx`)  
+**Priority:** P1
+
+**Preconditions:**
+- Device is set to dark appearance (iOS: Settings → Display & Brightness → Dark)
+- User is logged in
+
+**Steps:**
+1. Open the Chefooz app
+2. Navigate to the Search tab
+3. Observe the screen background, search input wrapper, and tab pills
+
+**Expected result:** Background is `#0A0A0A`, search input wrapper is `#2C2C2E`, tabs are `#2C2C2E`, sort chips are `#2C2C2E`  
+**Actual result (before fix):** All backgrounds rendered white (`#fff` / `#f5f5f5`) — screen unreadable in dark mode  
+**Fix applied:** Converted `StyleSheet.create` to `makeStyles(colors)` factory; replaced all hardcoded hex colors with theme tokens  
+**Regression test:** `apps/chefooz-app/src/app/search/index.tsx` (makeStyles factory at bottom of file)  
+**Status:** Fixed ✅
+
+### TC-SEARCH-DM-002: User Search Cards, Follow Buttons in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Search — User tab  
+**Priority:** P1
+
+**Steps:**
+1. Switch device to dark mode
+2. Open Search and search for a user
+3. Observe user cards, follow/following buttons, "Follows You" badge
+
+**Expected result:** User cards are transparent (no white), follow button uses `colors.info` tint, following button uses `colors.surface` background with `colors.border` outline  
+**Actual result (before fix):** Follow button white, following button white, text invisible  
+**Fix applied:** Replaced `#007AFF`, `#fff`, `#ddd`, `#333` with `colors.info`, `colors.surface`, `colors.border`, `colors.textPrimary`  
+**Status:** Fixed ✅
+
+---
+
+**Last Updated**: March 2026

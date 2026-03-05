@@ -1681,3 +1681,31 @@ GRAND TOTAL:      ₹539.70
 **Total Test Cases**: 67  
 **Coverage Areas**: Functional, Integration, Edge Cases, Validation, Performance, Security, Platform, Pricing, Distance, Payment, Regression  
 **Next Step**: Create MODULE_COMPLETE.md summary document
+
+---
+
+## Dark Mode Regression Tests (Added March 2026)
+
+### TC-CHECKOUT-DM-001: Checkout Prepare Screen in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Checkout (`app/checkout/prepare.tsx`)  
+**Priority:** P0
+
+**Preconditions:**
+- Device set to dark appearance
+- Items in cart
+
+**Steps:**
+1. Add items to cart and proceed to checkout in dark mode
+2. Observe: container background, header, order summary cards, change-card buttons, warning banners, info boxes, back button, footer
+
+**Expected result:** Background `#0A0A0A`, cards `#1C1C1E`, warning banners tinted (`colors.warning + '30'`), info boxes tinted (`colors.info + '20'`), all text readable  
+**Actual result (before fix):** White screen with white cards, banners, and footer  
+**Fix applied:** Converted `StyleSheet.create` to `makeStyles(colors)` factory; all 20+ hardcoded hex values replaced  
+**Regression test:** `apps/chefooz-app/src/app/checkout/prepare.tsx`  
+**Status:** Fixed ✅
+
+---
+
+**Last Updated**: March 2026

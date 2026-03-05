@@ -2635,3 +2635,97 @@ describe('Profile Module E2E', () => {
 - ✅ Profile Module (3 docs, ~4,800 lines)
 
 **Total Week 1 Output:** 9 professional documents, ~12,957 lines of comprehensive documentation.
+
+---
+
+## Dark Mode Regression Tests (Added March 2026)
+
+### TC-PROFILE-DM-001: Profile Screen Background and Cards in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Profile screen (`app/(tabs)/profile.tsx`)  
+**Priority:** P0
+
+**Preconditions:**
+- Device set to dark appearance
+- Logged in as any user (customer or chef)
+
+**Steps:**
+1. Open app in dark mode
+2. Navigate to the Profile tab
+3. Observe screen background, quick access cards, settings sections, info cards, social stats
+
+**Expected result:** Container background is `#0A0A0A`, cards are `#1C1C1E`, section separators are `#3A3A3C`, text is accessible (`#F5F5F5` / `#ABABAB`)  
+**Actual result (before fix):** White background, white cards — completely illegible in dark mode  
+**Fix applied:** Converted `StyleSheet.create` to `makeStyles(colors, isDark)` factory; replaced all hardcoded colors  
+**Regression test:** `apps/chefooz-app/src/app/(tabs)/profile.tsx`  
+**Status:** Fixed ✅
+
+### TC-PROFILE-DM-002: Orders Screen (Profile → Your Orders) in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Profile → Orders (`app/profile/orders/index.tsx`)  
+**Priority:** P1
+
+**Steps:**
+1. Open app in dark mode
+2. Navigate to Profile → Your Orders
+3. Observe loading spinner container, empty state, error state, and footer loader
+
+**Expected result:** All state containers use `colors.background` or `colors.surface` — no white panels  
+**Actual result (before fix):** Paper `Surface` components rendered white regardless of theme  
+**Fix applied:** Replaced `<Surface>` with `<View style={[styles.xxx, { backgroundColor: colors.surface }]}>` for `loadingContainer`, `errorContainer`, `emptyState`, `footerLoader`; removed Paper `Surface` import  
+**Regression test:** `apps/chefooz-app/src/app/profile/orders/index.tsx`  
+**Status:** Fixed ✅
+
+### TC-PROFILE-DM-003: Monetization Page in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Profile → Monetization (`app/profile/monetization/index.tsx`)  
+**Priority:** P1
+
+**Steps:**
+1. Log in as a chef account
+2. In dark mode, navigate to Profile → Monetization / Earnings
+3. Observe earnings card, coming-soon card, tip section
+
+**Expected result:** All cards use `colors.surface`, tip section uses warning tint `colors.warning + '25'`, text is `colors.textPrimary`  
+**Actual result (before fix):** All white (`#fff`, `#F9FAFB`, `#FFF9E6`)  
+**Fix applied:** Converted to `makeStyles(colors)` factory  
+**Status:** Fixed ✅
+
+### TC-PROFILE-DM-004: My Commissions Page in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Profile → Commissions (`app/commissions/index.tsx`)  
+**Priority:** P1
+
+**Steps:**
+1. Log in as a chef account in dark mode
+2. Navigate to Profile → My Commissions
+3. Observe all cards and info panels
+
+**Expected result:** Background `colors.background`, cards `colors.surface`, all text tokens match dark theme  
+**Actual result (before fix):** White cards on white background  
+**Fix applied:** Converted to `makeStyles(colors)` factory  
+**Status:** Fixed ✅
+
+### TC-PROFILE-DM-005: Chef Hub Card in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Profile → Chef Hub Card component  
+**Priority:** P1
+
+**Steps:**
+1. Log in as a chef in dark mode
+2. Navigate to Profile tab
+3. Observe the Chef Hub card (activation/status card)
+
+**Expected result:** Card background is `colors.surface`, pending chip uses warning tint, divider uses `colors.border`  
+**Actual result (before fix):** White card on dark profile background  
+**Fix applied:** Converted `ChefHubCard.tsx` to `makeStyles(colors)` factory  
+**Status:** Fixed ✅
+
+---
+
+**Last Updated**: March 2026

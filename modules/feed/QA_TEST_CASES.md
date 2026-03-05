@@ -2751,3 +2751,31 @@ Race between `expo-video` status (`readyToPlay`) and the FlatList viewability ca
 - Cache key now excludes authenticated users (`!userId` condition) — authenticated feed always queries fresh
 
 **Status:** Fixed ✅
+
+---
+
+## Dark Mode Regression Tests (Added March 2026)
+
+### TC-FEED-DM-001: Home Feed Header in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** FeedHeader component (`components/home-feed/FeedHeader.tsx`)  
+**Priority:** P0
+
+**Preconditions:**
+- Device set to dark appearance
+
+**Steps:**
+1. Open the Chefooz app in dark mode
+2. Navigate to Home feed
+3. Observe the header bar (logo, cart icon, notification icon)
+
+**Expected result:** Header background is `colors.background` (`#0A0A0A`), border is `colors.border`, icons use `colors.textPrimary`  
+**Actual result (before fix):** Header rendered white (`#FFFFFF`) — glaring white bar at top of dark feed  
+**Fix applied:** `FeedHeader.tsx` converted to `makeStyles(colors)` factory; `backgroundColor: '#FFFFFF'`, `borderBottomColor: '#DBDBDB'`, icon `color="#000"` all replaced with theme tokens  
+**Regression test:** `apps/chefooz-app/src/components/home-feed/FeedHeader.tsx`  
+**Status:** Fixed ✅
+
+---
+
+**Last Updated**: March 2026

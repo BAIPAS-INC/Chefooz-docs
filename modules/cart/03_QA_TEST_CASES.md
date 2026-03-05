@@ -2040,7 +2040,49 @@ $env:TEST_MENU_ITEM_ID = "menu-item-uuid"
 ---
 
 **Document Version**: 1.0  
-**Last Updated**: February 14, 2026  
+**Last Updated**: March 2026  
 **Module**: Cart (Week 6 - Order Flow)  
 **Test Cases**: 40+ comprehensive scenarios  
 **Status**: ✅ Complete
+
+---
+
+## Dark Mode Regression Tests (Added March 2026)
+
+### TC-CART-DM-001: Cart Screen — All Card Backgrounds in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Cart screen (`app/cart/index.tsx`)  
+**Priority:** P0
+
+**Preconditions:**
+- Device set to dark appearance
+- Cart has at least 1 item
+
+**Steps:**
+1. Open the Chefooz app in dark mode
+2. Add an item to cart from a chef's menu
+3. Navigate to the Cart screen
+4. Observe: container background, cart item cards, special request input, order summary card, checkout footer, address card, address bottom sheet
+
+**Expected result:** Container is `#0A0A0A`, all cards are `#1C1C1E`, input fields are `#2C2C2E`, borders are `#3A3A3C`, text is `#F5F5F5` / `#ABABAB`  
+**Actual result (before fix):** White background with white cards — completely unreadable in dark mode  
+**Fix applied:** Converted `StyleSheet.create` to `makeStyles(colors)` factory pattern; all 25+ hardcoded hex values replaced with theme tokens  
+**Regression test:** `apps/chefooz-app/src/app/cart/index.tsx` (makeStyles factory)  
+**Status:** Fixed ✅
+
+### TC-CART-DM-002: Cart FSSAI Expandable Section in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Cart — FSSAI compliance section  
+**Priority:** P1
+
+**Steps:**
+1. Open cart in dark mode
+2. Tap the FSSAI info toggle ("View nutritional info" or similar)
+3. Observe the expanded section background and text
+
+**Expected result:** Expanded section uses `colors.surfaceElevated` (#2C2C2E), labels use `colors.textPrimary`, values use `colors.textSecondary`  
+**Actual result (before fix):** White `#FAFAFA` background with dark text — stark white block in dark mode cart  
+**Fix applied:** `fssaiExpandedSection.backgroundColor: '#FAFAFA'` → `colors.surfaceElevated`  
+**Status:** Fixed ✅

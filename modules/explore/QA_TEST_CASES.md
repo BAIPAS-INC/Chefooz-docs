@@ -1080,3 +1080,32 @@ Reel uploaded 5 days ago: 40 freshness score
 **Module**: Explore  
 **Documentation**: QA Test Cases  
 **Date**: February 14, 2026
+
+---
+
+## Dark Mode Regression Tests (Added March 2026)
+
+### TC-EXPLORE-DM-001: Category Detail Screen in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Category detail screen (`app/explore/category/[categoryKey].tsx`)  
+**Priority:** P1
+
+**Preconditions:**
+- Device set to dark appearance
+
+**Steps:**
+1. Open app in dark mode
+2. Navigate to Explore tab
+3. Tap any category (e.g. "Biryani")
+4. Observe: category background, sort chips, item cards, popular badges, bottom load-more button
+
+**Expected result:** Background `colors.background`, cards `colors.surface`, sort chips `colors.interactiveSubtle`, popular badge uses warning tint  
+**Actual result (before fix):** White backgrounds on all cards and sort section  
+**Fix applied:** `[categoryKey].tsx` converted to `makeStyles(colors)` factory; replaced `#fff`, `#f0f0f0`, `#f8f8f8`, `#1a1a1a` etc.  
+**Regression test:** `apps/chefooz-app/src/app/explore/category/[categoryKey].tsx`  
+**Status:** Fixed ✅
+
+---
+
+**Last Updated**: March 2026

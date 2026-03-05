@@ -1655,3 +1655,49 @@ Increase menu item query batch size or implement pagination.
 - `ReelCard.tsx`: local `localLikesCount` state for instant feedback; syncs from underlying cache item
 
 **Status:** Fixed ✅
+
+---
+
+## Dark Mode Regression Tests (Added March 2026)
+
+### TC-REELS-DM-001: Share Sheet in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Share Sheet (`components/share/ShareSheet.tsx`)  
+**Priority:** P1
+
+**Preconditions:**
+- Device set to dark appearance
+- User is on the home feed or reel detail screen
+
+**Steps:**
+1. Open app in dark mode
+2. Tap the share icon on any reel
+3. Observe the bottom sheet background, title, option labels, cancel button
+
+**Expected result:** Sheet background `colors.surface` (`#1C1C1E`), handle `colors.textMuted`, text `colors.textPrimary` / `colors.textSecondary`, cancel button `colors.interactiveSubtle`  
+**Actual result (before fix):** White sheet on dark background — stark white bottom sheet  
+**Fix applied:** `ShareSheet.tsx` converted to `makeStyles(colors)` factory  
+**Regression test:** `apps/chefooz-app/src/components/share/ShareSheet.tsx`  
+**Status:** Fixed ✅
+
+### TC-REELS-DM-002: Report Sheet in Dark Mode
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Report Sheet (`components/report/ReportSheet.tsx`)  
+**Priority:** P1
+
+**Steps:**
+1. Open app in dark mode
+2. Tap the 3-dot menu on a reel and select "Report"
+3. Observe the bottom sheet background, reason list, text input, guidelines box
+
+**Expected result:** Sheet background `colors.surface`, reasons list uses dark text `colors.textPrimary`, textarea uses `colors.surfaceElevated` with `colors.border`  
+**Actual result (before fix):** White sheet regardless of theme  
+**Fix applied:** `ReportSheet.tsx` converted to `makeStyles(colors, isDark)` factory  
+**Regression test:** `apps/chefooz-app/src/components/report/ReportSheet.tsx`  
+**Status:** Fixed ✅
+
+---
+
+**Last Updated**: March 2026
