@@ -1072,3 +1072,33 @@ npm run test:perf -- withdrawal
 **Total Lines**: ~31,500 lines  
 **Test Coverage**: 35 test cases across 10 categories  
 **Status**: COMPLETE - Ready for Reconciliation module (Week 8, Module 4)
+
+---
+
+## 🌙 Category 11: Dark Mode Regression Tests
+
+### TC-WITHDRAWAL-DM-001: Monetization Dashboard — All Backgrounds in Dark Mode
+
+**Type:** Bug Regression / Manual
+**Feature area:** `app/monetization/index.tsx` (MonetizationDashboardScreen + PayoutStatusBadge)
+**Priority:** P1
+
+**Preconditions:**
+- Device set to dark appearance
+- User is a chef with at least one pending or completed withdrawal
+
+**Steps:**
+1. Enable dark mode on device
+2. Launch app, log in as Chef
+3. Navigate to Profile → Monetization (full dashboard)
+4. Observe: Available Balance card, Summary card, withdrawal history cards, payout status badge, notes container, failure reason banner (if any)
+
+**Expected result:** Container uses `colors.background` (#0A0A0A). Cards (`availableBalanceCard`, `summaryCard`, `emptyCard`) use `colors.surface` (#1C1C1E). Notes / payout detail containers use `colors.surfaceElevated` (#2C2C2E). All text follows theme tokens. Failure reason banner uses `colors.warning + '25'` tint.
+**Actual result (before fix):** `container.backgroundColor: '#f5f5f5'` (grey), all card backgrounds `'#fff'` (white), `notesContainer.backgroundColor: '#f9f9f9'`, `payoutStatusContainer.backgroundColor: '#f0f8ff'`, `failureReasonContainer.backgroundColor: '#fff3cd'` — entire screen appeared white/light grey in dark mode.
+**Fix applied:** Converted static `StyleSheet.create` to `makeStyles(colors: any)` factory in `monetization/index.tsx`; added `const styles = useMemo(() => makeStyles(theme.colors), [theme.colors])` and `useMemo` import. `PayoutStatusBadge` already received `styles` as a prop so it automatically benefits from the theme-aware styles.
+**Regression test:** `apps/chefooz-app/src/app/monetization/__tests__/monetization.dark-mode.spec.ts`
+**Status:** Fixed ✅
+
+---
+
+**Last Updated**: March 2026

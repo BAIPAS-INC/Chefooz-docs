@@ -1318,3 +1318,43 @@ RESPONSE=$(curl -s \
 4. Confirm reel visible in the created collection
 
 **Status:** Fixed ✅
+
+---
+
+## 🌑 Dark Mode Regression Test Cases
+
+### TC-COL-DM-001: Collection Save Sheet — All Collection UI White in Dark Mode
+
+**Type:** Bug Regression  
+**Feature area:** `components/collections/CollectionSheet.tsx`, `CollectionCard.tsx`, `CreateCollectionModal.tsx`  
+**Priority:** P1
+
+**Preconditions:**
+- Device/simulator dark mode is enabled
+- User is viewing a reel in the feed
+
+**Steps:**
+1. Enable dark mode on device
+2. Open any reel in the feed
+3. Tap the bookmark/save icon to open `CollectionSheet`
+4. Observe: sheet background, header border, collection list items, collection name text, count text, checkboxes
+5. Tap "+ Create Collection" to open `CreateCollectionModal`
+6. Observe: modal background, header, input field, emoji picker buttons, error banner (if triggered)
+7. Navigate to Profile → Saves tab to view `CollectionCard` grid
+8. Observe: card backgrounds, name text, count text
+
+**Expected result:**
+- `CollectionSheet`: background `colors.surface`, borders `colors.border`, text `colors.textPrimary`/`colors.textMuted`, inline create input `colors.surfaceElevated`
+- `CreateCollectionModal`: modal `colors.surface`, input `colors.surfaceElevated` with `colors.textPrimary` text, emoji buttons `colors.surfaceElevated` (selected: `colors.interactiveSubtle`), error banner `${colors.danger}20`
+- `CollectionCard`: card `colors.surface`, name `colors.textPrimary`, count `colors.textMuted`
+
+**Actual result (before fix):**
+- `CollectionSheet.sheet.backgroundColor: '#FFFFFF'` — sheet was pure white
+- `CreateCollectionModal.modal.backgroundColor: '#FFFFFF'` — modal was pure white
+- `CollectionCard.card.backgroundColor: '#FFFFFF'` — all collection cards in Profile were pure white
+- Input fields `'#F5F5F5'` (light grey) and text `'#333'` (near-black) — unreadable on dark
+
+**Fix applied:** All three components converted from static `StyleSheet.create` to `makeStyles(colors: any)` factory pattern. `const styles = useMemo(() => makeStyles(theme.colors), [theme.colors])` added in each component body after `const theme = useChefoozTheme()`.
+
+**Regression test:** `apps/chefooz-app/src/components/collections/__tests__/CollectionSheet.dark-mode.spec.ts`  
+**Status:** Fixed ✅

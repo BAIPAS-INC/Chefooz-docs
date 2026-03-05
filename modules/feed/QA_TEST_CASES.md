@@ -2778,4 +2778,51 @@ Race between `expo-video` status (`readyToPlay`) and the FlatList viewability ca
 
 ---
 
+### TC-FEED-DM-002: Home Feed Reel Card — White Card Wrapper in Dark Mode
+
+**Type:** Bug Regression / Manual
+**Feature area:** `components/home-feed/FeedReelCard.tsx`
+**Priority:** P0
+
+**Preconditions:**
+- Device set to dark appearance
+- User is logged in and home feed has content
+
+**Steps:**
+1. Enable dark mode on device
+2. Launch app and navigate to the Home tab
+3. Observe the feed cards — specifically the header row (avatar + username) and engagement row (likes, comments, share) above and below each reel
+
+**Expected result:** Card background is `colors.surface` (#1C1C1E). Username text is `colors.textPrimary`. Avatar placeholder uses `colors.border`. Captions, comments link, and timestamps use `colors.textMuted` / `colors.textPrimary`.
+**Actual result (before fix):** `container.backgroundColor: '#FFFFFF'` caused the entire card wrapper to render white — the top (author row) and bottom (engagement + caption + timestamp) areas appeared as bright white sections flanking each video in dark mode.
+**Fix applied:** Converted static `StyleSheet.create` to `makeStyles(colors: any)` factory in `FeedReelCard.tsx`; added `const styles = useMemo(() => makeStyles(theme.colors), [theme.colors])` and `useMemo` import. Key changes: `container.backgroundColor '#FFFFFF' → colors.surface`, `avatar.backgroundColor '#E0E0E0' → colors.border`, `username.color '#000' → colors.textPrimary`, `mediaContainer.backgroundColor '#F0F0F0' → colors.surfaceElevated`, all engagement/caption/timestamp text colours replaced with theme tokens.
+**Regression test:** `apps/chefooz-app/src/components/home-feed/__tests__/FeedReelCard.dark-mode.spec.ts`
+**Status:** Fixed ✅
+
+---
+
+### TC-FEED-DM-003: Home Feed Empty State and Footer Text in Dark Mode
+
+**Type:** Bug Regression / Manual
+**Feature area:** `components/home-feed/HomeFeedList.tsx`
+**Priority:** P1
+
+**Preconditions:**
+- Device set to dark appearance
+- Test both the empty feed state (no results) and the end-of-feed footer
+
+**Steps:**
+1. Enable dark mode on device
+2. Navigate to Home tab
+3. Reach end of feed or trigger empty state (e.g., new user with no personalised content)
+4. Observe: "You're all caught up!" end-of-feed text, empty state title, subtitle text, loading text
+
+**Expected result:** `footerEndText` uses `colors.textMuted`. `emptyTitle` uses `colors.textPrimary`. `emptySubtitle` and `emptyLoadingText` use `colors.textSecondary`.
+**Actual result (before fix):** `footerEndText.color: '#999999'`, `emptyTitle.color: '#111111'`, `emptySubtitle.color: '#666666'` — black/near-black text on dark backgrounds.
+**Fix applied:** Converted static `StyleSheet.create` to `makeStyles(colors: any)` factory in `HomeFeedList.tsx`; added `const styles = useMemo(() => makeStyles(theme.colors), [theme.colors])` after `useChefoozTheme()`. Replaced 4 hardcoded colour values with theme tokens.
+**Regression test:** `apps/chefooz-app/src/components/home-feed/__tests__/HomeFeedList.dark-mode.spec.ts`
+**Status:** Fixed ✅
+
+---
+
 **Last Updated**: March 2026

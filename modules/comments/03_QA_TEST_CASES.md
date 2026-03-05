@@ -1411,3 +1411,42 @@ NOTIFICATIONS=$(curl -s \
 **Module**: Comments  
 **Test Cases**: 39 scenarios across 11 categories  
 **Date**: February 14, 2026
+
+---
+
+## 🌑 Dark Mode Regression Test Cases
+
+### TC-COM-DM-001: Comments Sheet — CommentItem and ReplyInput White in Dark Mode
+
+**Type:** Bug Regression  
+**Feature area:** `components/comments/CommentItem.tsx`, `components/comments/ReplyInput.tsx`  
+**Priority:** P1
+
+**Preconditions:**
+- Device/simulator dark mode is enabled
+- User is viewing a reel with existing comments
+
+**Steps:**
+1. Enable dark mode on device
+2. Open any reel in the feed
+3. Tap the comment icon to open the `CommentsBottomSheet`
+4. Observe: individual comment rows (avatar background, username, text, timestamp, action buttons), reply-to banner, reply text input box
+5. Tap "Reply" on a comment to trigger the `ReplyInput`
+6. Observe: reply container background, text input, "Send" button area
+
+**Expected result:**
+- `CommentItem`: borders `colors.border`, avatar `colors.info`, username/text `colors.textPrimary`, timestamps/counts `colors.textMuted`, action links `colors.info`
+- `ReplyInput`: container `colors.surfaceElevated` with `colors.border` top border, input field `colors.surface` with `colors.textPrimary` text, send button `colors.surfaceElevated`
+
+**Actual result (before fix):**
+- `CommentItem`: `container.borderBottomColor: '#E5E5E5'` and `avatar.backgroundColor: '#007AFF'` were pure hex; text was `'#000'` (black on dark)
+- `ReplyInput`: `container.backgroundColor: '#F8F8F8'` rendered as light grey; `input.backgroundColor: '#FFFFFF'` was pure white
+
+**Fix applied:**
+- `CommentItem.tsx`: Converted to `makeStyles` factory; updated `renderTextWithMentions` helper signature to accept `infoColor: string` parameter so mention colour can be theme-reactive; call site updated to pass `theme.colors.info`
+- `ReplyInput.tsx`: Converted to `makeStyles` factory; added `input.color: colors.textPrimary` (was missing entirely)
+
+**Note:** `CommentsBottomSheet.tsx`, `CommentInput.tsx`, and `ReplyItem.tsx` were already fully theme-aware — no changes needed.
+
+**Regression test:** `apps/chefooz-app/src/components/comments/__tests__/CommentItem.dark-mode.spec.ts`  
+**Status:** Fixed ✅

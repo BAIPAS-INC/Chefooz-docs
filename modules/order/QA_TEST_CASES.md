@@ -1785,3 +1785,32 @@ Before deploying Order module to production:
 ---
 
 **[MODULE_COMPLETE ✅]**
+
+---
+
+## 🌑 Dark Mode Regression Test Cases
+
+### TC-ORD-DM-001: OrderCard Component — White Background in Dark Mode
+
+**Type:** Bug Regression  
+**Feature area:** `components/OrderCard.tsx` — used in Profile → Your Orders FlatList  
+**Priority:** P1
+
+**Preconditions:**
+- Device/simulator dark mode is enabled
+- User is logged in and has placed at least one order
+
+**Steps:**
+1. Enable dark mode on device
+2. Launch app, log in as Customer
+3. Navigate to Profile → Your Orders (or any screen that renders `OrderCard`)
+4. Observe: card backgrounds, order ID text, date text, attribution text, action divider, "View" button border
+
+**Expected result:** Card uses `colors.surface` (#1C1C1E) background. Text colours follow `colors.textPrimary` / `colors.textSecondary` / `colors.textMuted`. Dividers and borders use `colors.border`.
+
+**Actual result (before fix):** `card.backgroundColor: '#FFFFFF'` caused every OrderCard to render as a white card on dark background, overriding the screen's dark theme.
+
+**Fix applied:** Converted static `StyleSheet.create` to `makeStyles(colors: any)` factory in `components/OrderCard.tsx`; added `const styles = useMemo(() => makeStyles(theme.colors), [theme.colors])` after `const theme = useChefoozTheme()`. Replaced all hardcoded hex values (`#FFFFFF`, `#1A1A1A`, `#999`, `#666`, `#F3F4F6`, `#E5E7EB`, `#374151`) with theme tokens.
+
+**Regression test:** `apps/chefooz-app/src/components/__tests__/OrderCard.dark-mode.spec.ts`  
+**Status:** Fixed ✅

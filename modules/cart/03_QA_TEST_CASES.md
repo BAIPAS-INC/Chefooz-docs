@@ -2086,3 +2086,31 @@ $env:TEST_MENU_ITEM_ID = "menu-item-uuid"
 **Actual result (before fix):** White `#FAFAFA` background with dark text — stark white block in dark mode cart  
 **Fix applied:** `fssaiExpandedSection.backgroundColor: '#FAFAFA'` → `colors.surfaceElevated`  
 **Status:** Fixed ✅
+
+---
+
+### TC-CART-DM-003: Payment Screen All Cards in Dark Mode
+
+**Type:** Bug Regression / Manual
+**Feature area:** `app/cart/payment.tsx` checkout screen
+**Priority:** P1
+
+**Preconditions:**
+- Device set to dark appearance
+- User has items in cart with an address selected
+
+**Steps:**
+1. Enable dark mode on device
+2. Add items to cart, proceed to checkout
+3. Navigate to the payment/checkout screen (`/cart/payment`)
+4. Observe: all section cards (Chef Card, Address Card, Items Card, Price Card, Payment Method Card), sticky bottom bar, modal breakdowns
+
+**Expected result:** All card backgrounds use `colors.surface` (#1C1C1E). Text follows `colors.textPrimary` / `colors.textSecondary` / `colors.textMuted`. Borders and dividers use `colors.border`. Sticky bottom bar uses `colors.surface`.
+**Actual result (before fix):** All cards had `backgroundColor: '#FFF'` and all text was `'#000'`, `'#666'`, `'#999'` — entire payment screen appeared white in dark mode.
+**Fix applied:** Converted static `StyleSheet.create` to `makeStyles(colors: any)` factory in `cart/payment.tsx`; added `const styles = useMemo(() => makeStyles(theme.colors), [theme.colors])` and `useMemo` import. Replaced 40+ hardcoded hex values with theme tokens.
+**Regression test:** `apps/chefooz-app/src/app/cart/__tests__/payment.dark-mode.spec.ts`
+**Status:** Fixed ✅
+
+---
+
+**Last Updated**: March 2026

@@ -1514,6 +1514,33 @@ if ($failedTests -eq 0) {
 
 ---
 
+## 🌑 Dark Mode Regression Test Cases
+
+### TC-CHEF-DM-001: Chef Live Orders — Cards Render Correctly in Dark Mode
+
+**Type:** Bug Regression  
+**Feature area:** `app/chef/orders/index.tsx` — controlPanel, statsCard, orderCard  
+**Priority:** P1
+
+**Preconditions:**
+- Device/simulator dark mode is enabled
+- Chef is logged in with active incoming orders
+
+**Steps:**
+1. Enable dark mode on device
+2. Launch app, log in as Chef
+3. Navigate to the Live Orders screen (chef/orders)
+4. Observe: control panel bar, stats cards, order cards, customer info sections, timer badges
+
+**Expected result:** All cards and panels use theme-aware dark backgrounds (`colors.surface` #1C1C1E, `colors.background` #0A0A0A, `colors.surfaceElevated` #2C2C2E). Text is light (`colors.textPrimary`). Timer badges use semi-transparent accent colours.
+
+**Actual result (before fix):** `controlPanel`, `statsCard`, and `orderCard` all had `backgroundColor: '#ffffff'` — appeared as white cards on dark background.
+
+**Fix applied:** Converted static `StyleSheet.create` to `makeStyles(colors: any)` factory; added `const styles = useMemo(() => makeStyles(theme.colors), [theme.colors])` in component body. Replaced 25+ hardcoded hex values with theme tokens.
+
+**Regression test:** `apps/chefooz-app/src/app/chef/orders/__tests__/orders.dark-mode.spec.ts`  
+**Status:** Fixed ✅
+
 **Document Version**: 1.0  
 **Last Updated**: February 22, 2026  
 **Module**: Chef-Orders (Week 7 - Chef Fulfillment)  
