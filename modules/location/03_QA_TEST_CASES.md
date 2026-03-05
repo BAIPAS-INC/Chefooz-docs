@@ -1187,3 +1187,55 @@ jest.mock('@cache/cache.service', () => ({
 **Module**: Location + Rider Location  
 **Test Cases**: 44 comprehensive test scenarios  
 **Coverage**: Address CRUD, Google Places integration, rider tracking, WebSocket, performance, security
+
+---
+
+## 🌙 Dark Mode Regression Tests (March 2026)
+
+### TC-LOC-DM-001: Location Search — Dark Mode Background
+
+**Type:** Bug Regression  
+**Feature area:** `app/location-search.tsx`  
+**Priority:** P1
+
+**Preconditions:**
+- Device/simulator in dark mode (System or app-level Dark preference)
+- User is on any screen that links to location search (Cart, Profile Addresses, Reel share)
+
+**Steps:**
+1. Set device to dark mode OR set app theme to Dark via Settings > Appearance
+2. Open the Location Search screen (e.g. from Address selection flow)
+3. Observe: container background, search bar, location list items, section headers
+4. Type a search query and observe result rows
+5. Observe the empty state (no recent locations)
+
+**Expected result:** All backgrounds use `colors.surface` / `colors.background` (dark); text uses `colors.textPrimary` / `colors.textSecondary`; no white flash  
+**Actual result (before fix):** White backgrounds throughout — `CHEFOOZ_COLORS.white` / `CHEFOOZ_COLORS.background` were hardcoded light values  
+**Fix applied:** Replaced static `StyleSheet.create` with `makeStyles(colors, isDark)` pattern; removed `CHEFOOZ_COLORS` legacy import; all colors now reference `useChefoozTheme()` tokens  
+**Regression test:** `apps/chefooz-app/src/app/location-search.spec.ts` (visual smoke)  
+**Status:** Fixed ✅
+
+---
+
+### TC-LOC-DM-002: Address Form — Dark Mode Backgrounds and Inputs
+
+**Type:** Bug Regression  
+**Feature area:** `app/address-form.tsx`  
+**Priority:** P1
+
+**Preconditions:**
+- Device/simulator in dark mode
+- User has selected a location on the map and arrived at the Complete Address screen
+
+**Steps:**
+1. Enable dark mode
+2. Select a location via location-search → lands on address-form
+3. Observe: SafeAreaView background, Surface card ("Selected Location"), all TextInput fields
+4. Check text labels ("Complete Address Details", "Contact Details", "Save As") for visibility
+5. Check the checkbox label "Set as default delivery address"
+
+**Expected result:** Background uses dark background color; Surface card uses `colors.surface`; TextInput uses `colors.surface` fill with `colors.textPrimary` text and `colors.textMuted` placeholder; labels white  
+**Actual result (before fix):** All containers `backgroundColor: '#F5F5F5'` (light grey); inputs `backgroundColor: '#FFF'`; labels `color: '#333'` — invisible in dark mode  
+**Fix applied:** `makeStyles(colors, isDark)` pattern applied; `paperInputTheme` memoised and passed to all `react-native-paper` `TextInput` components overriding paper's internal colour tokens; `Surface` gets inline `backgroundColor: theme.colors.surface`  
+**Regression test:** `apps/chefooz-app/src/app/address-form.spec.ts` (visual smoke)  
+**Status:** Fixed ✅

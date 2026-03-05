@@ -1587,7 +1587,43 @@ if ($failed -eq 0) {
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: February 2026  
+## 🌙 Dark Mode Regression Tests (March 2026)
+
+### TC-CHEF-PUB-DM-001: Chef Public Page — Dark Mode Section Backgrounds
+
+**Type:** Bug Regression  
+**Feature area:** `app/chef/[chefId].tsx`  
+**Priority:** P1
+
+**Preconditions:**
+- Device/simulator in dark mode
+- At least one chef with a published menu and reel exists
+
+**Steps:**
+1. Enable dark mode
+2. Navigate to a chef's public page (via Explore or reel CTA "View Menu")
+3. Scroll past the hero section to the body content
+4. Observe: "What's Cooking" section background, kitchen info card, trust badges
+5. Observe: "Order Again" reorder card
+6. Observe: Menu section background, category pills (inactive), menu item count
+7. Observe: "Loved by X+ customers" social proof section
+
+**Expected result:**  
+- Hero card (`kitchenInfoCard`) uses `colors.surfaceElevated` in dark mode (not near-white `rgba(255,255,255,0.95)`)  
+- Section backgrounds (`whatsCookingSection`, `menuSection`, `reorderSection`, `socialProofSection`) use `colors.surface` not `#FFF`  
+- Kitchen name, section titles use `colors.textPrimary`; secondary info uses `colors.textSecondary`  
+- Trust badges use `colors.surfaceElevated` pill background  
+- Category pills use `colors.surfaceElevated` background with `colors.border` outline  
+- Reorder card uses `colors.surfaceElevated` background with `colors.border` dashed border  
+
+**Actual result (before fix):** All `backgroundColor: '#FFF'` sections render white in dark mode; `kitchenInfoCard` renders white with black text; trust badges show `#F5F5F5` (light)  
+**Fix applied:** Replaced `StyleSheet.create` with `makeStyles(colors, isDark)`; added `useMemo`; all section and component backgrounds now use `colors.surface`, `colors.surfaceElevated`, `colors.border`, `colors.textPrimary`, `colors.textSecondary`, `colors.textMuted` tokens  
+**Regression test:** `apps/chefooz-app/src/app/chef/chefId.spec.ts` (visual smoke)  
+**Status:** Fixed ✅
+
+---
+
+**Document Version**: 1.1  
+**Last Updated**: March 2026  
 **Test Environment**: Local Development  
 **Next Review**: Q2 2026 (Performance Benchmarking)
