@@ -1,7 +1,7 @@
 # 💳 Payment Module — QA Test Cases
 
 **Status**: ✅ COMPLETE  
-**Last Updated**: 2025-02-15  
+**Last Updated**: 2026-03-06  
 **Module**: Payment (Razorpay Integration)  
 **Test Environment**: Staging + Razorpay Test Mode  
 
@@ -1022,6 +1022,57 @@ curl -X POST https://api-staging.chefooz.com/api/v1/payment/webhook \
 ---
 
 ## 🔒 Security Tests
+
+### TC-PAY-SEC-000: Price Tampering via Client-Submitted Amount
+
+**Type:** Bug Regression  
+**Feature area:** `POST /api/v1/payment/create-order`  
+**Priority:** P0
+
+**Preconditions:**
+- User has a cart with items totalling ₹450 (45000 paise)
+- User is authenticated
+
+**Steps:**
+1. Intercept the `POST /api/v1/payment/create-order` request
+2. Modify `amount` to `100` (₹1) and `items[].unitPrice` to `1`
+3. Submit the manipulated request
+
+**Expected result:** Razorpay order is created with the server-authoritative cart total (₹450), not the tampered ₹1. The server logs a `WARN` about the mismatch.
+
+**Actual result (before fix):** Razorpay order was created with the client-submitted ₹1, allowing the user to effectively pay nothing.
+
+**Fix applied:** `PaymentService.createRazorpayOrder` now calls `CartService.getCart(userId)` and uses `cart.totals.grandTotalPaise` as the Razorpay order amount; client-submitted `amount` is logged as a warning but never used for charging.
+
+**Regression test:** `apps/chefooz-apis/src/modules/payment/payment.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
+### TC-PAY-SEC-000b: Payment Creation When Pricing Service is Degraded
+
+**Type:** Bug Regression  
+**Feature area:** `POST /api/v1/payment/create-order`  
+**Priority:** P1
+
+**Preconditions:**
+- `PricingService` temporarily fails during cart total calculation
+- Cart falls back to hardcoded ₹20 delivery + 5% GST (no breakdown object)
+
+**Steps:**
+1. Simulate `PricingService` failure (kill DB connection or inject error in tests)
+2. Attempt to create a payment order
+
+**Expected result:** Server returns `503 Service Unavailable` with message "Pricing service is temporarily unavailable. Please retry in a moment." No Razorpay order is created.
+
+**Actual result (before fix):** If PricingService failed, cart returned a fallback total missing platform fee, packaging, and small order fee. Payment would be created with the wrong (lower) amount.
+
+**Fix applied:** `createRazorpayOrder` checks for `cart.totals.breakdown` presence. If null (fallback mode), throws `ServiceUnavailableException`.
+
+**Regression test:** `apps/chefooz-apis/src/modules/payment/payment.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
 
 ### TC-PAY-SEC-001: Unauthorized Payment Status Access
 

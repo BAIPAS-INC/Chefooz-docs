@@ -1624,4 +1624,126 @@ SELECT * FROM addresses WHERE id = 'addr_problematic';
 
 ---
 
+## 🔐 Admin User Management Tests (March 2026)
+
+### TC-user-ADM-01: Admin users page shows real users from database
+
+**Type:** Manual / Regression  
+**Feature area:** Admin Dashboard → Users  
+**Priority:** P0
+
+**Preconditions:**
+- Logged in as admin
+- At least 3 users of different roles exist in the DB
+
+**Steps:**
+1. Navigate to `/dashboard/users`
+2. Observe the table
+
+**Expected result:** Table shows real users (customers, chefs, riders) with their names, usernames, phone numbers, and order/report counts  
+**Actual result (before fix):** Table was empty unless users had filed reports or requested withdrawals  
+**Fix applied:** Replaced synthetic `usersMap` approach with dedicated `GET /api/v1/admin/users` endpoint querying the `users` table directly  
+**Regression test:** N/A (manual verification)  
+**Status:** Fixed ✅
+
+---
+
+### TC-user-ADM-02: Admin users page search filters by name/username/phone
+
+**Type:** Manual  
+**Feature area:** Admin Dashboard → Users → Search  
+**Priority:** P1
+
+**Preconditions:**
+- Admin logged in
+- Users exist with known names/usernames
+
+**Steps:**
+1. Navigate to `/dashboard/users`
+2. Type a partial name into the search field
+3. Press Enter or click away
+
+**Expected result:** Table is filtered to show only matching users (ILIKE match on name, username, phone)  
+**Status:** Fixed ✅
+
+---
+
+### TC-user-ADM-03: Admin users page role filter works correctly
+
+**Type:** Manual  
+**Feature area:** Admin Dashboard → Users → Role filter  
+**Priority:** P1
+
+**Steps:**
+1. Navigate to `/dashboard/users`
+2. Select "Chef" from the Role dropdown
+
+**Expected result:** Only chef users appear; their `chefBusinessName` and chef-verified badge are displayed  
+**Status:** Fixed ✅
+
+---
+
+### TC-user-ADM-04: Admin users page pagination works
+
+**Type:** Manual  
+**Feature area:** Admin Dashboard → Users → Pagination  
+**Priority:** P1
+
+**Preconditions:**
+- More than 20 users exist in the database
+
+**Steps:**
+1. Navigate to `/dashboard/users`
+2. Check that pagination controls appear at the bottom of the table
+3. Click page 2
+
+**Expected result:** Page 2 of results loads; URL/state updates; previous results replaced  
+**Status:** Fixed ✅
+
+---
+
+### TC-user-ADM-05: Chefs activated via /v1/profile/chef/activate appear under Chef role filter
+
+**Type:** Bug Regression  
+**Feature area:** Admin Dashboard → Users → Role filter (Chef)  
+**Priority:** P0
+
+**Preconditions:**
+- At least one user has activated a chef profile via `POST /v1/profile/chef/activate`
+- Admin is logged in
+
+**Steps:**
+1. Navigate to `/dashboard/users`
+2. Select "Chef" from the Role dropdown
+
+**Expected result:** All users who activated a chef profile (regardless of whether the old or new flow was used) appear in the list with their `chefBusinessName` displayed  
+**Actual result (before fix):** No chefs appeared — `activateChefProfile` did not set `user.role = 'chef'`, so all such users remained with `role = 'user'` and were filtered out  
+**Fix applied:**  
+- `profile-roles.service.ts` `activateChefProfile` now calls `userRepo.update({ id: userId }, { role: 'chef' })` after creating the `ChefProfile`  
+- `adminListUsers` role filter for 'chef' now uses `(u.role = 'chef' OR cp.id IS NOT NULL)` for backward compatibility with users who activated before the fix  
+- Display role in admin listing is overridden to 'chef' for any user with a `chefProfile` relation loaded  
+**Regression test:** N/A (manual verification)  
+**Status:** Fixed ✅
+
+---
+
+### TC-user-ADM-06: Only one rider visible — data vs code issue verification
+
+**Type:** Manual  
+**Feature area:** Admin Dashboard → Users → Role filter (Rider)  
+**Priority:** P1
+
+**Context:**  
+Rider registration (`POST /v1/rider-profile/register`) correctly calls `user.role = 'rider'` atomically. The "only one rider visible" observation is a **data issue**, not a code bug — only one user in the test environment has completed rider registration.
+
+**Verification steps:**
+1. In the admin panel, select "Rider" from the Role dropdown
+2. Count riders shown — this count reflects actual registered riders in the DB
+3. To add a test rider: complete the rider registration flow via the mobile app
+
+**Expected result (code):** All users with `role = 'rider'` appear regardless of `isActive`/`isOnline` status  
+**Status:** No bug — rider code is correct ✅
+
+---
+
 **[QA_TEST_CASES_COMPLETE ✅]**

@@ -345,14 +345,28 @@ curl -X POST https://api.chefooz.com/api/v1/payment/create-order \
 
 #### Business Logic
 
-1. **Validate amount matches cart total:**
+> ⚠️ **Security constraint (March 2026 fix):** The `amount` and `items[].unitPrice`
+> fields sent by the client are **never trusted** for the actual charge. The server
+> fetches the authoritative `grandTotalPaise` from `CartService.getCart()` and uses
+> that value for the Razorpay order. A tampered client amount is logged as a warning
+> but ignored.
+
+1. **Fetch authoritative cart total (server-side):**
    ```typescript
-   const calculatedAmount = dto.items.reduce(
-     (sum, item) => sum + item.unitPrice * item.quantity,
-     0
-   );
-   if (calculatedAmount !== dto.amount) {
-     throw new BadRequestException('Amount mismatch');
+   const cart = await this.cartService.getCart(userId);
+   if (!cart.items || cart.items.length === 0) {
+     throw new BadRequestException('Cart is empty');
+   }
+   // Guard: if PricingService fell back to hardcoded estimates, refuse payment
+   if (!cart.totals.breakdown) {
+     throw new ServiceUnavailableException(
+       'Pricing service is temporarily unavailable. Please retry in a moment.'
+     );
+   }
+   const authorizedAmount = cart.totals.grandTotalPaise;
+   // Log warning if client sent a different amount (tampering attempt or stale UI)
+   if (dto.amount && dto.amount !== authorizedAmount) {
+     this.logger.warn(`Price mismatch: client=${dto.amount}, server=${authorizedAmount}. Using server total.`);
    }
    ```
 
@@ -361,35 +375,27 @@ curl -X POST https://api.chefooz.com/api/v1/payment/create-order \
    const receipt = `order_${userId}_${Date.now()}`;
    ```
 
-3. **Create Razorpay order:**
+3. **Create Razorpay order using server-side amount:**
    ```typescript
-   const razorpayOrder = await axios.post(
-     'https://api.razorpay.com/v1/orders',
-     {
-       amount: dto.amount,
-       currency: 'INR',
-       receipt,
-       notes: { userId, itemCount: dto.items.length.toString() }
-     },
-     {
-       auth: {
-         username: razorpayKeyId,
-         password: razorpayKeySecret
-       }
-     }
-   );
+   const razorpayOrder = await this.createRazorpayOrderAPI({
+     amount: authorizedAmount, // NOT dto.amount
+     currency: 'INR',
+     receipt,
+     notes: { userId, itemCount: cart.items.length.toString() }
+   });
    ```
 
-4. **Save payment intent:**
+4. **Save payment intent with pricing snapshot:**
    ```typescript
    const paymentIntent = await paymentIntentRepository.save({
      userId,
-     razorpayOrderId: razorpayOrder.data.id,
-     amount: dto.amount,
+     razorpayOrderId: razorpayOrder.id,
+     amount: authorizedAmount,
      currency: 'INR',
      status: 'created',
      metadata: {
-       cartSnapshot: dto.items,
+       cartSnapshot: cart.items,
+       pricingBreakdown: cart.totals.breakdown, // full breakdown stored for audit
        deliveryAddress: dto.deliveryAddress,
        receipt
      }

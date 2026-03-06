@@ -1349,4 +1349,76 @@ JWT_EXPIRY=7d
 
 ---
 
+## 🔐 Admin User Listing Endpoint (March 2026)
+
+**Last Updated**: 2026-03-XX  
+**Status**: ✅ Implemented
+
+### Root Cause — Why Users Were Invisible Before
+
+The admin dashboard previously synthesised its user list from `useAdminReports` + `useAllWithdrawals`. Any user who had never filed/received a report AND had never requested a withdrawal was completely invisible. This excluded ~95% of platform users (all regular customers, and chefs/riders without withdrawal history).
+
+### New Endpoint
+
+```
+GET /api/v1/admin/users
+Guards: JwtAuthGuard + RolesGuard(@Roles('admin'))
+```
+
+**Query Params** (`AdminListUsersQueryDto`):
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `page` | number | 1 | 1-based |
+| `limit` | number | 20 | max 100 |
+| `search` | string | — | ILIKE on fullName, username, phone, displayName |
+| `role` | `user\|chef\|rider` | — | Excludes `admin` role always |
+| `trustState` | `NORMAL\|WARNED\|RESTRICTED\|FRICTION_REQUIRED` | — | |
+
+**Response shape**:
+```ts
+{
+  success: true,
+  data: {
+    items: AdminUserItem[],
+    total: number,
+    page: number,
+    limit: number,
+    totalPages: number,
+  }
+}
+```
+
+**`AdminUserItem` fields**: `id`, `fullName`, `username`, `phone`, `avatarUrl`, `role`, `trustState`, `createdAt`, `chefBusinessName?`, `chefVerified?`, `reportCount`, `orderCount`
+
+### Implementation Notes
+
+- `chefBusinessName` and `chefVerified` come from a `LEFT JOIN` on `ChefProfile` using `u.chefProfile` relation — only populated for `role = 'chef'`
+- `reportCount` and `orderCount` are batch-computed per page using a single `IN (...)` group-by query — no N+1
+- `adminListUsers()` is on `UserService`; `UserModule` registers `AdminUsersController` and injects the `Report` entity repository
+- Admin users (`role = 'admin'`) are always excluded from results
+
+### Known Edge Case: Dual Profile Role Mismatch (March 2026)
+
+**Problem**: `activateChefProfile` in `ProfileRolesService` previously did NOT update `user.role = 'chef'`. All chefs who activated via `POST /v1/profile/chef/activate` had `role = 'user'` in the DB.
+
+**Fix applied**:
+1. `activateChefProfile` now calls `userRepo.update({ id: userId }, { role: 'chef' })` after creating the `ChefProfile`
+2. `adminListUsers` chef role filter uses `(u.role = 'chef' OR cp.id IS NOT NULL)` for backward compat with existing data
+3. Display role in listing is promoted to `'chef'` for any user who owns a `ChefProfile`
+
+**Constraint going forward**: Riders have their `user.role` correctly updated to `'rider'` by `RiderProfileService.register()`. Chefs now also get `user.role = 'chef'` set on activation. These are the two canonical sources of truth for role assignment.
+
+### File Locations
+
+| File | Purpose |
+|---|---|
+| `apps/chefooz-apis/src/modules/user/dto/admin-list-users.dto.ts` | Query DTO |
+| `apps/chefooz-apis/src/modules/user/admin-users.controller.ts` | REST controller |
+| `apps/chefooz-apis/src/modules/user/user.service.ts` | `adminListUsers()` method |
+| `libs/api-client/src/lib/clients/admin-users.client.ts` | Axios client + types |
+| `libs/api-client/src/lib/hooks/useAdminUsers.ts` | React Query hook |
+| `apps/chefooz-admin/src/app/dashboard/users/page.tsx` | Admin UI page |
+
+---
+
 **[TECHNICAL_GUIDE_COMPLETE ✅]**

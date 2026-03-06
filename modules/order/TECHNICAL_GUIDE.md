@@ -2592,7 +2592,39 @@ npm run typeorm:migration:run
 **Implementation**: 100%  
 **Documentation**: Complete  
 **Production Status**: ✅ Live  
-**Last Audit**: 2026-02-15
+**Last Audit**: 2026-03-06
+
+---
+
+## 🔒 Admin Orders Endpoint (Added 2026-03-06)
+
+### Endpoint
+`GET /api/v1/admin/orders`
+
+### Purpose
+Provides a platform-wide, admin-scoped order listing. The existing customer endpoint (`GET /v1/orders/history`) filters by `req.user.id` and is not usable in admin context.
+
+### Files
+| File | Role |
+|---|---|
+| `apps/chefooz-apis/src/modules/order/controllers/admin-orders.controller.ts` | Controller with `@Roles('admin')` guard |
+| `apps/chefooz-apis/src/modules/order/dto/admin-list-orders.dto.ts` | Query DTO + response interfaces |
+| `apps/chefooz-apis/src/modules/order/order.service.ts` — `adminListOrders()` | Service method, no user filter |
+| `libs/api-client/src/lib/clients/admin-orders.client.ts` | Axios client |
+| `libs/api-client/src/lib/hooks/useAdminOrders.ts` | React Query hook (offset pagination) |
+
+### Query parameters
+| Param | Type | Description |
+|---|---|---|
+| `status` | `OrderStatus` enum | Filter by a specific status |
+| `search` | string | Partial match on `userId` or `chefId` |
+| `dateFrom` | ISO 8601 | Orders on or after this date |
+| `dateTo` | ISO 8601 | Orders on or before this date |
+| `page` | number | 1-based page number (default: 1) |
+| `limit` | number | Page size 1–100 (default: 20) |
+
+### Constraint
+Amounts are always in **paise** (`totalPaise`). Divide by 100 for INR display.
 
 ---
 

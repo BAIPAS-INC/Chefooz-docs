@@ -1814,3 +1814,35 @@ Before deploying Order module to production:
 
 **Regression test:** `apps/chefooz-app/src/components/__tests__/OrderCard.dark-mode.spec.ts`  
 **Status:** Fixed ✅
+---
+
+### TC-ORDER-BUG-004: Admin orders page always showed empty state
+
+**Type:** Bug Regression  
+**Feature area:** Admin Dashboard — `/dashboard/orders`  
+**Priority:** P0  
+**Date fixed:** 2026-03-06
+
+**Preconditions:**
+- Logged in as admin user
+- Real customer orders exist in the database
+
+**Steps:**
+1. Navigate to `/dashboard/orders` in the admin portal
+2. Observe the orders table
+
+**Expected result:** All platform orders are listed with status, amount, item count, and date.
+
+**Actual result (before fix):** Table showed "No orders found" even though orders existed in the DB.
+
+**Root cause:** The page used `useOrdersQuery` which calls `GET /v1/orders/history`. That endpoint applies a `WHERE userId = req.user.id` filter. The admin JWT user has no rows in the `orders` table, so the query always returns an empty array.
+
+**Fix applied:**
+- Created `GET /api/v1/admin/orders` endpoint (`AdminOrdersController`) with `@Roles('admin')` guard — platform-wide, no user filter.
+- Added `adminListOrders()` method on `OrderService` with status/search/date filters and offset pagination.
+- Created `adminOrdersClient` and `useAdminOrders` hook in `libs/api-client`.
+- Replaced `useOrdersQuery` with `useAdminOrders` in `apps/chefooz-admin/src/app/dashboard/orders/page.tsx`.
+- Added page state and Prev/Next pagination controls.
+
+**Regression test:** Manual QA — navigate to `/dashboard/orders` as admin, confirm orders appear.
+**Status:** Fixed ✅
