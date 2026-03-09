@@ -2,7 +2,7 @@
 
 **Module**: `moderation` + `report`  
 **Type**: Content Safety & Community Guidelines  
-**Last Updated**: February 22, 2026
+**Last Updated**: March 2026
 
 ---
 
@@ -1835,4 +1835,153 @@ npm run seed:test
 **Expected result:** `accountStatus = 'suspended'`, `suspendedAt` set
 **Actual result (before fix):** checkForAutoBan was a no-op (TODO comment)
 **Fix applied:** Implemented `userRepo.update()` call
+**Status:** Fixed ✅
+
+---
+
+## 🐛 Admin Portal Bug Regression Tests (March 2026)
+
+### TC-ADMIN-BUG-001: Banned Content Page — NaN Scores and Blank Labels
+
+**Type:** Bug Regression
+**Feature area:** Admin Portal — `/dashboard/moderation/banned`
+**Priority:** P0
+
+**Preconditions:**
+- At least one rejected `ModerationRecord` exists with `aiScoreExplicit`, `aiScoreViolence`, `aiLabels` populated
+- Admin is logged in
+
+**Steps:**
+1. Navigate to `/dashboard/moderation/banned`
+2. Observe the Explicit and Violence columns
+
+**Expected result:** Percentage values shown (e.g. `74%`, `12%`); Labels chips visible
+**Actual result (before fix):** `NaN%` for scores; blank label chips; no thumbnails
+**Root cause:** `getBannedContent` controller returned raw entity fields (`aiScoreExplicit`, `aiScoreViolence`, `aiLabels`) directly, but the frontend type contract expects mapped names (`explicitScore`, `violenceScore`, `labels`). Scores were not divided by 100 (Rekognition returns 0–100, UI multiplies by 100).
+**Fix applied:**
+- `moderation.controller.ts` `getBannedContent`: added explicit item mapping identical to `getPendingReviews`
+- Both controllers now normalize scores: `aiScoreExplicit / 100 → explicitScore`
+**Regression test:** Manual verification — navigate to banned page and confirm numeric scores display correctly
+**Status:** Fixed ✅
+
+---
+
+### TC-ADMIN-BUG-002: Banned Content and Pending Review — No Thumbnails Displayed
+
+**Type:** Bug Regression
+**Feature area:** Admin Portal — `/dashboard/moderation/banned` and `/dashboard/moderation/review-queue`
+**Priority:** P1
+
+**Preconditions:**
+- Content has been processed by `VideoProcessingProcessor`
+- Thumbnail exists in S3 at `uploads/{mediaId}/thumbnail.jpg` in `chefooz-media-output` bucket
+
+**Steps:**
+1. Navigate to `/dashboard/moderation/banned`
+2. Observe thumbnail avatars
+
+**Expected result:** Thumbnail image visible in avatar
+**Actual result (before fix):** Broken image / placeholder avatar
+**Root cause:** Service built thumbnail URL as `${cdnUrl}/thumbnails/${mediaId}.jpg` but VideoProcessingProcessor uploads to `uploads/${mediaId}/thumbnail.jpg`
+**Fix applied:** `moderation.service.ts` — both `getPendingReviews` and `getBannedContent` now build: `${cdnUrl}/uploads/${mediaId}/thumbnail.jpg`. Falls back to direct S3 URL when CloudFront is not configured.
+**Regression test:** Manual — check that thumbnail avatar renders in admin banned page
+**Status:** Fixed ✅
+
+---
+
+### TC-ADMIN-BUG-003: Review Queue Page — 404 Not Found
+
+**Type:** Bug Regression
+**Feature area:** Admin Portal — `/dashboard/moderation/review-queue`
+**Priority:** P0
+
+**Preconditions:**
+- Admin is logged in
+- Navigation link to Review Queue is present in admin sidebar
+
+**Steps:**
+1. Click Review Queue in admin navigation
+2. Page loads
+
+**Expected result:** Page renders with `needs_review` / `ai_flagged` content items
+**Actual result (before fix):** Next.js 404 — page component file did not exist
+**Root cause:** The page file `apps/chefooz-admin/src/app/dashboard/moderation/review-queue/page.tsx` was never created
+**Fix applied:** Created `review-queue/page.tsx` using `usePendingModeration()` infinite query with Approve/Reject actions
+**Regression test:** Navigate to `/dashboard/moderation/review-queue` — page must load without 404
+**Status:** Fixed ✅
+
+---
+
+### TC-ADMIN-BUG-004: Content Appeals Page — "Failed to load content appeals"
+
+**Type:** Bug Regression
+**Feature area:** Admin Portal — `/dashboard/moderation/content-appeals`
+**Priority:** P0
+
+**Preconditions:**
+- Admin is logged in
+- `NODE_ENV=development` with `synchronize: true` OR migration `1741440000000-ModerationSystemHardening.ts` has been run
+
+**Steps:**
+1. Navigate to `/dashboard/moderation/content-appeals`
+
+**Expected result:** Page loads (empty table or appeal list)
+**Actual result (before fix):** "Failed to load content appeals. Please refresh" — React Query `isError` flag is true
+**Root cause:** `ModerationAppeal` entity was registered via `TypeOrmModule.forFeature()` in `ModerationModule` but was missing from `TypeOrmModule.forRoot()` entities array in `app.module.ts`. In NestJS TypeORM 11, schema synchronization only considers entities listed in `forRoot`. Since the entity wasn't in `forRoot`, the `moderation_appeals` table was not created by `synchronize: true` in development environments where the migration hadn't been run.
+**Fix applied:** Added `ModerationAppeal` import and entity to the `entities` array in `apps/chefooz-apis/src/app/app.module.ts`
+**Status:** Fixed ✅
+
+---
+
+### TC-ADMIN-BUG-005: Banned Content Page — `[object Object]` Label Chips
+
+**Type:** Bug Regression
+**Feature area:** Admin Portal — `/dashboard/moderation/banned` and `/dashboard/moderation/review-queue`
+**Priority:** P1
+
+**Preconditions:**
+- At least one rejected `ModerationRecord` exists with `aiLabels` populated (processed by Rekognition)
+- Admin is logged in
+
+**Steps:**
+1. Navigate to `/dashboard/moderation/banned`
+2. Observe the Labels column
+
+**Expected result:** Chips show human-readable label names (e.g. `Explicit Nudity`, `Violence`)
+**Actual result (before fix):** Chips show `[object Object]`; React warning: "Encountered two children with the same key, [object Object]"
+**Root cause:** `aiLabels` JSONB column stores raw AWS Rekognition `ModerationLabel` objects: `{ Name: string, ParentName: string, Confidence: number }[]`. The controller was passing these objects directly as the `labels` array instead of extracting the `.Name` string. Both `getBannedContent` (line 202) and `getPendingReviews` (line 158) were affected, as was the user-facing `getModerationResult` endpoint (line 73).
+**Fix applied:** `moderation.controller.ts` — all three label mappings now extract `.Name`:
+```ts
+labels: Array.isArray(item.aiLabels)
+  ? (item.aiLabels as Array<{ Name?: string }>).slice(0, 5).map((l) => l?.Name ?? '').filter(Boolean)
+  : [],
+```
+**Regression test:** Manual — navigate to banned page with Rekognition-processed content; confirm labels chips show text like "Explicit Nudity" not `[object Object]`
+**Status:** Fixed ✅
+
+---
+
+### TC-ADMIN-BUG-006: Review Queue Page — TypeScript Compile Error → Next.js 404
+
+**Type:** Bug Regression
+**Feature area:** Admin Portal — `/dashboard/moderation/review-queue`
+**Priority:** P0
+
+**Preconditions:**
+- Admin is logged in
+- `review-queue/page.tsx` file exists
+
+**Steps:**
+1. Navigate to `/dashboard/moderation/review-queue`
+
+**Expected result:** Review queue table renders
+**Actual result (before fix):** Next.js 404 — `rulesTriggered` rendered with `<Chip key={rule} label={rule}>` where `rule` is a `ModerationRule` object (`{ rule: string, reason: string, severity: string }`), not a string. TypeScript compile-time error prevented Next.js from serving the route.
+**Root cause:** `PendingModerationItem.rulesTriggered` is typed as `ModerationRule[]` (objects), not `string[]`. The page template used `key={rule}` and `label={rule}` where `rule` is an object — TypeScript rejected this; Next.js reports the route as 404 on compile error.
+**Fix applied:** `review-queue/page.tsx` — changed `rulesTriggered` map to use `rule.rule` for both `key` and `label`:
+```tsx
+{(item.rulesTriggered ?? []).slice(0, 2).map((rule) => (
+  <Chip key={rule.rule} label={rule.rule} size="small" color="error" variant="outlined" />
+))}
+```
+**Regression test:** Navigate to `/dashboard/moderation/review-queue` — page must load without 404
 **Status:** Fixed ✅

@@ -2,7 +2,7 @@
 
 **Module**: `moderation` + `report`  
 **Type**: Content Safety & Community Guidelines  
-**Last Updated**: February 22, 2026
+**Last Updated**: March 2026
 
 ---
 
@@ -2332,3 +2332,48 @@ if (user.accountStatus === 'suspended' || user.accountStatus === 'banned') {
 - MongoDB sync failures are logged but do not throw — shadow-ban is best-effort
 - Auto-ban threshold: 3 rejections within 24 hours → `accountStatus = 'suspended'`
 - Profile/cover/story moderation triggered fire-and-forget (non-blocking) — does not block profile save
+
+---
+
+## 🐛 Bug Fixes & Constraint Updates (March 2026)
+
+### Admin Score Normalization
+
+Rekognition returns confidence scores in the **0–100 range**. The admin portal UI renders scores as `score * 100` to display percentages. Therefore ALL controller responses that expose `explicitScore` / `violenceScore` **MUST divide by 100** before returning:
+
+```ts
+explicitScore: item.aiScoreExplicit != null ? item.aiScoreExplicit / 100 : null,
+violenceScore: item.aiScoreViolence != null ? item.aiScoreViolence / 100 : null,
+```
+
+Affected: `getPendingReviews` and `getBannedContent` handlers in `moderation.controller.ts`. The entity stores raw Rekognition values (0–100); division happens at the API boundary.
+
+### Thumbnail URL Path
+
+`VideoProcessingProcessor` uploads thumbnails to S3 as:
+```
+uploads/{mediaId}/thumbnail.jpg   (in S3_OUTPUT_BUCKET)
+```
+
+The correct CloudFront URL is:
+```
+${AWS_CLOUDFRONT_URL}/uploads/${mediaId}/thumbnail.jpg
+```
+
+❌ **Historical bug**: `${cdnUrl}/thumbnails/${mediaId}.jpg`
+
+When `AWS_CLOUDFRONT_URL` is not set, falls back to:
+```
+https://${S3_OUTPUT_BUCKET}.s3.ap-south-1.amazonaws.com/uploads/${mediaId}/thumbnail.jpg
+```
+
+### ModerationAppeal Entity Must Be in `forRoot` entities
+
+`ModerationAppeal` MUST appear in both:
+
+1. `TypeOrmModule.forFeature([..., ModerationAppeal, ...])` in `ModerationModule` — for repository injection
+2. `entities: [..., ModerationAppeal, ...]` in `TypeOrmModule.forRoot(...)` in `AppModule` — for schema synchronization
+
+In NestJS TypeORM 11, `forFeature()` entities are **not** included in the root DataSource entity list for schema sync (`synchronize: true`). Missing this registration prevents `moderation_appeals` table creation in development, causing `GET /v1/moderation/appeals` to return 500.
+
+In production (`synchronize: false`), migration `1741440000000-ModerationSystemHardening.ts` must be run to create the table.
