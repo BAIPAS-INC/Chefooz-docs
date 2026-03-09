@@ -1656,3 +1656,183 @@ npm run seed:test
 3. ✅ QA Test Cases (~7,400 lines)
 
 **Total Documentation**: ~37,700 lines
+
+---
+
+## Production Hardening — New QA Test Cases (March 2026)
+
+**Last Updated**: March 2026
+
+---
+
+### TC-MOD-100: Shadow-Ban Feed Filter
+
+**Type**: Automated + Manual
+**Feature area**: Feed / Moderation
+**Priority**: P0
+
+**Preconditions:**
+- User A has uploaded a reel
+- Reel is moderately rejected (`moderationStatus: 'rejected'` in MongoDB)
+
+**Steps:**
+1. Call `GET /v1/feed` as an anonymous or different user
+2. Call `GET /v1/feed` as User A (the owner)
+
+**Expected result:**
+- Step 1: rejected reel does NOT appear
+- Step 2: rejected reel DOES appear
+
+**Fix applied:** Shadow-ban `$or` filter added to `feed.service.ts`
+**Regression test:** `apps/chefooz-apis/src/modules/feed/feed.service.spec.ts` (shadow-ban describe block)
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-101: Moderation Appeal Submission
+
+**Type**: Manual
+**Feature area**: Mobile → `/moderation/[mediaId]`
+**Priority**: P1
+
+**Preconditions:**
+- User has a reel with `status: 'rejected'`
+
+**Steps:**
+1. Navigate to `/moderation/{mediaId}`
+2. Tap "Appeal This Decision"
+3. Enter a reason (min 20 chars)
+4. Tap "Submit Appeal"
+
+**Expected result:**
+- Appeal submitted successfully
+- Button replaced by "✅ Appeal Under Review" state
+- `GET /v1/moderation/appeals/my` returns the appeal with `status: submitted`
+
+**Actual result (before fix):** No appeal UI existed
+**Fix applied:** Added appeal CTA section to `[mediaId].tsx`, `createModerationAppeal` API method, `useCreateModerationAppeal` hook
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-102: Duplicate Appeal Prevention
+
+**Type**: Automated
+**Feature area**: Backend
+**Priority**: P1
+
+**Preconditions:** User already has a `submitted` or `under_review` appeal for moderation record X
+
+**Steps:**
+1. Call `POST /v1/moderation/{id}/appeal` again for the same record
+
+**Expected result:** `400 Bad Request` — "You already have an active appeal for this content"
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-103: Admin Appeal Approve → Content Restored
+
+**Type**: Manual
+**Feature area**: Admin → `/dashboard/moderation/content-appeals`
+**Priority**: P1
+
+**Steps:**
+1. Admin approves a moderation appeal
+2. Check reel feed as public user
+3. Check `moderationStatus` in MongoDB
+
+**Expected result:**
+- Appeal status → `approved`
+- ModerationRecord status → `approved`
+- MongoDB `moderationStatus` → `approved`
+- Reel appears in public feed
+
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-104: Account Suspended → JWT Rejected
+
+**Type**: Automated
+**Feature area**: Auth / JWT Strategy
+**Priority**: P0
+
+**Preconditions:** User's `accountStatus = 'suspended'` in PostgreSQL
+
+**Steps:**
+1. Call any authenticated endpoint with the user's valid JWT
+
+**Expected result:** `401 Unauthorized` — "Account is suspended"
+**Actual result (before fix):** User could still authenticate and use the app
+**Fix applied:** `accountStatus` check added to `JwtStrategy.validate()`
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-105: Profile Photo Triggers Moderation
+
+**Type**: Manual
+**Feature area**: Profile → updateProfile
+**Priority**: P1
+
+**Steps:**
+1. Call `PUT /v1/profile` with `avatarKey` value
+2. Check `moderation_records` PostgreSQL table
+
+**Expected result:** New `moderation_records` row with `contentType = 'profile_photo'`, `status = 'pending'`
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-106: Story Creation Triggers Moderation
+
+**Type**: Manual
+**Feature area**: Stories
+**Priority**: P1
+
+**Steps:**
+1. Create a story via `POST /v1/stories`
+2. Check `moderation_records` table
+
+**Expected result:** New `moderation_records` row with `contentType = 'story'`, `status = 'pending'`
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-107: Banned Content Admin Page
+
+**Type**: Manual
+**Feature area**: Admin UI → `/dashboard/moderation/banned`
+**Priority**: P1
+
+**Steps:**
+1. Navigate to Banned Content page
+2. Filter by content type `reel`
+3. Click Restore on a banned reel
+
+**Expected result:**
+- Table shows all rejected records with thumbnail previews
+- Content type filter works correctly
+- After Restore: record status → `pending`, Bull job re-enqueued
+
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-108: Auto-Ban After 3 Violations
+
+**Type**: Automated
+**Feature area**: Backend — ModerationService
+**Priority**: P0
+
+**Preconditions:** User has no prior rejections
+
+**Steps:**
+1. Trigger 3 moderation rejections for the same user within 24 hours
+2. Check `users` table
+
+**Expected result:** `accountStatus = 'suspended'`, `suspendedAt` set
+**Actual result (before fix):** checkForAutoBan was a no-op (TODO comment)
+**Fix applied:** Implemented `userRepo.update()` call
+**Status:** Fixed ✅

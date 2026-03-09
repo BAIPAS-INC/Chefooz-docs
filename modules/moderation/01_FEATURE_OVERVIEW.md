@@ -1324,3 +1324,49 @@ Notification: "Your account has been suspended for multiple community guideline 
 
 1. **Technical Guide**: Implementation details, API specs, AI integration, database schema
 2. **QA Test Cases**: 40+ test scenarios covering AI moderation, reporting, admin actions, edge cases
+
+---
+
+## Production Hardening — March 2026
+
+**Last Updated**: March 2026
+
+### New Capabilities
+
+| # | Feature | Status |
+|---|---------|--------|
+| 1 | Multi-frame video analysis via AWS Rekognition Video | ✅ |
+| 2 | Bull Queue for reliable async processing (retries, backoff) | ✅ |
+| 3 | Shadow-ban visibility model (rejected = hidden from public, owner can see) | ✅ |
+| 4 | Separate `ModerationAppeal` flow (distinct from report-based `Appeal`) | ✅ |
+| 5 | Banned Content admin page (`/dashboard/moderation/banned`) | ✅ |
+| 6 | Content Appeals admin page (`/dashboard/moderation/content-appeals`) | ✅ |
+| 7 | Moderation triggers for `profile_photo`, `cover_image`, `story` | ✅ |
+| 8 | JWT guard enforces `accountStatus` (suspended/banned → 401) | ✅ |
+| 9 | Auto-ban now active — suspends user via `userRepo.update()` | ✅ |
+| 10 | Admin dashboard stats widget (auto-refreshes every 60 s) | ✅ |
+| 11 | Mobile 🔒 "Not Public" badge (friendly shadow-ban UX) | ✅ |
+| 12 | Mobile `/moderation/appeals/my` screen for appeal history | ✅ |
+
+### Shadow-Ban Rules
+
+- **Public feed**: only shows `moderationStatus ∈ {approved, pending, reviewing}` OR no status set
+- **Owner's own profile/feed**: their own rejected content is always visible
+- **MongoDB sync**: every approve/reject/restore call updates `Reel.moderationStatus` and `Media.moderationStatus` atomically
+
+### Appeal Flow (Moderation)
+
+```
+Content rejected by AI or admin
+          ↓
+User submits ModerationAppeal (one active per record)
+          ↓
+Admin reviews → approve or reject
+          ↓
+ approved: content auto-restored, re-moderated, notification sent
+ rejected: original decision upheld, notification sent
+```
+
+### Notification Templates Added
+
+- `moderation.appeal.rejected` — sent when admin rejects a moderation appeal

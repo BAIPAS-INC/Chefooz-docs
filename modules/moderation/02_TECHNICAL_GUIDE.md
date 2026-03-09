@@ -2239,3 +2239,96 @@ if (existingReport) {
 4. Admin dashboard (approve, reject, audit trail)
 5. Edge cases (concurrent uploads, race conditions, DB failures)
 6. Performance tests (1000+ concurrent moderations)
+
+---
+
+## Implementation Update — March 2026
+
+**Last Updated**: March 2026
+
+### Architecture Changes
+
+#### Bull Queue Integration
+```
+startModeration(mediaId, userId, s3Key, contentType)
+  → creates ModerationRecord (status: pending)
+  → syncMongoModerationStatus(mediaId, 'pending', contentType)  ← MongoDB shadow-ban sync
+  → moderationQueue.add({ moderationRecordId, s3Key, s3Bucket, contentType, userId })
+        ↓
+ModerationProcessor.process() [concurrency: 2, attempts: 3, exponential backoff 5s]
+  → runModerationPipelineById(...)
+  → contentType === 'reel' → analyzeVideo() [Rekognition Video, polls 2s/30s max]
+  → other → analyzeContent() [Rekognition DetectModerationLabels]
+  → apply business rules → approve/reject/needsReview
+  → syncMongoModerationStatus(mediaId, newStatus, contentType)
+```
+
+#### Shadow-Ban Feed Filter (feed.service.ts)
+```typescript
+// Public feed — hide rejected content
+filter.$or = [
+  { moderationStatus: { $in: ['approved', 'pending', 'reviewing'] } },
+  { moderationStatus: { $exists: false } },
+];
+// Owner's own feed — they can still see their own rejected content
+filter.$or = [...above..., { userId: query.userId }];
+```
+
+#### JWT Account Status Enforcement (jwt.strategy.ts)
+```typescript
+if (user.accountStatus === 'suspended' || user.accountStatus === 'banned') {
+  throw new UnauthorizedException(`Account is ${user.accountStatus}`);
+}
+```
+
+### New Entities
+
+#### `moderation_appeals` table
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| moderationRecordId | uuid | FK → moderation_records |
+| userId | uuid | FK → users (appellant) |
+| message | text | Appeal reason (max 500 chars) |
+| status | enum | submitted / under_review / approved / rejected |
+| moderatorId | uuid | nullable |
+| moderatorDecision | text | nullable (decision notes) |
+| decidedAt | timestamptz | nullable |
+| createdAt | timestamptz | |
+
+#### `moderation_records` additions
+| Column | Type | Notes |
+|--------|------|-------|
+| contentType | varchar | reel / profile_photo / story / cover_image |
+| rekognitionVideoJobId | varchar | nullable — for async video analysis |
+| decidedAt | timestamptz | nullable — when manual decision made |
+
+### New API Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/v1/moderation/:id/appeal` | User | Submit moderation appeal |
+| GET | `/v1/moderation/appeals/my` | User | List own appeals |
+| GET | `/v1/moderation/banned` | Admin | Banned content list (paginated, by contentType) |
+| GET | `/v1/moderation/stats` | Admin | Rolling stats (days param) |
+| POST | `/v1/moderation/:id/restore` | Admin | Restore + re-moderate content |
+| GET | `/v1/moderation/appeals` | Admin | All appeals with status filter |
+| POST | `/v1/moderation/appeals/:id/review` | Admin | Approve or reject appeal |
+
+### Content Type Moderation Trigger Map
+
+| Content Type | Trigger Point | S3 Key Pattern |
+|---|---|---|
+| `reel` | `video-processing.processor.ts` step 9 | `uploads/{mediaId}/original.mp4` |
+| `profile_photo` | `ProfileService.updateProfile()` after DB save | `avatarKey` from DTO |
+| `cover_image` | `ProfileService.updateProfile()` after DB save | `coverKey` from DTO |
+| `story` | `StoriesService.createStory()` after MongoDB save | `uploads/{mediaId}/original.{ext}` |
+
+### Key Constraints
+
+- One active appeal per moderation record (enforced: `status NOT IN ('submitted', 'under_review')` check)
+- Appeal only allowed for `status === 'rejected'` records
+- Restoring content sets it back to `pending` and re-enqueues in Bull
+- MongoDB sync failures are logged but do not throw — shadow-ban is best-effort
+- Auto-ban threshold: 3 rejections within 24 hours → `accountStatus = 'suspended'`
+- Profile/cover/story moderation triggered fire-and-forget (non-blocking) — does not block profile save

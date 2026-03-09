@@ -26,6 +26,22 @@ This register tracks **known documentation gaps** in `/docs/` — features, modu
 
 ## Gap Register
 
+### Moderation — Production Hardening (March 2026)
+
+| # | Feature | Expected Location | Status | Resolved Date |
+|---|---|---|---|---|
+| MOD-001 | Multi-frame video analysis, Bull Queue | `docs/modules/moderation/02_TECHNICAL_GUIDE.md` | 🟢 RESOLVED | 2026-03-13 |
+| MOD-002 | Shadow-ban feed filter | `docs/modules/moderation/01_FEATURE_OVERVIEW.md` | 🟢 RESOLVED | 2026-03-13 |
+| MOD-003 | ModerationAppeal entity + separate appeal flow | `docs/modules/moderation/01_FEATURE_OVERVIEW.md` | 🟢 RESOLVED | 2026-03-13 |
+| MOD-004 | Banned content admin page | `docs/modules/moderation/01_FEATURE_OVERVIEW.md` | 🟢 RESOLVED | 2026-03-13 |
+| MOD-005 | Moderation for profile_photo, cover_image, story | `docs/modules/moderation/02_TECHNICAL_GUIDE.md` | 🟢 RESOLVED | 2026-03-13 |
+| MOD-006 | JWT accountStatus enforcement (suspended/banned → 401) | `docs/modules/moderation/03_QA_TEST_CASES.md` | 🟢 RESOLVED | 2026-03-13 |
+| MOD-007 | Auto-ban active implementation | `docs/modules/moderation/03_QA_TEST_CASES.md` | 🟢 RESOLVED | 2026-03-13 |
+| MOD-008 | Admin dashboard moderation stats widget | `docs/modules/moderation/01_FEATURE_OVERVIEW.md` | 🟢 RESOLVED | 2026-03-13 |
+| MOD-009 | Mobile "Not Public" shadow-ban badge | `docs/modules/moderation/01_FEATURE_OVERVIEW.md` | 🟢 RESOLVED | 2026-03-13 |
+
+---
+
 ### Architecture & Navigation
 
 | # | Feature | Expected Location | Status | Source Guide | Resolved Date |
@@ -147,5 +163,5 @@ When you discover a missing doc (e.g., you're fixing a bug and notice the module
 |---|---|
 | 🔴 MISSING | 18 |
 | 🟠 INCOMPLETE | 7 |
-| 🟢 RESOLVED | 0 |
+| 🟢 RESOLVED | 9 |
 | **Total gaps** | **25** |
