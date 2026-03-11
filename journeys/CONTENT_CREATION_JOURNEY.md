@@ -2,7 +2,7 @@
 
 **Journey Type**: P1 High — Core Platform Feature (Creator Economy)  
 **Status**: ✅ COMPLETE  
-**Last Updated**: 2026-02-22  
+**Last Updated**: 2026-03-11  
 **Depends On**: Modules documented in Weeks 1-3 (All Complete)  
 **Business Value**: Creator engagement and viral content distribution
 
@@ -2174,6 +2174,85 @@ describe('Content Creation Journey (E2E)', () => {
 - [Expo Camera](https://docs.expo.dev/versions/latest/sdk/camera/)
 - [Expo Image Picker](https://docs.expo.dev/versions/latest/sdk/imagepicker/)
 - [Expo Push Notifications](https://docs.expo.dev/push-notifications/overview/)
+
+---
+
+## 🎉 Journey Complete Marker
+
+---
+
+## 9a. Rejection & Appeal Recovery Path
+
+> This section documents what happens when content is rejected by AI or a moderator, and how the creator can appeal the decision.
+
+### **When a Reel Gets Rejected**
+
+After upload and processing, content enters the moderation pipeline. If AI confidence scores exceed policy thresholds (explicit > 70%, violence > 70%) or a moderator rejects it manually, the reel's `moderationStatus` is set to `'rejected'` in both the `ModerationRecord` (PostgreSQL) and the `Reel` document (MongoDB, via `syncMongoModerationStatus`).
+
+The reel remains in the creator's profile grid but it is **not visible** in the public feed, explore, or any other user's view (shadow-ban model).
+
+### **Rejection UX — Creator Flow**
+
+```
+Profile Reels Grid
+  → Rejected reel shows red overlay: 🚫 "Rejected — Tap to appeal"
+  → Tap navigates to: /moderation/<mediaId>
+
+Moderation Status Screen (/moderation/[mediaId])
+  → Shows: ModerationStatusBadge (red "Rejected")
+  → Shows: AI scores (explicit %, violence %)
+  → Shows: Triggered rules (with severity colours)
+  → Shows: Moderator notes (if set)
+  → Shows: "Disagree with this decision?" CTA section
+    → "Submit an Appeal" button → opens inline text form
+    → Creator explains why content should be allowed (max 500 chars)
+    → Submits → POST /v1/moderation/:id/appeal
+  → If appeal already pending: shows "📋 Appeal Under Review" state instead
+```
+
+### **Appeal Review (Admin)**
+
+Once submitted, the appeal appears in the Admin portal under `/dashboard/moderation/content-appeals`.
+
+```
+Admin Content Appeals Page
+  → Lists ModerationAppeal records with status: submitted | under_review | approved | rejected
+  → Admin clicks "Approve" → content reinstated (moderationStatus → 'approved', reel visible again)
+  → Admin clicks "Reject" → original rejection upheld, notes sent to creator
+```
+
+### **Appeal State Transitions**
+
+| State | Meaning | UI Shown to Creator |
+|---|---|---|
+| `submitted` | Appeal received, waiting for review | "📋 Appeal Under Review" |
+| `under_review` | Moderator actively reviewing | "📋 Appeal Under Review" |
+| `approved` | Appeal approved — content restored | Reel visible again; no overlay |
+| `rejected` | Appeal denied — rejection upheld | Original rejection overlay remains |
+
+### **API Endpoints (User-Facing)**
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/v1/moderation/:mediaId` | Get moderation status for a media item |
+| `POST` | `/v1/moderation/:id/appeal` | Submit an appeal for a rejected record |
+| `GET` | `/v1/moderation/appeals/my` | List the creator's own appeal history |
+
+### **Constraints**
+
+- Only the content **owner** can submit an appeal
+- Only one **active** appeal per moderation record (enforced by backend)
+- Content must be in `rejected` status to be appealable
+- On approval, the reel is automatically restored to the public feed
+
+### **Frontend Files**
+
+| File | Role |
+|---|---|
+| `apps/chefooz-app/src/app/(tabs)/profile.tsx` | `handleReelPress` — redirects rejected reels to `/moderation/[mediaId]` |
+| `apps/chefooz-app/src/app/profile/_components/ProfileGrid.tsx` | Renders rejection/review overlays on grid thumbnails |
+| `apps/chefooz-app/src/app/moderation/[mediaId].tsx` | Full rejection detail + appeal form |
+| `apps/chefooz-app/src/app/moderation/appeals/my.tsx` | Creator's appeal history list |
 
 ---
 

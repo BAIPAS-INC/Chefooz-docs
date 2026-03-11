@@ -1985,3 +1985,227 @@ labels: Array.isArray(item.aiLabels)
 ```
 **Regression test:** Navigate to `/dashboard/moderation/review-queue` — page must load without 404
 **Status:** Fixed ✅
+
+---
+
+### TC-MOD-BUG-007: Moderation Screen — Submit Appeal Button Silent No-Op
+
+**Type:** Bug Regression
+**Feature area:** Mobile App — `/moderation/[mediaId]`
+**Priority:** P0
+
+**Preconditions:**
+- User is logged in
+- User has a reel in `rejected` moderation status
+- User taps the reel from their profile (routed to `/moderation/[mediaId]`)
+
+**Steps:**
+1. Navigate to profile
+2. Tap a reel with a red rejection overlay (🚫)
+3. On the Moderation Status screen, tap "Submit an Appeal"
+4. Type an appeal message (e.g. "This content was wrongly rejected")
+5. Tap "Submit Appeal"
+
+**Expected result:** Appeal is submitted, confirmation alert shown, form collapses
+**Actual result (before fix):** Button tap produces no action — no API call made, no error shown, form stays open
+**Root cause:**
+- `ModerationResult` interface in `libs/types/src/lib/moderation.types.ts` had no `id` field
+- `moderation.controller.ts` `getMyModerationResult` response `data` object did not include `id: result.id`
+- Screen used `(moderation as any).id` which always evaluated to `undefined`
+- `handleSubmitAppeal` had `if (!moderationId) return;` guard — always returned silently before the API call
+**Fix applied:**
+- `libs/types/src/lib/moderation.types.ts` — added `id: string` as first field of `ModerationResult`
+- `apps/chefooz-apis/src/modules/moderation/moderation.controller.ts` — added `id: result.id` to `getMyModerationResult` response data
+- `apps/chefooz-app/src/app/moderation/[mediaId].tsx` — removed `(moderation as any)` cast; now uses `moderation.id` directly
+- `existingActiveAppeal` filter updated from `(moderation as any)?.id` to `moderation?.id`
+**Regression test:** `libs/api-client/src/lib/clients/moderation.client.spec.ts` — add test asserting `getMyModerationResult` response includes `id` field
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-BUG-008: Moderation Screen — Dark Mode Colors Broken
+
+**Type:** Bug Regression / UI Enhancement
+**Feature area:** Mobile App — `/moderation/[mediaId]`
+**Priority:** P1
+
+**Preconditions:**
+- Device is in dark mode
+- User navigates to `/moderation/[mediaId]`
+
+**Steps:**
+1. Enable system dark mode
+2. Open the Chefooz app
+3. Navigate to profile → tap a rejected reel
+4. Observe the Moderation Status screen
+
+**Expected result:** Screen respects dark mode — dark backgrounds, light text, themed surfaces
+**Actual result (before fix):** Hardcoded white backgrounds (`#FFF`), dark text (`#333`), grey cards (`#F5F5F5`), blue label chips (`#E3F2FD`) — all appear washed out / unreadable in dark mode
+**Fix applied:** `[mediaId].tsx` — all hardcoded colors replaced with `theme.colors.*` inline styles
+- Background: `theme.colors.background`; Surface: `theme.colors.surface`; Text: `theme.colors.text`; Secondary text: `theme.colors.textSecondary`; Muted: `theme.colors.textMuted`
+- Label chips: `theme.isDark ? '#1a3a5c' : '#E3F2FD'`
+- Notes card: `theme.isDark ? '#3a3000' : '#FFF9C4'`
+- `StatusBar` style: `theme.isDark ? 'light-content' : 'dark-content'`
+**Regression test:** Manual — enable dark mode, navigate to moderation screen, verify all text is readable
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-BUG-009: Moderation Screen — TextInput Hidden Behind Keyboard
+
+**Type:** Bug Regression
+**Feature area:** Mobile App — `/moderation/[mediaId]` appeal form
+**Priority:** P1
+
+**Preconditions:**
+- User is on the Moderation Status screen with appeal form visible
+- Device is iOS or Android
+
+**Steps:**
+1. Navigate to moderation screen for a rejected reel
+2. Tap "Submit an Appeal"
+3. Tap the textarea to focus it (soft keyboard opens)
+
+**Expected result:** Screen scrolls up, textarea remains visible above keyboard
+**Actual result (before fix):** Textarea is covered by the software keyboard — text invisible while typing
+**Fix applied:** `[mediaId].tsx` — wrapped `ScrollView` with `KeyboardAvoidingView`:
+```tsx
+<KeyboardAvoidingView
+  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+  keyboardVerticalOffset={normalize(88)}
+>
+  <ScrollView keyboardShouldPersistTaps="handled">
+```
+Also added `scrollEnabled={false}` to inner `TextInput` to prevent nested scroll conflicts.
+**Regression test:** Manual — open appeal form, focus textarea, keyboard must not cover input
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-BUG-010: Moderation Screen — Missing SafeAreaView / StatusBar Overlap
+
+**Type:** Bug Regression
+**Feature area:** Mobile App — `/moderation/[mediaId]`
+**Priority:** P2
+
+**Preconditions:**
+- Device with notch (iPhone X+) or status bar inset
+
+**Steps:**
+1. Navigate to `/moderation/[mediaId]`
+
+**Expected result:** Content starts below the status bar / notch; no overlap
+**Actual result (before fix):** No `SafeAreaView` — content rendered behind notch on iPhone X+; no `StatusBar` component — system status bar kept default light style even in dark mode
+**Fix applied:** `[mediaId].tsx` — root element changed from `ScrollView` to `SafeAreaView` + added `StatusBar` with `barStyle={theme.isDark ? 'light-content' : 'dark-content'}`
+**Regression test:** Manual — check iPhone 14 Pro (notch device); content must clear the notch
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-BUG-011: Appeal Rejected — User Can Re-Submit Infinite Appeals
+
+**Type:** Bug Regression
+**Feature area:** Mobile App — `/moderation/[mediaId]` appeal state machine
+**Priority:** P0
+
+**Preconditions:**
+- User has a reel in `rejected` moderation status
+- User previously submitted an appeal which was then rejected by an admin (`appeal.status === 'rejected'`)
+
+**Steps:**
+1. Navigate to profile → tap rejected reel
+2. On Moderation Status screen, observe appeal section
+
+**Expected result:** Screen shows "Appeal Rejected" final state — no option to re-submit
+**Actual result (before fix):** Screen showed "Submit an Appeal" button again — allowing unlimited re-submissions. `existingActiveAppeal` only checked `submitted | under_review`; a `rejected` appeal resolved to `null`, so the submit CTA re-appeared.
+**Root cause:** `existingActiveAppeal` filter used `status === 'submitted' || 'under_review'` only. Rejected appeal was treated as if no appeal existed.
+**Fix applied:** `[mediaId].tsx` — refactored to find `appealForThisContent` (any status), then derive three mutually exclusive states: `existingRejectedAppeal`, `existingActiveAppeal`, no appeal. Appeal CTA now checks `!appealForThisContent` instead of `!existingActiveAppeal`.
+**Regression test:** Manual — submit appeal → have admin reject it → navigate to moderation screen → must NOT show "Submit an Appeal" button
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-012: Appeal Rejected UX — Moderator Decision Note Shown
+
+**Type:** Manual
+**Feature area:** Mobile App — `/moderation/[mediaId]` appeal rejected state
+**Priority:** P1
+
+**Preconditions:**
+- Admin rejected appeal WITH a `moderatorDecision` message set
+
+**Steps:**
+1. Admin rejects appeal with note: "Content shows explicit material in thumbnail"
+2. User navigates to moderation screen
+
+**Expected result:** "Moderator note" card visible below "Appeal Rejected" heading with the admin's message
+**Actual result:** Card displayed with admin's decision note
+**Status:** Working ✅
+
+---
+
+### TC-MOD-013: Appeal Rejected UX — Delete Reel Button Works
+
+**Type:** Manual
+**Feature area:** Mobile App — `/moderation/[mediaId]` appeal rejected state
+**Priority:** P1
+
+**Preconditions:**
+- Appeal has been rejected
+- User is on the Moderation Status screen
+
+**Steps:**
+1. Tap "Delete this Reel"
+2. Confirm in the confirmation dialog
+
+**Expected result:** Reel is deleted; user is navigated back to profile; reel no longer appears in grid
+**Regression test:** Manual — confirm `DELETE /v1/reels/:mediaId` is called and reel disappears from profile
+**Status:** Working ✅
+
+### TC-MOD-BUG-014: Admin Appeals Page — No Records Shown (Report Appeals)
+
+**Type:** Bug Regression
+**Feature area:** Admin Portal — `/dashboard/moderation/appeals`
+**Priority:** P0
+
+**Preconditions:**
+- Admin is logged in
+- At least one `Appeal` record exists in the database (report-based appeal)
+
+**Steps:**
+1. Navigate to `/dashboard/moderation/appeals`
+2. Observe the appeals table
+
+**Expected result:** Report-based appeals appear in the table
+**Actual result (before fix):** Table shows "No appeals found" for all status tabs despite records existing in the database
+**Root cause:** `libs/api-client/src/lib/appeal.client.ts` used raw `import axios from 'axios'` (no auth interceptor) combined with a hardcoded `API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'` (wrong env var, wrong port). Every request was unauthenticated → backend returned 401 → React Query received error → `appealsData` was always `undefined` → `allAppeals = []`.
+**Fix applied:**
+- `libs/api-client/src/lib/appeal.client.ts` — replaced `import axios from 'axios'` with `import { apiClient } from './axios-config'`; removed `API_BASE` constant; changed all URL patterns from `${API_BASE}/api/v1/...` to `/v1/...` (interceptor normalises to `/api/v1/...` and injects JWT)
+- `apps/chefooz-admin/src/app/dashboard/moderation/appeals/page.tsx` — fixed `statusFilter` variable which was incorrectly set to `'pending'` when tab=0 ("All"); now uses `STATUS_TABS[tab]` correctly
+**Regression test:** Manual — log into admin portal, navigate to `/dashboard/moderation/appeals`, confirm appeals appear; check Network tab to verify `Authorization: Bearer <token>` header is present on `GET /api/v1/admin/appeals`
+**Status:** Fixed ✅
+
+---
+
+### TC-MOD-BUG-015: Admin Content-Appeals Page — Separate from Report Appeals
+
+**Type:** Manual Verification
+**Feature area:** Admin Portal — `/dashboard/moderation/content-appeals`
+**Priority:** P1
+
+**Preconditions:**
+- Admin is logged in
+- At least one `ModerationAppeal` record exists (user appealed an AI/admin content rejection)
+
+**Steps:**
+1. Navigate to `/dashboard/moderation/content-appeals`
+2. Observe the appeals table
+
+**Expected result:** Moderation-based appeals (AI/admin content rejection appeals) appear in the table
+**Actual result:** Working correctly — `moderation.client.ts` already used `apiClient` with JWT; data extraction uses `p.items` which matches `ModerationAppealsResponse.items`
+**Note:** This page is separate from `/dashboard/moderation/appeals` (report appeals). Confirmed NOT affected by the TC-MOD-BUG-014 auth bug.
+**Status:** Verified Working ✅
+
+---
+
+**Last Updated:** 2026-03-14

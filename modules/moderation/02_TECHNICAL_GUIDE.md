@@ -2244,7 +2244,67 @@ if (existingReport) {
 
 ## Implementation Update — March 2026
 
-**Last Updated**: March 2026
+**Last Updated**: 2026-03-14
+
+---
+
+## Critical Constraints — Appeal Flow
+
+### `ModerationResult.id` is the Appeal Identifier
+
+The appeal endpoint `POST /v1/moderation/:id/appeal` takes the **`ModerationRecord` postgres primary key**, NOT the `mediaId`.
+
+This means:
+- `getMyModerationResult` (`GET /v1/moderation/my/:mediaId`) **must** return the `id` field in its response
+- The `ModerationResult` shared type (`libs/types/src/lib/moderation.types.ts`) **must** include `id: string`
+- The mobile screen must NOT attempt to submit an appeal without `moderation.id` being truthy
+
+**Root cause of TC-MOD-BUG-007:** The `id` field was absent from both the type and the controller response. The screen used `(moderation as any).id` which silently resolved to `undefined`, causing the appeal guard `if (!moderationId) return;` to short-circuit before the API call every time.
+
+### `ModerationResult` Response Shape (controller mapping)
+
+```ts
+data: {
+  id: result.id,           // ← REQUIRED for appeal submission
+  status: result.status,
+  contentType: result.contentType,
+  explicitScore: result.aiScoreExplicit,
+  violenceScore: result.aiScoreViolence,
+  labels: /* .Name extracted from Rekognition objects */,
+  rulesTriggered: result.rulesTriggered || [],
+  moderatorNotes: result.moderatorNotes,
+  decidedAt: ...,
+  createdAt: ...,
+  updatedAt: ...,
+}
+```
+
+If the `id` field is ever omitted from this mapping again, appeal submission will silently fail — add a unit test for this endpoint.
+
+### Two Separate Appeal Flows — Do Not Confuse
+
+There are **two distinct appeal systems** in Chefooz with separate clients, hooks, and admin pages:
+
+| Dimension | Report Appeals | Content-Moderation Appeals |
+|---|---|---|
+| **What it covers** | User-reported content (reports against reels/users/comments) | AI/admin rejection decisions (moderation records) |
+| **Backend controller** | `apps/chefooz-apis/src/modules/appeal/appeal.controller.ts` | `apps/chefooz-apis/src/modules/moderation/moderation.controller.ts` |
+| **Backend routes** | `POST /v1/appeal`, `GET /v1/admin/appeals` | `POST /v1/moderation/:id/appeal`, `GET /v1/moderation/appeals` |
+| **API client file** | `libs/api-client/src/lib/appeal.client.ts` | `libs/api-client/src/lib/clients/moderation.client.ts` |
+| **Hook file** | `libs/api-client/src/lib/useAppeal.ts` | `libs/api-client/src/lib/hooks/moderation/useModeration.ts` |
+| **Admin page** | `/dashboard/moderation/appeals` | `/dashboard/moderation/content-appeals` |
+| **Entity** | `Appeal` (PostgreSQL, `appeal` module) | `ModerationAppeal` (PostgreSQL, `moderation` module) |
+| **Cursor type** | `number \| null` (integer PK cursor) | `string \| null` (ISO date cursor) |
+
+**Critical constraint:** Both clients MUST use `apiClient` from `libs/api-client/src/lib/axios-config.ts` — NOT raw `axios`. The `apiClient` interceptor injects the JWT `Authorization` header and normalises `/v1/` URLs to `/api/v1/`. Using raw `axios` results in 401 on all admin-guarded endpoints. (See TC-MOD-BUG-014 — this was the root cause of report appeals showing empty.)
+
+### Mobile Screen Responsive Contract
+
+`apps/chefooz-app/src/app/moderation/[mediaId].tsx` requires:
+- Root: `SafeAreaView` — prevents notch overlap
+- StatusBar: `expo-status-bar`-compatible style based on `theme.isDark`
+- Appeal form: wrapped in `KeyboardAvoidingView` with `behavior={Platform.OS === 'ios' ? 'padding' : 'height'}` — prevents keyboard covering `TextInput`
+- All colors: via `theme.colors.*` inline — never hardcoded hex values
 
 ### Architecture Changes
 
