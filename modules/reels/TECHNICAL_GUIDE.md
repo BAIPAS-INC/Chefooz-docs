@@ -1903,14 +1903,49 @@ const VIEWPORT_HEIGHT = getReelViewportHeight(insets.bottom, insets.top, { inclu
 
 ---
 
-## 📞 Support
+## � Known Constraints & Edge Cases (March 2026)
 
-- **Backend Team**: backend@chefooz.com
-- **DevOps**: devops@chefooz.com
-- **Slack**: #backend-support
+### Overlay Canvas Coordinate System
+
+Text overlays are stored as normalized positions `(x: 0–1, y: 0–1)` relative to the **edit screen canvas**.
+
+**Edit screen canvas formula** (`AspectRatioPreview` with `forceNineSixteen=true`):
+```
+canvasWidth  = SCREEN_WIDTH
+canvasHeight = SCREEN_WIDTH * (16 / 9)   // e.g. 375 → 666.7px
+```
+
+**ReelCard overlay rendering** (`ReelCard.tsx`):
+```tsx
+const NINE_SIXTEEN_CANVAS_HEIGHT = SCREEN_WIDTH * (16 / 9);
+const overlayCanvasTopOffset = Math.max(0, Math.floor((VIEWPORT_HEIGHT - NINE_SIXTEEN_CANVAS_HEIGHT) / 2));
+
+// OverlayCanvas is wrapped in a positioned View:
+<View style={{ position: 'absolute', top: overlayCanvasTopOffset, left: 0 }}>
+  <OverlayCanvas
+    canvasWidth={SCREEN_WIDTH}
+    canvasHeight={NINE_SIXTEEN_CANVAS_HEIGHT}
+    ...
+  />
+</View>
+```
+
+This aligns the overlay canvas with the vertically-centered 9:16 video content. **Do not change this** without also updating the edit screen's `AspectRatioPreview` configuration.
+
+### Content-Type Toggle
+
+The upload flow has two content types: `REEL` (video or 5-second image reel) and `POST` (photo only, appears in home feed).
+
+Previously, this selection was only shown on the `select.tsx` screen when no drafts existed. Now, a **Reel / Post toggle pill** is always shown in the top-center of `edit.tsx` whenever media is selected. This stores `contentType` in `upload-v2.store.ts` via `setContentType`.
+
+When camera is active (no media selected), the flash toggle occupies the same slot.
+
+### Image Display in Feed
+
+Images in `ReelPlayer` use `resizeMode="cover"` to fill the feed container immersively. For native 9:16 images, this means the image scales to fill the viewport height (`VIEWPORT_HEIGHT`) with minimal side-cropping (~26px each side at 375px width). This is the standard TikTok/Instagram feed behavior.
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-02-27  
-**Next Review**: 2026-03-14
+**Document Version**: 1.1  
+**Last Updated**: 2026-03-12  
+**Next Review**: 2026-03-28

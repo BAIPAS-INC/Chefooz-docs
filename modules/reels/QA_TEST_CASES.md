@@ -1700,4 +1700,52 @@ Increase menu item query batch size or implement pagination.
 
 ---
 
+### TC-REELS-OVERLAY-001: Text overlay position mismatch between edit and feed
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Upload Edit screen (`reels/upload-v2/edit.tsx`), ReelCard (`components/ReelCard.tsx`)  
+**Priority:** P0
+
+**Preconditions:**
+- User is logged in
+- A photo or video has been selected/recorded
+
+**Steps:**
+1. Navigate to Upload → select a photo (portrait or any aspect ratio)
+2. Add a text overlay, position it at a distinctive location (e.g., center, top-third)
+3. Proceed to share and publish the reel
+4. View the published reel in the feed
+5. Observe position of the text overlay
+
+**Expected result:** Text overlay appears at the same relative position as placed in the edit screen.  
+**Actual result (before fix):** Text overlay appeared shifted downward — most noticeably toward the bottom of the frame. Shift was proportional to `(VIEWPORT_HEIGHT − SCREEN_WIDTH×16/9) / 2` (≈ 17–47px depending on device).  
+**Root cause:** The edit screen (AspectRatioPreview with `forceNineSixteen=true`) normalized overlay positions against a `SCREEN_WIDTH × SCREEN_WIDTH*(16/9)` canvas.  ReelCard was rendering overlays against `SCREEN_WIDTH × VIEWPORT_HEIGHT` (a taller canvas), shifting all Y positions.  
+**Fix applied:** In `ReelCard.tsx`, the OverlayCanvas now uses `canvasHeight = SCREEN_WIDTH * (16/9)` and is wrapped in a `View` with `top = (VIEWPORT_HEIGHT − NINE_SIXTEEN_CANVAS_HEIGHT) / 2` to align with the vertically-centered video content.  
+**Regression test:** Manual — add text at known normalized position, verify in feed  
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-CONTENTTYPE-001: Reel/Post content-type selection not accessible when drafts exist
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Upload Select screen (`reels/upload-v2/select.tsx`), Upload Edit screen  
+**Priority:** P1
+
+**Preconditions:**
+- User has at least one saved draft
+
+**Steps:**
+1. Navigate to Upload
+2. Observe that the select screen shows draft cards, not the Reel/Post selection UI
+3. Tap "Start New Upload" — navigate directly to edit screen with no way to choose content type
+
+**Expected result:** User can always select Reel vs Post content type regardless of draft state.  
+**Actual result (before fix):** The Reel/Post selection cards were only shown when no drafts existed. When drafts were present, the content-type section was hidden entirely.  
+**Fix applied:** Added an inline Reel/Post toggle pill to the top-center of the edit screen (`edit.tsx`). The toggle shows whenever media is selected and writes to the upload store via `setContentType`. The flash toggle is shown in the same slot when camera is active (no media).  
+**Regression test:** Manual — start upload with existing draft, verify toggle renders on edit screen  
+**Status:** Fixed ✅
+
+---
+
 **Last Updated**: March 2026
