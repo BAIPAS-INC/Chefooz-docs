@@ -2728,4 +2728,77 @@ describe('Profile Module E2E', () => {
 
 ---
 
+### TC-PROFILE-POST-001: Photo post tap opens video player instead of image carousel
+
+**Type:** Bug Regression  
+**Feature area:** Profile Grid → POST tap → viewer routing  
+**Priority:** P0
+
+**Preconditions:**
+- User has uploaded at least one photo post (contentType=POST, ≥2 images)
+- User is on their own profile
+
+**Steps:**
+1. Navigate to Profile tab
+2. Observe content in the "Reels" grid
+3. Tap a grid item that is a photo post (IMAGE icon badge in top-right corner)
+
+**Expected result:** Opens `/post/[postId]` — horizontal image carousel viewer with all images + caption  
+**Actual result (before fix):** Opened `/profile/reels/[reelId]` — a video player with no video, showing "No reels found"  
+**Root cause:** `handleReelPress` did not check `contentType`. `ReelGridItem` did not include `contentType`. Backend `getUserReels` did not return `contentType` or `imageUrls`.  
+**Fix applied:**  
+- `profile.service.ts`: Added `contentType` and `imageUrls` (S3→HTTPS mapped) to `getUserReels` mapping  
+- `profile.types.ts`: Added `contentType?: 'REEL' | 'POST'` and `imageUrls?: string[] | null` to `ReelGridItem`  
+- `profile.tsx`: `handleReelPress` now checks `contentType === 'POST'` → routes to `/post/${reelId}`  
+**Regression test:** Manual — upload 2-image post, tap it from profile grid  
+**Status:** Fixed ✅
+
+---
+
+### TC-PROFILE-POST-002: Profile grid shows play icon for photo posts
+
+**Type:** Bug Regression  
+**Feature area:** ProfileGrid — content type badge  
+**Priority:** P1
+
+**Preconditions:**
+- User has uploaded photo posts (contentType=POST)
+
+**Steps:**
+1. Navigate to Profile grid
+2. Observe grid thumbnails
+
+**Expected result:** Posts show a photo-stack (images) icon badge; review reels show star badge; menu reels show restaurant badge  
+**Actual result (before fix):** All grid items showed a play icon regardless of content type  
+**Fix applied:** `ProfileGrid.tsx` — bottom-left badge switches between `images-outline` (POST) and `play` (REEL). Added top-right badges for POST (🖼), USER_REVIEW (⭐), MENU_SHOWCASE (🍽).  
+**Regression test:** Manual — upload images post, verify badge  
+**Status:** Fixed ✅
+
+---
+
+### TC-PROFILE-POST-003: POST viewer loads all photos and allows infinite scroll
+
+**Type:** New Feature  
+**Feature area:** `/post/[postId].tsx` screen  
+**Priority:** P1
+
+**Preconditions:**
+- User has 3+ photo posts with multiple images each
+
+**Steps:**
+1. Tap a photo post from the profile grid
+2. Observe the image carousel (swipe left/right)
+3. Scroll down past the first post
+4. Verify subsequent posts appear
+
+**Expected result:**
+- Carousel shows all images with dot indicators  
+- Vertical scroll reveals more posts by same user  
+- Author name + time ago shown per post  
+- Like/comment/share actions functional
+
+**Status:** Implemented ✅
+
+---
+
 **Last Updated**: March 2026

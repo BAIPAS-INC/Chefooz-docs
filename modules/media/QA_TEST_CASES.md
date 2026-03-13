@@ -1546,5 +1546,32 @@ When reporting media upload bugs, include:
 
 ---
 
+### TC-MEDIA-BUG-001: Photo POST uploaded as video in profile grid
+
+**Type:** Bug Regression  
+**Feature area:** Upload pipeline — POST content type  
+**Priority:** P0
+
+**Preconditions:**
+- User is logged in
+- User selects 2+ images and shares as a POST (not a REEL)
+
+**Steps:**
+1. Open upload flow, select 2 images
+2. Tap share — observe frontend logs confirm `contentType: 'POST'` is passed from `share.tsx`
+3. Wait for upload to complete
+4. Open profile grid
+
+**Expected result:** Profile grid shows image badge (not play icon); tapping opens `/post/[id]` with a carousel  
+**Actual result (before fix):** Images were processed as a 5-second video by FFmpeg; profile showed a video player  
+**Root cause:** `initReelUpload()` in `apps/chefooz-app/src/services/media.service.ts` built the API payload manually but **omitted** `contentType`. Backend received `contentType: undefined`, defaulted to `'REEL'`, stored reel as `contentType: 'REEL'`. In `completeUpload()`, the check `reel?.contentType === 'POST'` returned false → FFmpeg pipeline ran, converting the image to a 5-second video.  
+**Fix applied:**  
+1. Added `contentType: data.contentType` to the payload in `apps/chefooz-app/src/services/media.service.ts` `initReelUpload()`  
+2. Added defensive mime-type fallback in `apps/chefooz-apis/src/modules/media/media.service.ts` `completeUpload()`: if `media.mimeType` is an image MIME type, treat as POST regardless of stored `contentType`; also corrects the stored `contentType` on the reel document  
+**Regression test:** Verify backend log shows `📸 POST detected — skipping FFmpeg` (not `🎬 Enqueueing FFmpeg processing job`)  
+**Status:** Fixed ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**  
-*Media Module QA Test Cases - Comprehensive test documentation complete (59 test cases, ~82% automation coverage)*
+*Media Module QA Test Cases - Comprehensive test documentation complete (60 test cases, ~82% automation coverage)*

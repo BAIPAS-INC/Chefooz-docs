@@ -2,7 +2,7 @@
 
 **Document Type:** Developer Reference  
 **Module:** Profile Management  
-**Last Updated:** February 14, 2026  
+**Last Updated:** March 2026  
 **Audience:** Backend Engineers, Mobile Developers, DevOps
 
 ---
@@ -568,18 +568,38 @@ Authorization: Bearer <jwt>
         "id": "507f1f77bcf86cd799439011",
         "thumbnailUrl": "https://cdn.chefooz.com/reels/user123/thumb.webp",
         "playbackUrl": "https://cdn.chefooz.com/reels/user123/video.mp4",
+        "contentType": "REEL",
+        "imageUrls": [],
         "duration": 15,
         "viewCount": 1250,
         "likeCount": 340,
         "createdAt": "2025-11-28T10:00:00Z",
         "linkedOrderId": null,
         "reelPurpose": "exploratory"
+      },
+      {
+        "id": "507f1f77bcf86cd799439012",
+        "thumbnailUrl": "https://cdn.chefooz.com/photos/media123/image_0.jpg",
+        "playbackUrl": null,
+        "contentType": "POST",
+        "imageUrls": [
+          "https://cdn.chefooz.com/photos/media123/image_0.jpg",
+          "https://cdn.chefooz.com/photos/media123/image_1.jpg"
+        ],
+        "duration": 0,
+        "viewCount": 540,
+        "likeCount": 120,
+        "createdAt": "2025-12-01T08:00:00Z",
+        "linkedOrderId": null,
+        "reelPurpose": null
       }
     ],
     "nextCursor": "2025-11-20T08:00:00Z"
   }
 }
 ```
+
+> **Note:** `contentType` is now included in every reel grid item. When `contentType=POST`, `playbackUrl` will be null and `imageUrls` will contain all carousel images. Frontend uses `contentType` to route to the correct viewer (`/post/[postId]` vs `/profile/reels/[reelId]`).
 
 **Error (400 Bad Request - Private Account):**
 ```json
@@ -615,6 +635,44 @@ Authorization: Bearer <jwt>
       }
     ],
     "nextCursor": "2025-11-20T08:00:00Z"
+  }
+}
+```
+
+---
+
+#### 3.1.10 Get User Photo Posts (NEW)
+
+Returns only `contentType=POST` items for the dedicated POST viewer screen.
+
+```http
+GET /api/v1/profile/:username/posts?limit=20&cursor=2024-01-01T00:00:00.000Z
+Authorization: Bearer <jwt>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Posts retrieved",
+  "data": {
+    "posts": [
+      {
+        "id": "507f1f77bcf86cd799439012",
+        "contentType": "POST",
+        "thumbnailUrl": "https://cdn.chefooz.com/photos/media123/image_0.jpg",
+        "imageUrls": [
+          "https://cdn.chefooz.com/photos/media123/image_0.jpg",
+          "https://cdn.chefooz.com/photos/media123/image_1.jpg"
+        ],
+        "caption": "Freshly made pasta tonight!",
+        "hashtags": ["pasta", "homecooking"],
+        "viewCount": 540,
+        "likeCount": 120,
+        "createdAt": "2025-12-01T08:00:00Z"
+      }
+    ],
+    "nextCursor": "2025-11-28T10:00:00Z"
   }
 }
 ```

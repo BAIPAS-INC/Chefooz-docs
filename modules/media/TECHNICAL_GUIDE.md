@@ -1373,5 +1373,88 @@ BullModule.forRoot({
 
 ---
 
+## March 2026 — Multi-Image Carousel POST Upload
+
+> **Last Updated**: March 2026
+
+### Problem
+When a user selected multiple images for a POST, only the first image (`media.uri`) was uploaded.
+Extra images in `images[1..N]` were silently ignored. The backend always queued FFmpeg for every
+upload, causing POST photos to enter a permanent "processing" state and never appear in the feed.
+Additionally, the feed query filtered on `videoUrl` existence, hiding all POST content.
+
+### Solution: End-to-End Multi-Image Pipeline
+
+#### Upload Flow (POST type)
+
+```
+share.tsx
+  1. Destructures images[] from upload-v2.store
+  2. Calls uploadReel(request, images[0].uri, mimeType, ..., extraImages=images[1..N])
+
+useUploadReel.ts
+  Step 1: Init (creates Media + Reel docs with imageUrls=[])
+  Step 2: Get presigned URL for primary image (images[0]) → uploads/{mediaId}/original.jpeg
+  Step 3: Upload primary image to S3
+  Step 3.5: For each extra image (index 1..N):
+    - Get presigned URL with imageIndex param → uploads/{mediaId}/image_{i}.jpeg
+    - Upload to S3
+    - Collect S3 key → extraImageS3Keys[]
+  Step 4: completeS3Upload(mediaId, s3Key, ..., extraImageS3Keys)
+
+Backend completeUpload (media.service.ts)
+  - Verifies primary file in upload bucket
+  - Copies primary to input bucket (for audit/storage)
+  - Detects contentType === 'POST' → skips FFmpeg entirely
+  - For each image in [s3Key, ...extraImageS3Keys]:
+      copies from upload bucket to output bucket as photos/{mediaId}/image_{i}.ext
+      builds HTTPS URL from output bucket
+  - Updates reel.imageUrls = [url_0, ..., url_n]
+  - Updates reel.thumbnailUrl = url_0
+  - Marks media.status = 'ready' immediately
+  - Sends reel.ready notification
+
+feed.service.ts
+  - Feed query now allows: (videoUrl exists) OR (contentType=POST AND thumbnailUrl exists)
+  - mapReelToFeedItem now includes imageUrls[] in response
+```
+
+#### Key Files Changed
+
+| File | Change |
+|---|---|
+| `reel.schema.ts` | Added `imageUrls: string[]` Mongoose prop |
+| `libs/types/src/lib/reel.types.ts` | Added `imageUrls?: string[]` to `Reel` interface |
+| `dto/presigned-upload.dto.ts` | Relaxed `fileType` to include image MIME types; added `imageIndex?`; added `extraImageS3Keys?` to `CompleteUploadDto` |
+| `media.service.ts` (backend) | `getPresignedUploadUrl` supports `imageIndex`; `completeUpload` has POST fast-path that skips FFmpeg |
+| `feed.service.ts` | Fixed feed filter to include POST content; maps `imageUrls[]` in response |
+| `media.service.ts` (frontend) | Added `imageIndex?` and `extraImageS3Keys?` params |
+| `useUploadReel.ts` | Added `extraImages?` param; step 3.5 uploads images 1..N |
+| `share.tsx` | Passes `images.slice(1)` as `extraImages` |
+| `FeedPostCard.tsx` | Horizontal paginating `FlatList` carousel when `imageUrls.length > 1`, with dot indicators |
+
+#### S3 Key Convention
+
+| Purpose | Upload bucket key | Output bucket key |
+|---|---|---|
+| Primary image (image[0]) | `uploads/{mediaId}/original.{ext}` | `photos/{mediaId}/image_0.{ext}` |
+| Extra image (image[i]) | `uploads/{mediaId}/image_{i}.{ext}` | `photos/{mediaId}/image_{i}.{ext}` |
+| Thumbnail (REEL) | `uploads/{mediaId}/thumbnail.jpg` | `converted/{mediaId}/thumbnail.jpg` |
+
+#### MIME Type Validation (updated)
+
+`GetPresignedUrlDto.fileType` now accepts:
+- `video/mp4`, `video/quicktime`, `video/x-msvideo` (REELs)
+- `image/jpeg`, `image/jpg`, `image/png`, `image/heic`, `image/heif` (POSTs)
+
+#### Constraints / Edge Cases
+
+- If an extra image copy fails it is **skipped** (warning logged) — the POST still completes with fewer images.
+- POST uploads never enter FFmpeg queue. `media.status` transitions: `UPLOADING → PROCESSING → READY` (all within `completeUpload`).
+- Feed filter uses `$and` to add the POST visibility condition, avoiding conflict with the existing moderation `$or`.
+- `imageUrls` on the Reel document is empty `[]` until `completeUpload` — never query on it during upload.
+
+---
+
 **[SLICE_COMPLETE ✅]**  
 *Media Module Technical Guide - Comprehensive developer documentation complete*

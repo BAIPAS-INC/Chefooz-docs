@@ -1006,6 +1006,43 @@ Profile → Saved tab → (grid renders inline) → Tap reel → Feed (reel play
 
 ---
 
+## Photo Post Viewer (March 2026)
+
+### Overview
+
+Users can now upload multi-image photo posts (`contentType=POST`). Tapping a post in the profile grid opens a dedicated POST viewer screen instead of the video player.
+
+### Profile Grid — Content-Type Badges
+
+The profile grid now shows context badges on each item:
+- **Photo post (POST)**: images stack icon (top-right) + images icon with view count (bottom-left)
+- **Review reel (USER_REVIEW)**: gold star badge (top-right)
+- **Menu reel (MENU_SHOWCASE)**: green restaurant badge (top-right)
+- **Standard reel**: no badge (existing play icon + view count)
+
+### Smart Routing on Tap
+
+`handleReelPress` in `profile.tsx` now branches by `contentType`:
+- `contentType === 'POST'` → `/post/[postId]?username=@username`
+- `contentType === 'REEL'` or undefined → `/profile/reels/[reelId]?...` (existing video viewer)
+
+### POST Viewer Screen (`/post/[postId].tsx`)
+
+Instagram-style scrollable feed of the author's photo posts:
+- **Header**: back nav + "Posts" title
+- **Per post**: author row (avatar + name + time), horizontal image carousel with dot indicators, like/comment/share actions, caption
+- **Infinite scroll**: loads all user's POST items via `GET /api/v1/profile/:username/posts`
+- **Initial scroll**: automatically scrolls to the tapped post by ID on load
+
+### API Changes
+
+- `GET /api/v1/profile/:username/reels` now returns `contentType` and `imageUrls` per item
+- New endpoint: `GET /api/v1/profile/:username/posts` — returns only `contentType=POST` items with full image URL list
+
+*Last Updated: March 2026*
+
+---
+
 **[END OF FEATURE OVERVIEW]**
 
 ---
