@@ -2,12 +2,54 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Tech Stack**: NestJS, MongoDB (Media/Reel schemas), PostgreSQL (Orders/Users), AWS S3, Bull Queue, FFmpeg  
-> **Last Updated**: March 12, 2026  
+> **Last Updated**: March 2026  
 > **Maintainer**: Backend Team
 
 ---
 
-## � March 12, 2026 — Upload Enhancements
+## March 2026 — PostCropModal UX Redesign
+
+### Problem
+The original `PostCropModal` used a sequential "Next →" flow — the user had to crop image 1,
+press Next, crop image 2, press Next, and could not return to a previous image once confirmed.
+This was unusable for multi-image POST uploads.
+
+### Solution
+`PostCropModal.tsx` was rewritten with a thumbnail-driven, non-sequential UX:
+
+| Aspect | Old behaviour | New behaviour |
+|---|---|---|
+| Navigation | Sequential Next → Done | Thumbnail strip — tap any image to jump freely |
+| Crop state | Single Animated pair, reset on Next | Per-image `cropStatesRef[]` persisted when switching |
+| Processing | Per-image on Next press | All images processed together when Done pressed |
+| Header button | "Next →" / "Done" (dynamic) | Always "Done" |
+| Progress feedback | None | Orange progress bar (0–100%) during batch |
+| Ratio change | Reset current image only | Rebuilds cover-fill defaults for ALL images |
+
+### Key implementation details
+
+**Per-image crop state** (`cropStatesRef: Ref<Array<{panX, panY, scale, baseScale}>>`)
+- Initialised by `initCropStates()` on open with cover-fill defaults for each image
+- `saveCropState(idx)` writes current animated values into `cropStatesRef.current[idx]`
+- `applyCropState(state)` restores animated values from a saved state
+- Switching: `saveCropState(current) → setCurrentIndex(new) → applyCropState(new)`
+- Ratio change: `saveCropState(current) → initCropStates(all) → applyCropState(current)`
+
+**Batch processing on Done**
+- `handleDone` saves current state, then runs `Promise.all` for every image simultaneously
+- Progress bar increments as each image resolves
+
+**Clamp math fix**
+The old `_clamp` used `img.width * s` (incorrect — `resizeMode="contain"` means
+rendered size ≠ pixel size × scale). The correct version computes "contain" rendered size first:
+```ts
+const scaledW = renderedW * s;  // renderedW = contain-fitted width
+const maxX = Math.max(0, (scaledW - frame.width) / 2);
+```
+
+**File**: `apps/chefooz-app/src/components/upload/PostCropModal.tsx`
+
+## March 12, 2026 — Upload Enhancements
 
 ### 1. Reel/Post Toggle Visibility (edit.tsx)
 - The Reel/Post content-type toggle in the upload edit screen is now **only shown when the selected media is an image**.
