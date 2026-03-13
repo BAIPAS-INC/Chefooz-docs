@@ -2,12 +2,37 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Tech Stack**: NestJS, MongoDB (Media/Reel schemas), PostgreSQL (Orders/Users), AWS S3, Bull Queue, FFmpeg  
-> **Last Updated**: February 14, 2026  
+> **Last Updated**: March 12, 2026  
 > **Maintainer**: Backend Team
 
 ---
 
-## 🏗️ Architecture Overview
+## � March 12, 2026 — Upload Enhancements
+
+### 1. Reel/Post Toggle Visibility (edit.tsx)
+- The Reel/Post content-type toggle in the upload edit screen is now **only shown when the selected media is an image**.
+- When a **video** is selected, the toggle is hidden and `contentType` is automatically forced to `'REEL'` (videos can only be Reels).
+- A `useEffect` in `EditScreen` watches `media?.type` and calls `setContentType('REEL')` immediately if a video is detected.
+
+### 2. Multiple Image Selection for POST (useVideoPicker + store)
+- `useVideoPicker` now exposes `pickMultipleImages()` which uses `allowsMultipleSelection: true` (up to 10 images).
+- The upload store (`upload-v2.store.ts`) has a new `images: VideoAsset[]` field and `setImages(images)` action.
+- `setImages` auto-sets `media` to the first image for backward compatibility with the single-upload pipeline.
+- When `contentType === 'POST'` and gallery button is tapped in the edit screen, `pickMultipleImages()` is invoked instead of `pickVideo()`.
+- All selected images are shown as a thumbnail strip at the bottom of the edit preview, with a count badge.
+- **Note**: The current upload pipeline uploads only the first (primary) image. True multi-image carousel post upload is deferred pending backend `imageUrls[]` support.
+
+### 3. ContentType End-to-End (DTO → DB → Feed)
+- `UploadReelDto` now has `contentType?: string` (`'REEL'` | `'POST'`, default `'REEL'`).
+- `media.service.ts` passes `contentType: dto.contentType || 'REEL'` when creating the reel document in MongoDB.
+- `MediaUploadRequest` (shared types) has `contentType?: 'REEL' | 'POST'`.
+- `share.tsx` passes `contentType` from the Zustand store to the upload request.
+- Post-upload navigation: `'POST'` → `/(tabs)/home`; `'REEL'` → `/(tabs)/feed`.
+- `home.tsx` now maps `reel.contentType === 'POST'` items as `type: 'post'` so `FeedPostCard` renders them instead of the video reel card.
+
+---
+
+## �🏗️ Architecture Overview
 
 ### **Module Structure**
 ```

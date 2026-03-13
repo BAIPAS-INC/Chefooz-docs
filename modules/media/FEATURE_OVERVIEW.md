@@ -2,7 +2,7 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Purpose**: Media upload infrastructure for reels, stories, and images  
-> **Last Updated**: February 14, 2026  
+> **Last Updated**: March 12, 2026  
 > **Status**: ✅ Production Active
 
 ---
@@ -313,6 +313,7 @@ Backend returns CDN URL immediately (no processing needed)
 ```json
 {
   "uploadId": "550e8400-e29b-41d4-a716-446655440000",
+  "contentType": "REEL",
   "fileName": "my-reel.mp4",
   "mimeType": "video/mp4",
   "durationSec": 45,
