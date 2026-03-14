@@ -1,7 +1,7 @@
 # Feed Module - QA Test Cases
 
 **Version:** 1.0  
-**Last Updated:** March 14, 2026  
+**Last Updated:** March 15, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Test Environment:** Staging (staging.chefooz.app)  
 **Total Test Cases:** 89
@@ -1393,6 +1393,78 @@ DELETE FROM engagements WHERE user_id LIKE 'test_%'
 **Actual result (before fix):** Older ranked content from followed creators could remain above the newest post after refresh.
 **Fix applied:** Home now requests `sort=RECENT` together with `followingOnly=true`.
 **Regression test:** Manual scenario; automated workspace Jest execution is currently blocked by the existing Jest/TypeScript config issue.
+**Status:** Fixed ✅
+
+---
+
+### TC-HOME-POST-002: Home Post Cards Are Swipeable But Not Navigable
+
+**Type:** Bug Regression / Manual
+**Feature area:** Home post card interaction
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- Home feed contains at least one `POST`
+- At least one post contains multiple images
+
+**Steps:**
+1. Open the home tab.
+2. Tap a post image area.
+3. Swipe horizontally on a multi-image post.
+
+**Expected result:** Tapping a post does not open a separate post page. Multi-image posts swipe in place.
+**Actual result (before fix):** Tapping a post opened an empty post page.
+**Fix applied:** Removed the post-card media press navigation and kept carousel swipe behavior in place.
+**Regression test:** Manual scenario.
+**Status:** Fixed ✅
+
+---
+
+### TC-HOME-POST-003: Home Post Cards Preserve Supported Ratios
+
+**Type:** Bug Regression / Manual
+**Feature area:** Home post media sizing
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- Home feed contains posts created with 1:1, 4:5, and 16:9 media
+
+**Steps:**
+1. Open the home tab.
+2. Scroll to a square post.
+3. Scroll to a portrait 4:5 post.
+4. Scroll to a landscape 16:9 post.
+
+**Expected result:** Square posts remain square, portrait posts expand up to 4:5, and landscape posts shrink down to 16:9 without being forced into a square frame.
+**Actual result (before fix):** Home post cards rendered all post media in a square container.
+**Fix applied:** Home post cards now use the same shared media clamp helper as the dedicated post viewer, backed by feed aspect-ratio metadata or measured image size.
+**Regression test:** Manual scenario.
+**Status:** Fixed ✅
+
+---
+
+### TC-HOME-REEL-004: Home Reel Preview Height Stays Within 4:5
+
+**Type:** UI Enhancement / Manual
+**Feature area:** Home reel preview sizing
+**Priority:** P2
+
+**Preconditions:**
+- User is logged in
+- Home feed contains at least one reel with a tall preview aspect ratio
+
+**Steps:**
+1. Open the home tab.
+2. Scroll to a reel card in the mixed feed.
+3. Compare the reel preview height against the device width.
+4. Tap the reel and confirm the full feed viewer still opens.
+
+**Expected result:** Home reel previews do not exceed a 4:5 card height, and tapping still opens the reel feed viewer.
+**Actual result (before fix):** Tall home reel previews could render above the intended compact home-feed height.
+**Fix applied:** Reduced the home reel preview clamp so the home card stays within a 4:5 frame while preserving tap-through to the feed screen.
+**Regression test:** Manual scenario.
 **Status:** Fixed ✅
 
 ---

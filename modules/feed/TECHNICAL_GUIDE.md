@@ -1,7 +1,7 @@
 # Feed Module - Technical Guide
 
 **Version:** 1.0  
-**Last Updated:** March 14, 2026  
+**Last Updated:** March 15, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Domain Logic:** `libs/domain/src/feed/`  
 **Tech Stack:** NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis/Valkey
@@ -28,6 +28,9 @@
 - 2026-03-03: Feed UI seeds `visibleItemIds` with the first reel when focused so autoplay starts without requiring an initial scroll.
 - 2026-03-14: Following-only feed now resolves the viewer from JWT inside `FeedService`, preventing authenticated home refreshes from falling back to the global ranked feed.
 - 2026-03-14: Home feed now requests `sort=RECENT` with `followingOnly=true` so new friend posts appear first on refresh; the reel feed tab remains `sort=DEFAULT` for ranking.
+- 2026-03-14: Home post cards now use icon components instead of emoji glyphs and no longer navigate to the placeholder post route; multi-image posts stay swipeable in place.
+- 2026-03-15: Home post cards and the dedicated post viewer now share one post media layout helper for the 16:9 to 4:5 clamp, using feed `aspectRatio` metadata when available and `Image.getSize` fallback for posts that only ship URLs.
+- 2026-03-14: Home reel cards continue to use feed preview aspect ratios, but their rendered preview height is capped at 4:5 so the home tab stays compact before routing into the dedicated reel feed.
 
 ## Single Control Surface
 

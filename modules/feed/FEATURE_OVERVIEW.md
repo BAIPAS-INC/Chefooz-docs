@@ -1,7 +1,7 @@
 # Feed Module - Feature Overview
 
 **Version:** 1.0  
-**Last Updated:** March 14, 2026  
+**Last Updated:** March 15, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Domain Logic:** `libs/domain/src/feed/`  
 **Purpose:** Home feed with advanced ranking algorithm, CRS reputation boost, engagement tracking, and abuse prevention
@@ -580,6 +580,12 @@ if (!canViewMenuReel()) {
 11. App displays: Curated feed from followed creators only
 
 **Postconditions**: User sees content only from creators they follow.
+
+Home interaction notes:
+- `POST` items in home are view-only cards and do not navigate away on tap.
+- Multi-image posts are browsed in-place with horizontal swipe.
+- Home post media keeps supported creator ratios in the same range as the post viewer: 16:9 landscape through 4:5 portrait, including square posts, using the same shared clamp behavior.
+- `REEL` items remain tappable and route into the reel viewing experience, while home preview height is capped at 4:5 before the full-screen feed opens.
 
 **Performance**: Following filter adds ~30ms (fetch UserFollow records + IN query).
 
