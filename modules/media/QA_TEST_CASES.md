@@ -1573,5 +1573,34 @@ When reporting media upload bugs, include:
 
 ---
 
-**[SLICE_COMPLETE ✅]**  
+### TC-MEDIA-BUG-002: PostCropModal WYSIWYG — pinch-zoom release no longer causes position jump
+
+**Type:** Bug Regression  
+**Feature area:** PostCropModal — crop editor for photo posts  
+**Priority:** P1
+
+**Preconditions:**
+- User opens PostCropModal with one or more images
+- User performs a pinch-zoom gesture (two fingers) while slightly translating (common on physical devices)
+
+**Steps:**
+1. Upload a POST \u2014 PostCropModal opens
+2. Use two fingers to zoom in
+3. Lift both fingers simultaneously — observe if the crop frame jumps
+4. Verify by tapping Done and confirming the saved crop matches what was shown
+
+**Expected result:** Crop frame position is stable on finger lift; saved crop pixel coordinates match the visual exactly
+
+**Actual result (before fix):** At the moment of lifting both fingers after a pinch, the stored pan offset jumped by the centroid drift (`gesture.dx/dy`). This caused the crop to be saved at a different position than displayed. The visual briefly jumped at release and the resulting cropped image did not match what the user had framed.
+
+**Root cause:** `onPanResponderRelease` always computed `rawX = panOffsetRef.current.x + gesture.dx`. For a pinch gesture, `gesture.dx` is the two-finger centroid movement from grant, which the `onPanResponderMove` pinch handler never applied to pan. This created a stored-state vs visual-state mismatch on every pinch release.
+
+**Fix applied:** In `apps/chefooz-app/src/components/upload/PostCropModal.tsx`: check `wasPinch = pinchRef.current !== null` before clearing `pinchRef`. For pinch releases, clamp existing `panOffsetRef` at new scale (no `gesture.dx/dy` added). For single-finger pan releases, behaviour is unchanged.
+
+**Regression test:** Pinch-zoom in PostCropModal \u2014 confirm no position jump on release; crop result matches visible frame
+**Status:** Fixed \u2705
+
+---
+
+**[SLICE_COMPLETE \u2705]**  
 *Media Module QA Test Cases - Comprehensive test documentation complete (60 test cases, ~82% automation coverage)*

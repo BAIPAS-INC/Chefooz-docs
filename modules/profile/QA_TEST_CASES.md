@@ -2801,4 +2801,88 @@ describe('Profile Module E2E', () => {
 
 ---
 
+### TC-PROFILE-POST-004: Viewing another user's POST routes to image viewer (not video player)
+
+**Type:** Bug Regression  
+**Feature area:** Public profile grid → POST navigation  
+**Priority:** P0
+
+**Preconditions:**
+- User A has uploaded a photo POST (2+ images)
+- Logged-in user is a different user (User B)
+
+**Steps:**
+1. Navigate to User A's profile (`/profile/[username]`)
+2. Tap a grid item that has an image badge (POST)
+
+**Expected result:** `/post/[reelId]?username=...` opens with the image carousel  
+**Actual result (before fix):** `/profile/reels/[reelId]` opened → "Processing your reel" message shown (no videoUrl on a POST)  
+**Root cause:** `handleReelPress` in `apps/chefooz-app/src/app/profile/[username].tsx` always routed to the video viewer regardless of `contentType`  
+**Fix applied:** Added `reel?.contentType === 'POST'` check (same logic as own-profile screen) before falling through to video viewer route  
+**Regression test:** As User B, tap User A's POST → `/post/` screen opens with image carousel  
+**Status:** Fixed ✅
+
+---
+
+### TC-PROFILE-POST-005: 16:9 POST images display without cropping in post viewer
+
+**Type:** Bug Regression  
+**Feature area:** Post viewer screen (`/post/[postId]`) — ImageCarousel  
+**Priority:** P1
+
+**Preconditions:**
+- User has uploaded a photo POST with 16:9 aspect ratio selected in PostCropModal
+- Cropped images are confirmed correct in S3 (1920×1080)
+
+**Steps:**
+1. Navigate to any user's profile
+2. Tap a 16:9 POST
+3. Observe how the image renders in the carousel
+
+**Expected result:** Full 16:9 image visible, no cropping, no black bars (or minimal bars during initial load before Image.getSize resolves)
+
+**Actual result (before fix):** Image appeared cropped to square; top and bottom content was invisible. Viewer initially rendered at `SCREEN_WIDTH × SCREEN_WIDTH` with `resizeMode="cover"`, cropping a 16:9 image to fill the square container.
+
+**Root cause:**
+1. `carouselHeight` initial state was `SCREEN_WIDTH` (square) instead of `MIN_HEIGHT` (16:9 landscape: `SCREEN_WIDTH * 9/16`)
+2. `resizeMode="cover"` was used — any height mismatch causes cropping
+
+**Fix applied:**
+1. Changed `carouselHeight` initial state from `SCREEN_WIDTH` to `MIN_HEIGHT` in `apps/chefooz-app/src/app/post/[postId].tsx` — 16:9 images render correctly from the very first frame
+2. Changed `resizeMode="cover"` → `resizeMode="contain"` — prevents all cropping regardless of container/image size mismatch during async `Image.getSize` resolution
+
+**Regression test:** Upload 16:9 POST → tap in profile grid → confirm full image visible without cropping
+**Status:** Fixed ✅
+
+---
+
+### TC-PROFILE-POST-006: Crop position saved correctly after pinch-zoom in PostCropModal
+
+**Type:** Bug Regression  
+**Feature area:** PostCropModal — post upload crop editor  
+**Priority:** P1
+
+**Preconditions:**
+- User is in PostCropModal with at least one image selected
+
+**Steps:**
+1. Open PostCropModal
+2. Pinch to zoom (two fingers) while also slightly moving the centroid
+3. Lift both fingers (release gesture)
+4. Observe any position jump at the moment of lift
+5. Tap Done — check the result matches what was visually shown
+
+**Expected result:** No position jump on finger lift; crop result matches exactly what was positioned in the modal
+
+**Actual result (before fix):** On release of a pinch gesture, the stored pan offset was `oldOffset + gesture.dx` where `gesture.dx` was the centroid drift of the two fingers. But the visual during the pinch did NOT apply centroid drift — it only re-clamped the existing offset. This caused a visible jump at the moment of lift and a mismatch between the visual crop frame and the actual pixel crop.
+
+**Root cause:** `onPanResponderRelease` always added `gesture.dx/dy` regardless of whether the gesture was a pinch or a single-finger pan. For pinch gestures, `gesture.dx/dy` represents the centroid drift (unintended translation), which the move handler did NOT apply — causing stored state ≠ visual state.
+
+**Fix applied:** In `apps/chefooz-app/src/components/upload/PostCropModal.tsx` `onPanResponderRelease`: detect `wasPinch = pinchRef.current !== null` before clearing it. For pinch release, clamp the existing `panOffsetRef.current` at the new scale (matching move-handler logic). For single-finger pan, apply `gesture.dx/dy` as before.
+
+**Regression test:** Pinch-zoom an image in PostCropModal, then tap Done — confirm the cropped result matches the visible frame position
+**Status:** Fixed ✅
+
+---
+
 **Last Updated**: March 2026
