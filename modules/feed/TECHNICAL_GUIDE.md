@@ -1,7 +1,7 @@
 # Feed Module - Technical Guide
 
 **Version:** 1.0  
-**Last Updated:** March 3, 2026  
+**Last Updated:** March 14, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Domain Logic:** `libs/domain/src/feed/`  
 **Tech Stack:** NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis/Valkey
@@ -26,6 +26,20 @@
 
 - 2026-03-03: Client engagement cache merge now preserves `isLiked`/`isSaved` flags and aliases `savedCount` to `saves`, preventing like counts from resetting after refetches/tab switches.
 - 2026-03-03: Feed UI seeds `visibleItemIds` with the first reel when focused so autoplay starts without requiring an initial scroll.
+- 2026-03-14: Following-only feed now resolves the viewer from JWT inside `FeedService`, preventing authenticated home refreshes from falling back to the global ranked feed.
+- 2026-03-14: Home feed now requests `sort=RECENT` with `followingOnly=true` so new friend posts appear first on refresh; the reel feed tab remains `sort=DEFAULT` for ranking.
+
+## Single Control Surface
+
+The feed already has one effective control path; this is the place to change behavior intentionally:
+
+- Request orchestration and filter selection: `apps/chefooz-apis/src/modules/feed/feed.service.ts#getFeed`
+- Candidate selection and ranked page assembly: `apps/chefooz-apis/src/modules/feed/feed.service.ts#getAdvancedRankedFeed`
+- Score formula: `apps/chefooz-apis/src/modules/feed/feed.service.ts#calculateRankingScore`
+- Tunable weights and limits: `libs/domain/src/feed/feed.config.ts`
+- Visibility penalties: `libs/domain/src/feed/feed.rules.ts`
+
+Frontend files should only choose a feed mode such as `followingOnly` or `sort`; they should not contain ranking logic.
 
 ---
 
@@ -126,7 +140,7 @@ interface FeedQueryDto {
   lng?: number;           // User longitude (placeholder, not implemented)
   sort?: FeedSort;        // Sorting strategy (DEFAULT | TRENDING | RECENT, default: DEFAULT)
   followingOnly?: boolean;// Show only followed creators (default: false)
-  userId?: string;        // Required if followingOnly=true
+  userId?: string;        // Legacy fallback only; authenticated viewer from JWT is authoritative
 }
 ```
 
@@ -143,7 +157,8 @@ Authorization: Bearer <jwt_token>
 GET /api/v1/feed?cursor=65f3b1c4f8d9e2a1b3c4d5e6&limit=10
 
 # Following-only mode
-GET /api/v1/feed?followingOnly=true&userId=abc-123-def-456
+GET /api/v1/feed?followingOnly=true
+Authorization: Bearer <jwt_token>
 
 # Trending feed
 GET /api/v1/feed?sort=TRENDING&limit=20

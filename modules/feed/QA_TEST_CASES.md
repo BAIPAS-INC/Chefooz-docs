@@ -1,7 +1,7 @@
 # Feed Module - QA Test Cases
 
 **Version:** 1.0  
-**Last Updated:** March 3, 2026  
+**Last Updated:** March 14, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Test Environment:** Staging (staging.chefooz.app)  
 **Total Test Cases:** 89
@@ -1252,24 +1252,32 @@ DELETE FROM engagements WHERE user_id LIKE 'test_%'
 
 ---
 
-### TC-FOLLOW-004: Following Filter Without userId (Error)
+### TC-FOLLOW-004: Following Filter Without Viewer Context Returns Empty Feed
 
 **Priority**: LOW  
 **Type**: Negative  
 **Prerequisites**: None
 
 **Test Steps**:
-1. Send request with followingOnly=true but no userId:
+1. Send request with followingOnly=true but no auth token:
    ```bash
    GET /api/v1/feed?followingOnly=true
    ```
 
 **Expected Results**:
-- ✅ Status: 400 Bad Request (TODO: Add validation)
-- ✅ Error message: "userId required when followingOnly=true"
+- ✅ Status: 200 OK
+- ✅ No reels returned
+- ✅ `data.items` is an empty array
+- ✅ `data.nextCursor` is `null`
 
-**Current Behavior** (without validation):
-- ⚠️ Returns all reels (followingOnly ignored)
+**Current Behavior Before Fix**:
+- ⚠️ Returned global ranked reels because the filter depended on `query.userId`
+
+**Fix Applied**:
+- `FeedService.getFeed()` now resolves the viewer from JWT first and returns an empty feed if `followingOnly=true` without viewer context
+
+**Regression Test**:
+- `apps/chefooz-apis/src/modules/feed/feed.service.spec.ts`
 
 **Actual Results**: _[To be filled during testing]_
 
@@ -1347,7 +1355,8 @@ DELETE FROM engagements WHERE user_id LIKE 'test_%'
 **Test Steps**:
 1. Fetch following-only feed with sort=DEFAULT:
    ```bash
-   GET /api/v1/feed?followingOnly=true&userId=<userA_id>&sort=DEFAULT
+   GET /api/v1/feed?followingOnly=true&sort=DEFAULT
+   Authorization: Bearer <jwt_token>
    ```
 
 **Expected Results**:
@@ -1355,12 +1364,36 @@ DELETE FROM engagements WHERE user_id LIKE 'test_%'
 - ✅ Advanced ranking applied to following feed
 
 **Current Behavior**:
-- ⚠️ Following feed uses RECENT sort (createdAt desc)
-- ⚠️ TODO: Apply advanced ranking to following feed
+- ✅ Following feed applies the selected sort strategy inside the followed-creators subset
+- ✅ `sort=DEFAULT` still runs advanced ranking rather than forcing `RECENT`
 
 **Actual Results**: _[To be filled during testing]_
 
 **Status**: ⬜ Not Started | 🟡 In Progress | ✅ Passed | ❌ Failed
+
+---
+
+### TC-HOME-RECENT-001: Home Refresh Shows Newly Posted Friend Content First
+
+**Type:** Bug Regression / Manual
+**Feature area:** Home screen following feed
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- User follows at least one creator
+- A followed creator publishes a new post or reel after the current home feed has already loaded
+
+**Steps:**
+1. Open the home tab and note the current first item.
+2. From a followed account, publish a new post or reel.
+3. Return to the original user and pull to refresh on home.
+
+**Expected result:** The newly published followed content appears at or near the top based on newest-first ordering.
+**Actual result (before fix):** Older ranked content from followed creators could remain above the newest post after refresh.
+**Fix applied:** Home now requests `sort=RECENT` together with `followingOnly=true`.
+**Regression test:** Manual scenario; automated workspace Jest execution is currently blocked by the existing Jest/TypeScript config issue.
+**Status:** Fixed ✅
 
 ---
 
@@ -2488,10 +2521,10 @@ DELETE FROM engagements WHERE user_id LIKE 'test_%'
 | Defect ID | Test Case | Severity | Description | Status |
 |-----------|-----------|----------|-------------|--------|
 | DEF-001 | TC-FEED-010 | LOW | Invalid cursor returns empty feed (no validation) | Open |
-| DEF-002 | TC-FOLLOW-004 | LOW | followingOnly without userId returns all reels | Open |
+| DEF-002 | TC-FOLLOW-004 | LOW | followingOnly without viewer context returned all reels | Fixed ✅ |
 | DEF-003 | TC-ENGAGE-006 | HIGH | LIKE without auth succeeds (fallback userId in dev mode) | Open |
 | DEF-004 | TC-SEC-005 | CRITICAL | Admin reseed endpoint unsecured | Open |
-| DEF-005 | TC-FOLLOW-008 | LOW | Following feed uses RECENT sort (not DEFAULT ranking) | Open |
+| DEF-005 | TC-FOLLOW-008 | LOW | Following feed uses RECENT sort (not DEFAULT ranking) | Fixed ✅ |
 
 ---
 

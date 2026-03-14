@@ -1,7 +1,7 @@
 # Feed Module - Feature Overview
 
 **Version:** 1.0  
-**Last Updated:** February 14, 2026  
+**Last Updated:** March 14, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Domain Logic:** `libs/domain/src/feed/`  
 **Purpose:** Home feed with advanced ranking algorithm, CRS reputation boost, engagement tracking, and abuse prevention
@@ -36,7 +36,7 @@ The **Feed module** provides a personalized, ranked content stream for the Chefo
 4. **Order Context**: Display chef profile, distance, ETA, availability for linked orders
 5. **Abuse Prevention**: Rate limiting, duplicate detection, engagement anomaly detection
 6. **Visibility Control**: Progressive enforcement with state-based multipliers
-7. **Following Filter**: Show content only from followed creators
+7. **Following Filter**: Show content only from followed creators using the authenticated viewer context
 8. **Feature Flags**: Control menu reel visibility
 
 ### Business Value
@@ -80,7 +80,7 @@ The **Feed module** provides a personalized, ranked content stream for the Chefo
 
 #### Feed Visibility Rules
 1. **Reel Filtering**: Only show reels with `videoUrl` (processed reels only)
-2. **Following-Only Mode**: Filter reels by followed user IDs (status='accepted'), return empty if no following
+2. **Following-Only Mode**: Filter reels by followed user IDs (status='accepted') using the authenticated viewer from JWT, return empty if no following or no viewer context
 3. **Menu Reel Control**: Exclude `MENU_SHOWCASE` reels when `canViewMenuReel()` feature flag is OFF
 4. **Creator Boost Fairness** (Phase 3.6.8):
    - **ACTIVE state**: 1.0 multiplier (no penalty)
@@ -175,6 +175,12 @@ The **Feed module** provides a personalized, ranked content stream for the Chefo
 
 ### 1. Advanced Feed Ranking
 
+Single control surface:
+- Ranking orchestration lives in `FeedService.getFeed()` and `FeedService.getAdvancedRankedFeed()`.
+- Score composition lives in `FeedService.calculateRankingScore()`.
+- Environment-tunable knobs live in `libs/domain/src/feed/feed.config.ts` via `getFeedRankingWeights()`, `normalizePageLimit()`, and `getFeedCacheTtl()`.
+- Visibility penalties live in `libs/domain/src/feed/feed.rules.ts` via `getFeedVisibilityMultiplier()`.
+
 **Description**: Multi-factor scoring algorithm that surfaces the most relevant content based on engagement, recency, creator reputation, and promotion status.
 
 **Components**:
@@ -249,11 +255,13 @@ GET /api/v1/feed?cursor=65f3b1c...&limit=10&sort=DEFAULT
 **Description**: Show content only from creators the user follows, creating a curated Instagram-style feed.
 
 **Workflow**:
-1. User enables `followingOnly=true` in query params, provides `userId`
-2. Service fetches `UserFollow` records where `followerId = userId` AND `status = 'accepted'`
-3. Extract followed user IDs: `followingIds = follows.map(f => f.followingId)`
-4. Filter reels: `reels.find({ userId: { $in: followingIds } })`
-5. If `followingIds.length = 0`: Return empty feed (user follows nobody)
+1. User enables `followingOnly=true` in query params and sends a valid auth token
+2. Service resolves the viewer from JWT first, then falls back to legacy `query.userId` only for backward compatibility
+3. Service fetches `UserFollow` records where `followerId = viewerId` AND `status = 'accepted'`
+4. Extract followed user IDs: `followingIds = follows.map(f => f.targetId)`
+5. Filter reels: `reels.find({ userId: { $in: followingIds } })`
+6. If `followingIds.length = 0`: Return empty feed (user follows nobody)
+7. If no viewer context is available: Return empty feed instead of silently falling back to global ranking
 
 **Empty State Handling**:
 ```typescript
@@ -429,7 +437,7 @@ User uploads 10 reels in 1 hour (rate violation)
 
 | Strategy | Algorithm | Use Case |
 |----------|-----------|----------|
-| **DEFAULT** | Advanced ranked feed (engagement + recency + reputation + promotion) | Personalized home feed |
+| **DEFAULT** | Advanced ranked feed (engagement + recency + reputation + promotion) | Reel discovery feed/tab |
 | **TRENDING** | Sort by `stats.likes DESC`, then `createdAt DESC` | Discover viral content |
 | **RECENT** | Sort by `createdAt DESC` | See latest posts chronologically |
 
@@ -560,12 +568,12 @@ if (!canViewMenuReel()) {
 
 **Steps**:
 1. User taps "Following" tab in feed
-2. App requests `GET /api/v1/feed?followingOnly=true&userId=abc123` (auth header)
-3. Service fetches following: `UserFollow.find({ followerId: userId, status: 'accepted' })`
-4. Service extracts followed IDs: `followingIds = follows.map(f => f.followingId)`
+2. App requests `GET /api/v1/feed?followingOnly=true` with an auth header
+3. Service resolves `viewerId` from JWT and fetches following: `UserFollow.find({ followerId: viewerId, status: 'accepted' })`
+4. Service extracts followed IDs: `followingIds = follows.map(f => f.targetId)`
 5. If `followingIds.length = 0`: Return empty feed
 6. Fetch reels: Filter `userId IN followingIds`, `videoUrl` exists
-7. Sort: By `createdAt DESC` (recent from followed creators)
+7. Sort: Home feed uses `RECENT` so freshly posted friend content appears first after refresh; the reel discovery tab continues to use ranked `DEFAULT`
 8. Pagination: Cursor-based, limit+1 pattern
 9. Map: Build FeedItem with linkedOrder, orderContext, linkedMenu
 10. Return: { items: FeedItem[], nextCursor }
@@ -1355,7 +1363,7 @@ class FeedQueryDto {
 
   @IsOptional()
   @IsString()
-  userId?: string; // Required if followingOnly=true, no validation (TODO: Add @IsUUID)
+  userId?: string; // Legacy fallback only; authenticated viewer from JWT is authoritative
 }
 ```
 
