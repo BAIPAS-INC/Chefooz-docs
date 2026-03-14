@@ -2,8 +2,16 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Purpose**: Media upload infrastructure for reels, stories, and images  
-> **Last Updated**: March 12, 2026  
+> **Last Updated**: March 14, 2026  
 > **Status**: ✅ Production Active
+
+---
+
+## March 14, 2026 — Post photo portrait crop preset updated
+
+- `PostCropModal` now offers `4:5` as the portrait post preset instead of `9:16`
+- Portrait photo posts are exported at `1080 × 1350`
+- This aligns the cropper with standard Instagram portrait feed posts and keeps the edit preview more consistent after processing
 
 ---
 

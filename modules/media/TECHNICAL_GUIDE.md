@@ -2,8 +2,38 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Tech Stack**: NestJS, MongoDB (Media/Reel schemas), PostgreSQL (Orders/Users), AWS S3, Bull Queue, FFmpeg  
-> **Last Updated**: March 2026  
+> **Last Updated**: March 14, 2026  
 > **Maintainer**: Backend Team
+
+---
+
+## March 14, 2026 — PostCropModal portrait ratio changed to 4:5
+
+### Problem
+`9:16` was too tall for the post-photo editing flow. It did not align well with the upload edit preview,
+and it provided a portrait crop option that was less consistent with standard feed-post proportions.
+
+### Root cause
+The post editor was offering a portrait preset optimized for reels rather than feed posts. That made
+the portrait crop mode taller than necessary, harder to fit edge-to-edge within the available post layout,
+and more difficult to validate visually against the edit preview.
+
+An additional preview mismatch existed in `PostCropModal.tsx`: pan and scale were applied on the same
+animated layer. On device, this could couple horizontal translation to the current zoom level and make the
+saved crop look shifted left even when the crop rectangle math itself was correct.
+
+### Fix
+- Replaced the portrait post ratio option from `9:16` to `4:5`
+- Updated portrait crop output from `1080 × 1920` to `1080 × 1350`
+- Extracted shared geometry helpers into `apps/chefooz-app/src/components/upload/PostCropModal.utils.ts`
+- Kept frame sizing, contained bitmap sizing, base scale, clamp bounds, and crop rect generation on the same helper path
+- Updated `PostCropModal.tsx` and the upload edit preview so portrait posts now use `4:5` consistently
+- Separated pan and scale into nested animated layers in `PostCropModal.tsx` so preview translation matches stored crop offsets exactly
+- Added regression coverage in `apps/chefooz-app/src/components/upload/PostCropModal.utils.spec.ts`
+
+### Constraint
+For post-photo cropping, preview layout and crop-output math must always derive from the same
+rendered bitmap dimensions. The supported post portrait preset is now `4:5`, matching standard Instagram portrait posts more closely than `9:16`.
 
 ---
 

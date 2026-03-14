@@ -2,7 +2,7 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Test Coverage Target**: 85%+ (Unit + Integration + E2E)  
-> **Last Updated**: February 14, 2026  
+> **Last Updated**: March 14, 2026  
 > **Test Environment**: UAT (chefooz-media-uat S3 bucket)
 
 ---
@@ -1599,6 +1599,32 @@ When reporting media upload bugs, include:
 
 **Regression test:** Pinch-zoom in PostCropModal \u2014 confirm no position jump on release; crop result matches visible frame
 **Status:** Fixed \u2705
+
+---
+
+### TC-MEDIA-BUG-003: PostCropModal 4:5 crop result matches the framed preview
+
+**Type:** Bug Regression / Automated
+**Feature area:** PostCropModal — photo post crop editor
+**Priority:** P1
+
+**Preconditions:**
+- User selects one or more images for a POST upload
+- User changes the crop ratio to `4:5`
+- Test image includes enough horizontal detail to detect left/right drift after crop
+
+**Steps:**
+1. Open POST upload and select images from the gallery
+2. In `PostCropModal`, switch the crop ratio to `4:5`
+3. Pan or zoom the image horizontally until a distinct subject is centered in the crop frame
+4. Tap Done and return to the upload edit screen
+5. Compare the resulting preview with the framing that was shown inside the crop modal
+
+**Expected result:** The saved `4:5` image matches the crop framed in the modal with no horizontal left shift
+**Actual result (before fix):** The old portrait crop path used `9:16`, which was a poor fit for post preview and could be harder to verify visually after processing
+**Fix applied:** `PostCropModal` now uses `4:5` for portrait posts, with shared geometry helpers for frame size, rendered bitmap size, clamp bounds, and crop rect generation so preview transforms and crop output are derived from the same dimensions
+**Regression test:** `apps/chefooz-app/src/components/upload/PostCropModal.utils.spec.ts`
+**Status:** Fixed ✅
 
 ---
 
