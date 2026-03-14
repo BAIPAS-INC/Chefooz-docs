@@ -1439,7 +1439,7 @@ DELETE FROM engagements WHERE user_id LIKE 'test_%'
 
 **Expected result:** Square posts remain square, portrait posts expand up to 4:5, and landscape posts shrink down to 16:9 without being forced into a square frame.
 **Actual result (before fix):** Home post cards rendered all post media in a square container.
-**Fix applied:** Home post cards now use the same shared media clamp helper as the dedicated post viewer, backed by feed aspect-ratio metadata or measured image size.
+**Fix applied:** Home post cards now use the same shared media clamp helper as the dedicated post viewer and derive post height from the actual image dimensions instead of preferring feed preview metadata.
 **Regression test:** Manual scenario.
 **Status:** Fixed ✅
 
