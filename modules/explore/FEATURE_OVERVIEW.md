@@ -816,7 +816,89 @@ The `SmartSearchBar` component (sticky header at the top of the Explore tab) was
 
 ---
 
-**[SLICE_COMPLETE ✅]**  
+---
+
+## Unified Discovery Shell — Audience-Adaptive Explore (March 2026)
+
+> **Change type:** UI Enhancement — no backend changes.  
+> **File:** `apps/chefooz-app/src/app/(tabs)/explore.tsx`
+
+### Motivation
+
+The previous Explore tab had three layout variants (`FOOD_GRID`, `SOCIAL_FEED`, `FOOD_FEED`) selected behind a feature flag. The variant selection logic depended on mocked signals (`hasRecentOrder`, `city`, live engagement score) that were never wired to real data, so users always fell through to the default path. This resulted in:
+
+- New users seeing the same feed as returning users with no contextual onboarding
+- The food network breadth of Chefooz (cooking content, chef culture, themed discovery, events) being buried below a generic grid
+
+### New Model: Single Shell with Audience Profiles
+
+The three-variant system was replaced with a **single unified `ExploreTab` shell** that renders different module stacks based on the user's **audience profile**.
+
+| Profile | Condition | Primary Goal |
+|---|---|---|
+| `NEW_USER` | `user.createdAt` < 14 days ago (or no session) | Confidence: show orderable items first, reduce decision fatigue |
+| `RETURNING_USER` | `user.createdAt` >= 14 days ago | Breadth: showcase food network depth, trending themes, chef worlds |
+
+Profile detection is done by `useExploreAudienceProfile(user)` — no extra API call, computed from `auth.store` `createdAt`.
+
+### Module Taxonomy
+
+| Module | Components | Audience |
+|---|---|---|
+| `FoodCategoriesScroll` | Category pills | Both |
+| `SmartSearchBar` | Sticky header | Both |
+| `ExploreMenuShowcase` | Orderable food cards (menu reels → ExploreFoodItem) | NEW_USER: prominent lead; RETURNING: lower priority |
+| `ExplorePromoStrip` | PROMOTIONAL reels as featured banner | Both (if data exists) |
+| `CommunityEatingSection` | Social proof / reels with linked orders | Both |
+| `TrendingDishesGrid` | `sections.trending` grid | Both (different title/position) |
+| `ExploreTrendingThemes` | Hashtag discovery chips (`sections.hashtags`) | RETURNING_USER |
+| `ExploreChefWorld` | Deep chef cards with kitchen thumbnails, follow, view menu | RETURNING_USER |
+| `ExploreFreshPicks` | Horizontal reel cards from `sections.newDishes` | RETURNING_USER |
+| `NewRisingChefs` | Carousel of rising chefs | Both |
+| `ReelsThatMakeYouHungry` | Lazy-loaded reel rows (scroll > 800px) | Both |
+
+### Module Order by Profile
+
+**NEW_USER (top → bottom):**
+1. FoodCategoriesScroll
+2. ExploreMenuShowcase — "🍽️ Order Something Delicious"
+3. ExplorePromoStrip (conditional)
+4. CommunityEatingSection (conditional)
+5. NewRisingChefs
+6. TrendingDishesGrid — "🔥 Trending Dishes"
+7. ReelsThatMakeYouHungry (lazy, scroll > 800px)
+
+**RETURNING_USER (top → bottom):**
+1. FoodCategoriesScroll
+2. ExploreTrendingThemes — "#hashtag discovery"
+3. TrendingDishesGrid — "🔥 Trending Right Now"
+4. CommunityEatingSection (conditional)
+5. ExploreChefWorld — "👨‍🍳 Chef Worlds"
+6. ExploreMenuShowcase — "🍽️ Dishes Near You"
+7. ExplorePromoStrip (conditional)
+8. ExploreFreshPicks — "🌱 Fresh & Discovering"
+9. NewRisingChefs — "🚀 Rising Talent"
+10. TrendingDishesGrid (recommended section) — "💎 Recommended For You"
+11. ReelsThatMakeYouHungry (lazy)
+
+### Content Bucketing (Client-Side)
+
+`classifyReelBuckets(reels: Reel[]): ExploreReelBuckets` in `libs/utils` classifies any reel array into:
+- `menu` — `reelPurpose === 'MENU_SHOWCASE'` or has `linkedMenu` object
+- `promo` — `reelPurpose === 'PROMOTIONAL'`
+- `review` — `reelPurpose === 'USER_REVIEW'` or has `linkedOrder`
+
+This is pure client-side classification using available metadata. No new backend endpoints required.
+
+### Legacy Variant System
+
+The feature flags `ENABLE_EXPLORE_LAYOUT_VARIANTS` and `EXPLORE_LAYOUT_VARIANT_OVERRIDE` are no longer consumed by the mobile app. The three layout components (`ExploreFoodGridLayout`, `ExploreSocialFeedLayout`, `ExploreFoodFeedLayout`) are preserved in the codebase but not rendered.
+
+Analytics `trackInteraction` calls use `'FOOD_GRID'` as a backward-compatible `layoutVariant` stub.
+
+---
+
+**[UI_ENHANCEMENT ✅ Explore Unified Discovery Shell]**  
 **Module**: Explore  
 **Documentation**: Feature Overview  
-**Date**: February 14, 2026
+**Last Updated**: March 2026

@@ -1125,7 +1125,122 @@ All `SafeAreaView` wrappers in `explore.tsx` now receive `{ backgroundColor: the
 
 ---
 
-**[SLICE_COMPLETE ✅]**  
+---
+
+## Unified Discovery Shell — Frontend Architecture (March 2026)
+
+> **Change type:** UI Enhancement — frontend only.  
+> **File changed:** `apps/chefooz-app/src/app/(tabs)/explore.tsx`
+
+### Component Tree
+
+```
+ExploreTab (explore.tsx)
+├── SmartSearchBar          (sticky)
+└── ScrollView
+    ├── FoodCategoriesScroll
+    │
+    ├── [NEW_USER path]
+    │   ├── ExploreMenuShowcase   ← new module
+    │   ├── ExplorePromoStrip     ← new module
+    │   ├── CommunityEatingSection
+    │   ├── NewRisingChefs
+    │   ├── TrendingDishesGrid
+    │   └── ReelsThatMakeYouHungry (lazy)
+    │
+    ├── [RETURNING_USER path]
+    │   ├── ExploreTrendingThemes  ← new module
+    │   ├── TrendingDishesGrid
+    │   ├── CommunityEatingSection
+    │   ├── ExploreChefWorld       ← new module
+    │   ├── ExploreMenuShowcase    ← new module
+    │   ├── ExplorePromoStrip      ← new module
+    │   ├── ExploreFreshPicks      ← new module
+    │   ├── NewRisingChefs
+    │   ├── TrendingDishesGrid (recommended)
+    │   └── ReelsThatMakeYouHungry (lazy)
+    │
+    └── [shared bottom — both profiles, lazy]
+        ├── ReelsThatMakeYouHungry (nearYou)
+        └── ReelsThatMakeYouHungry (newDishes, new-user only)
+```
+
+### New Files
+
+| File | Purpose |
+|---|---|
+| `apps/chefooz-app/src/hooks/useExploreAudienceProfile.ts` | Classify user into `NEW_USER` or `RETURNING_USER` based on `createdAt` |
+| `apps/chefooz-app/src/components/explore/modules/ExploreMenuShowcase.tsx` | Horizontal scroll of orderable food cards from `mapReelsToFoodItems` |
+| `apps/chefooz-app/src/components/explore/modules/ExplorePromoStrip.tsx` | Featured PROMOTIONAL reel strip |
+| `apps/chefooz-app/src/components/explore/modules/ExploreTrendingThemes.tsx` | Hashtag discovery chips from `sections.hashtags` |
+| `apps/chefooz-app/src/components/explore/modules/ExploreChefWorld.tsx` | Deep chef discovery cards with thumbnail collage, bio, follow action |
+| `apps/chefooz-app/src/components/explore/modules/ExploreFreshPicks.tsx` | Horizontal reel cards from `sections.newDishes` |
+| `libs/utils/src/lib/explore-data-mapper.ts` | Added `classifyReelBuckets()` + `ExploreReelBuckets` |
+
+### Audience Profile Detection
+
+```typescript
+// apps/chefooz-app/src/hooks/useExploreAudienceProfile.ts
+export type ExploreAudienceProfile = 'NEW_USER' | 'RETURNING_USER';
+
+const NEW_USER_THRESHOLD_DAYS = 14;
+
+export function useExploreAudienceProfile(user): ExploreAudienceResult {
+  const isNewUser = !user || !user.createdAt
+    || (Date.now() - new Date(user.createdAt).getTime()) < NEW_USER_THRESHOLD_DAYS * 86400000;
+  return { profile: isNewUser ? 'NEW_USER' : 'RETURNING_USER', isNewUser };
+}
+```
+
+- Relies only on `auth.store` `user.createdAt` — no additional API call
+- 14-day threshold is configurable via the constant `NEW_USER_THRESHOLD_DAYS`
+
+### Content Bucketing
+
+```typescript
+// libs/utils/src/lib/explore-data-mapper.ts
+export interface ExploreReelBuckets {
+  menu: Reel[];   // MENU_SHOWCASE or has linkedMenu
+  promo: Reel[];  // PROMOTIONAL
+  review: Reel[]; // USER_REVIEW or has linkedOrder
+}
+
+export function classifyReelBuckets(reels: Reel[]): ExploreReelBuckets {
+  return {
+    menu:   reels.filter(r => r.reelPurpose === 'MENU_SHOWCASE' || (r.linkedMenu && typeof r.linkedMenu === 'object')),
+    promo:  reels.filter(r => r.reelPurpose === 'PROMOTIONAL'),
+    review: reels.filter(r => r.reelPurpose === 'USER_REVIEW' || !!r.linkedOrder),
+  };
+}
+```
+
+Only the 3 `ReelPurpose` values available in `libs/types` are used (`USER_REVIEW | PROMOTIONAL | MENU_SHOWCASE`). There is no `RECIPE`, `COOKING_CLASS`, or `BEHIND_THE_SCENES` value — do not filter for these.
+
+### Data Sources per Module
+
+| Module | Data source | Field |
+|---|---|---|
+| ExploreMenuShowcase | `mapReelsToFoodItems(trending + recommended)` | `ExploreFoodItem[]` |
+| ExplorePromoStrip | `classifyReelBuckets().promo` | `Reel[]` |
+| ExploreTrendingThemes | `sections.hashtags` | `HashtagSummary[]` |
+| ExploreChefWorld | `trendingChefsData.chefs` | `ExploreChef[]` |
+| ExploreFreshPicks | `sections.newDishes` | `Reel[]` |
+
+### Lazy Loading
+
+`ReelsThatMakeYouHungry` rows are conditionally rendered only after `reelsVisible === true`, which is set when `ScrollView.onScroll` fires with `contentOffset.y > 800`. This prevents reel rows from blocking above-the-fold food content on first render.
+
+### Analytics Backward Compatibility
+
+`layoutVariant` on `exploreAnalytics.trackInteraction()` is now passed as the fixed string `'FOOD_GRID'`. The layout variant concept is deprecated and this field should be treated as a legacy key in any analytics dashboard. The real audience profile is now the `profile` value from `useExploreAudienceProfile`.
+
+### Responsive Approach
+
+All spacing, padding, icon sizes, and font sizes in the new modules use `normalize()` and `normalizeFontSize()` from `@chefooz-app/utils/responsive`. Baseline is 375px. Fixed dimensions (avatar, card width, image height): `normalize(value)`.
+
+---
+
+**[UI_ENHANCEMENT ✅ Explore Unified Discovery Shell]**  
 **Module**: Explore  
 **Documentation**: Technical Guide  
-**Date**: February 14, 2026
+**Last Updated**: March 2026
