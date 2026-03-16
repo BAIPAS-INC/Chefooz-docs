@@ -1628,5 +1628,52 @@ When reporting media upload bugs, include:
 
 ---
 
-**[SLICE_COMPLETE \u2705]**  
-*Media Module QA Test Cases - Comprehensive test documentation complete (60 test cases, ~82% automation coverage)*
+### TC-MEDIA-BUG-004: POST image preview stretches / overflows when crop modal is cancelled
+
+**Type:** Bug Regression / Manual
+**Feature area:** Edit screen — POST image preview after crop cancel
+**Priority:** P1
+
+**Preconditions:**
+- User is on the upload edit screen with content type set to POST
+- No images have been selected yet
+
+**Steps:**
+1. Tap the gallery icon to open image picker
+2. Select one or more images
+3. The crop modal opens — tap **Cancel** without cropping
+4. Observe the image preview on the edit screen
+
+**Expected result:** Images appear in a `4:5` (portrait) aspect ratio preview that fits within the screen bounds
+**Actual result (before fix):** Images had no aspect ratio constraint applied so they stretched or overflowed the preview frame
+**Fix applied:** `handleCropCancel` in `edit.tsx` now calls `setPostAspectRatio('4:5')` + `setImages(pendingCropImages)` when this is the first-time selection cancel, ensuring images are accepted with the `4:5` default
+**Regression test:** Manual — select images for POST, cancel crop, verify preview is bounded correctly
+**Status:** Fixed ✅
+
+---
+
+### TC-MEDIA-BUG-005: No way to re-adjust crop after POST images are selected
+
+**Type:** UX / Manual
+**Feature area:** Edit screen — POST image re-crop
+**Priority:** P2
+
+**Preconditions:**
+- User has selected images for a POST upload (crop modal already completed or cancelled)
+
+**Steps:**
+1. Select images for a POST upload
+2. Complete or cancel the crop modal
+3. Return to the edit screen
+4. Observe bottom-left of the image preview area
+
+**Expected result:** A "Crop" button is visible at the bottom-left of the image, allowing the user to re-open the crop modal at any time
+**Actual result (before fix):** No re-crop affordance existed; users would have to discard images and re-select to change the crop
+**Fix applied:** Added `handleReCrop` handler and a `reCropButton` `TouchableOpacity` (icon + label) rendered at the bottom-left of the POST image preview in `edit.tsx`; position lifts up when the multi-image thumbnail strip is also visible
+**Regression test:** Manual — select POST images, verify "Crop" button appears; tap it, verify crop modal opens with current images; crop and verify preview updates
+**Status:** Fixed ✅
+
+---
+
+**[SLICE_COMPLETE ✅]**  
+*Media Module QA Test Cases - Updated March 16, 2026 (62 test cases, ~82% automation coverage)*
