@@ -1543,8 +1543,45 @@ These tests cover the four bugs fixed in the 2026-03-01 session-preservation pat
 
 ---
 
+### TC-SP-06: Concurrent 401 responses do not cause logout render loop
+
+**Type:** Bug Regression  
+**Feature area:** Auth store, Axios interceptors, enter-phone screen  
+**Priority:** P0
+
+**Preconditions:**
+- User is logged in with a valid session
+- Multiple API calls are in-flight simultaneously (e.g. feed, social, analytics)
+- Token expires or is invalidated server-side while requests are in-flight
+
+**Steps:**
+1. Let the session token expire naturally (or invalidate it server-side)
+2. Navigate to a screen that triggers multiple concurrent API calls (e.g. home feed)
+3. Observe the console logs and app behaviour during auto-logout
+
+**Expected result:**
+- `logout()` executes exactly once ("🗑️ Logged out and cleared all tokens" appears once)
+- `router.replace('/auth/enter-phone')` fires at most once
+- The login screen loads cleanly with no repeated mounts
+- No repeated "[ENTER-PHONE] Clearing ALL existing tokens..." messages
+
+**Actual result (before fix):**
+- Each in-flight 401 response independently triggered `logout()` and `router.replace`
+- `enter-phone.tsx` called `setToken(null)` on mount → re-set `isAuthenticated:false` → navigation guard re-triggered → repeated mounts
+- Console showed 5–10× "Logged out and cleared all tokens" and "[ENTER-PHONE] Clearing ALL existing tokens..."
+
+**Fix applied:**
+- Added `_logoutInProgress` module-level guard in `auth.store.ts` `logout()` — concurrent calls return early
+- Added `_authLogoutInProgress` module-level guard in `apps/apiClient.ts` and `libs/api-client/axios-config.ts` — only the first 401 fires the full handler
+- Removed `setToken(null)` and `setUser(null)` from `enter-phone.tsx` mount effect; only SecureStore is cleared (store already reset by `logout()`)
+
+**Regression test:** N/A (manual verification via console logs)  
+**Status:** Fixed ✅
+
+---
+
 **QA_TEST_CASES_COMPLETE ✅**
 
 **Total Lines**: 800+  
-**Last Updated**: 2026-03-01  
+**Last Updated**: 2026-03-16  
 **Next Review**: After first QA round feedback
