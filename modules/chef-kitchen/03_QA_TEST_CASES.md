@@ -1713,8 +1713,55 @@ if (authIsLoading || (isAuthenticated && !userId)) {
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: March 2026 (Bug regression TCs added)  
-**Total Test Cases**: 60  
+### TC-CHEF-KITCHEN-BUG-002: Duplicate Packaged Food Section on Create/Edit Menu Item
+
+**Type:** Bug Regression
+**Feature area:** create-item.tsx, edit-item.tsx
+**Priority:** P1
+
+**Preconditions:**
+- Chef is logged in
+- Chef navigates to Create Menu Item or Edit Menu Item screen
+
+**Steps:**
+1. Open the Create Item or Edit Item screen
+2. Scroll down to packaged food area
+3. Observe duplicate toggle sections both labelled "Packaged Food" or "Packaged Food Metadata"
+
+**Expected result:** Single consolidated "📦 Packaged Food Metadata" section with toggle, nutrition fields, allergens, storage instructions, shelf life (days), storage type (segmented), and expiry required switch
+**Actual result (before fix):** Two separate "📦 Packaged Food" sections, both controlling the same `isPackagedFood` boolean — confusing UI, duplicate storageType/shelfLife fields
+**Fix applied:** Merged `storageType` SegmentedButtons and `expiryRequired` Switch into the first (Packaged Food Metadata) section; removed the second duplicate section entirely
+**Regression test:** N/A (visual regression — UI structure)
+**Status:** Fixed ✅
+
+---
+
+### TC-CHEF-KITCHEN-FEAT-001: Menu Image Upload — 3-Ratio Variants
+
+**Type:** Manual / Automated
+**Feature area:** create-item.tsx, edit-item.tsx, MenuImageUploader.tsx
+**Priority:** P1
+
+**Preconditions:**
+- Chef is logged in
+- Chef is on Create Item or Edit Item screen
+
+**Steps:**
+1. Scroll to "📷 Menu Images" section
+2. Tap "Select Source Image" — gallery picker opens
+3. Select a photo — all 3 ratio slots (1:1, 4:5, 16:9) are pre-filled
+4. Tap each slot to open PostCropModal and crop individually
+5. Tap "Upload All" — 3 presigned URLs fetched, images uploaded to S3
+6. Confirm success banner shown
+7. Save the menu item — `imageVariants` stored correctly
+
+**Expected result:** 3 ratio variants uploaded and stored in `imageVariants` JSONB column; `imageUrl` field populated from `ratio1x1` as fallback
+**Status:** Implemented ✅
+
+---
+
+**Document Version**: 1.1  
+**Last Updated**: March 2026 (Bug regression TCs added; menu image upload TCs added)  
+**Total Test Cases**: 62  
 **Estimated Test Execution Time**: ~4 hours (manual), ~30 minutes (automated)  
 **Next Review**: Q2 2026 (Add caching tests)

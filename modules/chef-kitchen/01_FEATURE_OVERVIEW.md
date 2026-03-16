@@ -60,7 +60,7 @@ Complete lifecycle management for menu items:
 - **Rich metadata**: 20+ fields including nutrition, allergens, FSSAI compliance
 - **Platform categories**: Standardized cuisine/dish categories
 - **Availability controls**: Master toggle, sold out, time windows
-- **Image support**: Primary image + thumbnail URLs
+- **Image support**: 3-ratio image variants (1:1, 4:5, 16:9) via `imageVariants` JSONB field + legacy `imageUrl`/`thumbnailUrl`
 - **Price in rupees**: Stored as DECIMAL (Chef Module converts to paise)
 
 #### **Example Scenario**
@@ -542,9 +542,10 @@ await menuItemRepo.update(itemId, {
 
 ### **12. Image URL Storage**
 - **Rule**: Images stored in **S3 OUTPUT bucket** (already processed)
-- **Fields**: `imageUrl` (full), `thumbnailUrl` (optimized)
-- **Upload Flow**: Chef uploads → Media module processes → Chef-Kitchen stores URLs
-- **No Direct Upload**: This module doesn't handle file uploads
+- **Fields**: `imageUrl` (full, legacy), `thumbnailUrl` (optimized, legacy), `imageVariants` (JSONB — new 3-ratio variants)
+- **Image Variants**: `ratio1x1` (1080×1080), `ratio4x5` (1080×1350), `ratio16x9` (1920×1080) — stored under `menu-images/{uploadId}/*.jpg` in the output bucket
+- **Upload Flow**: Chef taps slot in `MenuImageUploader` → `POST /api/v1/media/menu-image/presign` → direct PUT to S3 via presigned URL → save finalUrls in `imageVariants` via PATCH
+- **Duplicate packaged food section**: Removed — storageType, shelfLifeDays, and expiryRequired are now consolidated in a single "📦 Packaged Food Metadata" section
 
 ---
 

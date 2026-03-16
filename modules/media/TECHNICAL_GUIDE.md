@@ -456,6 +456,26 @@ async getPresignedUploadUrl(userId: string, dto: GetPresignedUrlDto) {
 
 ---
 
+#### **POST** `/api/v1/media/menu-image/presign` *(Added March 2026)*
+**Handler**: `presignMenuImages()`  
+**Purpose**: Generate 3 presigned PUT URLs for menu item image variants (1:1, 4:5, 16:9)  
+**Auth**: JWT required (class-level `@UseGuards(JwtAuthGuard)`)  
+**Response**:
+```json
+{
+  "uploadId": "uuid-v4",
+  "ratio1x1": { "uploadUrl": "...", "s3Key": "menu-images/{uploadId}/1x1.jpg", "finalUrl": "..." },
+  "ratio4x5": { "uploadUrl": "...", "s3Key": "menu-images/{uploadId}/4x5.jpg", "finalUrl": "..." },
+  "ratio16x9": { "uploadUrl": "...", "s3Key": "menu-images/{uploadId}/16x9.jpg", "finalUrl": "..." },
+  "expiresIn": 900
+}
+```
+**Bucket**: `chefooz-media-output` (output bucket — no MediaConvert processing)  
+**Expiry**: 15 minutes  
+**Method**: `ImageUploadService.generateMenuImagePresignedUrls()` (no user ID required — static prefix)
+
+---
+
 #### 3️⃣ **POST** `/api/v1/media/complete-upload`
 **Handler**: `completeUpload()`  
 **Purpose**: Verify S3 upload and trigger processing  

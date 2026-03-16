@@ -1412,23 +1412,46 @@ if (!platformCategoryExists) {
 
 ---
 
-### **2. Media Module Integration**
+### **2. Media Module Integration — Menu Image Upload (Updated March 2026)**
+
+Menu items now support 3-ratio image variants uploaded directly to S3 via presigned URLs.
+
+**Upload flow:**
+1. Chef selects a source image in `MenuImageUploader` (expo-image-picker)
+2. Source image is pre-filled into all 3 ratio slots (1:1, 4:5, 16:9)
+3. Chef can tap each slot to crop individually using `PostCropModal`
+4. Tap "Upload All" → `POST /api/v1/media/menu-image/presign` → returns 3 presigned PUT URLs
+5. App uploads each cropped image directly to S3 (`chefooz-media-output` bucket, `menu-images/{uploadId}/*.jpg`)
+6. Final CDN URLs are saved via `imageVariants` in the PATCH/POST request
 
 ```typescript
-// Frontend flow:
-// 1. Upload image to Media module
-const uploadResult = await mediaClient.uploadProductImage(file);
-// { imageUrl: "https://...", thumbnailUrl: "https://..." }
+// New flow (March 2026):
+const presigned = await chefMenuClient.presignMenuImages(token);
+// { uploadId, ratio1x1: {uploadUrl, s3Key, finalUrl}, ratio4x5: {...}, ratio16x9: {...} }
 
-// 2. Create menu item with URLs
+await uploadFileToS3(presigned.ratio1x1.uploadUrl, croppedUri, 'image/jpeg');
+// repeat for 4x5 and 16x9
+
 await chefMenuClient.createMenuItem({
   name: "Butter Chicken",
   price: 350,
-  imageUrl: uploadResult.imageUrl,
-  thumbnailUrl: uploadResult.thumbnailUrl,
+  imageVariants: {
+    ratio1x1: presigned.ratio1x1.finalUrl,
+    ratio4x5: presigned.ratio4x5.finalUrl,
+    ratio16x9: presigned.ratio16x9.finalUrl,
+  },
+  imageUrl: presigned.ratio1x1.finalUrl, // legacy fallback
   // ... other fields
 });
 ```
+
+**Entity column added:**
+```ts
+@Column({ type: 'jsonb', nullable: true })
+imageVariants?: { ratio1x1?: string; ratio4x5?: string; ratio16x9?: string; };
+```
+
+**S3 key pattern:** `menu-images/{uploadId}/{ratio}.jpg` (output bucket, no MediaConvert processing)
 
 ---
 
@@ -1782,6 +1805,6 @@ describe('Chef Menu (E2E)', () => {
 ---
 
 **Document Version**: 1.0  
-**Last Updated**: February 2026  
+**Last Updated**: March 2026  
 **Implementation Status**: ✅ Complete (Caching Pending)  
 **Next Review**: Q2 2026 (Caching + Menu Templates)
