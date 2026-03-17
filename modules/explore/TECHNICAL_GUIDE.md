@@ -1244,3 +1244,39 @@ All spacing, padding, icon sizes, and font sizes in the new modules use `normali
 **Module**: Explore  
 **Documentation**: Technical Guide  
 **Last Updated**: March 2026
+
+---
+
+## Moderation Filter Constraint (Critical — March 2026)
+
+**Rule**: Every `reelModel.find()` call that serves public content MUST include `moderationStatus: { $ne: 'rejected' }`.
+
+**Background**: The `moderationStatus` field was added after initial deployment. Legacy reels have `moderationStatus: undefined`. Using `moderationStatus: 'approved'` would exclude all legacy reels. The correct filter is `{ $ne: 'rejected' }` which includes `undefined`, `'approved'`, `'pending'`, `'reviewing'` and excludes only banned content.
+
+**Affected files**:
+
+| File | Method | Filter added |
+|------|---------|--------------|
+| `explore.service.ts` | `getTrendingItems` | `moderationStatus: { $ne: 'rejected' }` |
+| `explore.service.ts` | `getRecommendedItems` | `moderationStatus: { $ne: 'rejected' }` |
+| `explore.service.ts` | `getNewDishItems` | `moderationStatus: { $ne: 'rejected' }` |
+| `explore.service.ts` | `getPromotedItems` | `moderationStatus: { $ne: 'rejected' }` |
+| `explore.service.ts` | `getVirtualSectionDetail` (base `reelQuery`) | `moderationStatus: { $ne: 'rejected' }` |
+| `explore.service.ts` | `getReelsByCategory` | `moderationStatus: { $ne: 'rejected' }` |
+| `explore.service.ts` | `getRankedExploreItems` | `moderationStatus: { $ne: 'rejected' }` |
+| `chef-public.service.ts` | `getChefReels` | `moderationStatus: { $ne: 'rejected' }` |
+
+**Already protected**: `feed.service.ts` (uses `$or` pattern), `search-elastic.service.ts` Mongo fallback (uses `moderationStatus: 'approved'`), `getTrendingHashtags` aggregation (uses this filter since initial implementation).
+
+**DO NOT** add this filter to chef-owned management endpoints (`getUserReels`, `getChefMenuReels`, `reels.service.ts` listing) — owners need to see their own pending/rejected reels for awareness.
+
+## TrendingTagsStrip — "See All" Merged from ExploreTrendingThemes (March 2026)
+
+The previously separate `ExploreTrendingThemes` component (scroll-section hashtag strip with a "See All" button) has been merged into `TrendingTagsStrip`.
+
+- `TrendingTagsStrip` now accepts an optional `onSeeAll?: () => void` prop
+- When provided, a "See All →" label appears at the right of the "Trending" header row
+- `ExploreTrendingThemes` is no longer rendered in `explore.tsx` for the returning-user scroll section (Module 3b removed)
+- The `ExploreTrendingThemes.tsx` file remains on disk (not deleted) but is no longer imported in any active screen
+
+**Last Updated**: March 2026

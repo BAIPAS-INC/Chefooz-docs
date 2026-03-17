@@ -1108,4 +1108,73 @@ Reel uploaded 5 days ago: 40 freshness score
 
 ---
 
+## Moderation & Content Safety Tests (Added March 2026)
+
+### TC-EXPLORE-MOD-001: Rejected/Banned Reels Hidden from All Explore Feeds
+
+**Type:** Bug Regression / Security / P0
+**Feature area:** All explore section endpoints + View All page + Chef public profile
+
+**Preconditions:**
+- DB has at least one reel with `moderationStatus: 'rejected'`
+- User is logged in
+
+**Steps:**
+1. Mark a reel as `rejected` in the moderation system
+2. Open Explore tab — Trending, Recommended, New Dishes sections
+3. Open any "View All" reel collection page (`/explore/reels/[sectionKey]`)
+4. Open a chef's public profile page
+5. Perform a category search (e.g., Main Course)
+
+**Expected result:** The rejected reel does NOT appear in any of the above surfaces
+**Actual result (before fix):** Rejected/banned reels appeared in all Explore sections and "View All" pages because `moderationStatus` filter was absent from 7 MongoDB queries
+**Root cause:** `explore.service.ts` `getTrendingItems`, `getRecommendedItems`, `getNewDishItems`, `getPromotedItems`, `getVirtualSectionDetail`, `getReelsByCategory`, `getRankedExploreItems` — none had a moderation filter. `chef-public.service.ts` `getChefReels` was also missing it.
+**Fix applied:** Added `moderationStatus: { $ne: 'rejected' }` to all 7 queries in `explore.service.ts` and 1 query in `chef-public.service.ts`. Legacy reels with `moderationStatus: undefined` (pre-moderation deployment) remain visible, matching the feed.service.ts behaviour.
+**Regression test:** Manual API test — create a reel, set `moderationStatus: 'rejected'`, verify absent from GET `/api/v1/explore/sections`
+**Status:** Fixed ✅
+
+---
+
+### TC-EXPLORE-NAV-001: Back from Reel Returns to Explore (Not Home)
+
+**Type:** Bug Regression / Navigation / P1
+**Feature area:** `(tabs)/reels/[reelId].tsx`, `explore.tsx`, `explore/reels/[sectionKey].tsx`, `explore/category/[categoryKey].tsx`
+
+**Preconditions:**
+- User is on Explore tab (not Home)
+
+**Steps:**
+1. Open Explore tab
+2. Tap any reel thumbnail (from trending grid, trending themes, near-you strip, etc.)
+3. Reel player opens fullscreen
+4. Tap the back arrow (top-left)
+
+**Expected result:** Returns to Explore tab
+**Actual result (before fix):** Navigated to the Home tab
+**Root cause:** `reels/[reelId]` is a `Tabs.Screen` (hidden tab), not a stack push inside the explore tab's stack. `router.back()` from a tab screen falls through the root navigation history to the initial tab (home), bypassing explore entirely.
+**Fix applied:** All explore callers now pass a `source` URL param (e.g., `source: '/(tabs)/explore'` or `source: '/explore/reels/trending'`). In `handleBack`, `router.navigate(source)` is called when a source is present, which activates the correct screen without adding a forward history entry.
+**Regression test:** Manual: open reel from explore → tap back → should be on explore tab
+**Status:** Fixed ✅
+
+
+### TC-EXPLORE-UI-001: TrendingTagsStrip "See All" Navigation
+
+**Type:** Manual / UI
+**Feature area:** TrendingTagsStrip component + explore.tsx
+
+**Preconditions:**
+- User is on Explore tab with hashtag data loaded
+
+**Steps:**
+1. Observe TrendingTagsStrip at top of Explore screen
+2. Tap "See All →" button on the right of the "Trending" label row
+3. Observe navigation destination
+
+**Expected result:** Navigates to `/explore/reels/trending` showing the full trending reel grid
+**Actual result (before fix):** No "See All" existed; the duplicate `ExploreTrendingThemes` section in the scroll provided it
+**Fix applied:** Added `onSeeAll` prop to `TrendingTagsStrip`; removed the old `ExploreTrendingThemes` component from the scroll section. Import also removed from `explore.tsx`.
+**Status:** Fixed ✅
+
+---
+
 **Last Updated**: March 2026
