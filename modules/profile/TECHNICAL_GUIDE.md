@@ -2136,6 +2136,72 @@ The Saved tab was previously a redirect card that pushed to a separate screen (`
 
 ---
 
+## 8. Image Editing UX — Full-Screen Crop Modals (March 2026)
+
+### Problem (before)
+
+| Issue | Impact |
+|---|---|
+| `AvatarEditModal` delegated crop to native OS picker (`allowsEditing: true, aspect: [1,1]`) | Tiny, inconsistent between iOS and Android; no circle preview |
+| `CoverEditModal` crop frame lived inside a 90%-wide card modal (~330px on 375px phone) | 16:9 frame only ~185px tall — near-impossible to position accurately |
+| Cover crop math applied scale/translate to the wrapper div, not the image | Coord system offset → crop result did not match the visible preview (not WYSIWYG) |
+
+### New approach (UI_ENHANCEMENT March 2026)
+
+Both modals are now **full-screen** (`transparent={false}`, `flex:1`, black background).
+
+#### AvatarEditModal
+
+| Step | Detail |
+|---|---|
+| Pick | `expo-image-picker` with `allowsEditing: false` (we handle crop in-app) |
+| Crop editor | `CROP_SIZE = SCREEN_WIDTH - 48` circular frame. `Animated.View` with pinch+pan gesture via `PanResponder`. Circular mask composited with semi-transparent overlay panels. |
+| Output | `ImageManipulator` crops a square at selected bounds → resizes to 512×512 JPEG 0.85q |
+| Preview | Full-circle preview in entry state before saving |
+
+#### CoverEditModal
+
+| Step | Detail |
+|---|---|
+| Pick | `expo-image-picker` with `allowsEditing: false` |
+| Crop editor | `CROP_W = SCREEN_WIDTH`, `CROP_H = SCREEN_WIDTH / (16/9)`. `Animated.Image` with pinch+pan directly applied to the image (not a wrapper) — ensures 1:1 WYSIWYG coord mapping. Rule-of-thirds grid overlay (hairline lines). |
+| Output | `ImageManipulator` crops the visible bounds → resizes to 1200px wide JPEG 0.85q |
+| Preview | Full-width 16:9 preview in entry state before saving |
+
+#### Crop math fix (cover)
+
+```
+renderedW/H  = image dimensions when rendered with resizeMode="contain" inside CROP_W × CROP_H
+scaledW/H     = renderedW/H × currentScale
+imageX = (CROP_W - scaledW) / 2 + offsetX   ← transform origin = image center
+imageY = (CROP_H - scaledH) / 2 + offsetY
+
+visibleLeft = −imageX
+visibleTop  = −imageY
+
+// un-scale to rendered coords, then map to original pixels
+cropX = (visibleLeft / currentScale) × (origW / renderedW)
+cropY = (visibleTop  / currentScale) × (origH / renderedH)
+cropW = (CROP_W / currentScale) × (origW / renderedW)
+cropH = (CROP_H / currentScale) × (origH / renderedH)
+```
+
+Previous bug: transform was applied to `Animated.View` (wrapper = full container size containing dead-space + image), so `(CROP_W - renderedW)/2` offset was unaccounted. Fixed by applying transform to `Animated.Image` directly.
+
+#### Auto-initial scale
+
+On image pick, initial scale is set so the image **covers** the crop frame (no black bars):
+- Avatar: `initScale = max(imageAspect, 1/imageAspect)`, capped at 2×
+- Cover: if `imageAspect >= frameAspect` → `initScale = imageAspect / frameAspect`; else `initScale = frameAspect / imageAspect`
+
+#### Responsive notes
+
+All values use `normalize()` and `normalizeFontSize()`. Frame sizes are computed from `Dimensions.get('window').width` at module load — refreshes on each app launch. Tested mentally at 320px / 375px / 414px / 768px.
+
+*Last Updated: March 17, 2026*
+
+---
+
 **[END OF TECHNICAL GUIDE]**
 
 ---

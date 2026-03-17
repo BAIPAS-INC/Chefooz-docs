@@ -1675,5 +1675,29 @@ When reporting media upload bugs, include:
 
 ---
 
+### TC-MEDIA-BUG-006: Share screen sub-components white in dark mode
+
+**Type:** Bug Regression / Manual
+**Feature area:** Share screen — UploadQuotaBanner, CaptionInputWithSuggestions, MetadataRow, LocationRow, VisibilitySelector
+**Priority:** P1
+
+**Preconditions:**
+- Device is set to dark mode (system or in-app)
+- User is on the Share reel upload screen (Stage 3)
+
+**Steps:**
+1. Enable dark mode on the device
+2. Open the app and navigate to reel upload
+3. Reach the Share / metadata stage (Stage 3)
+4. Observe: promotional banner, caption input, Details section, Add Location row, Visibility bottom sheet
+
+**Expected result:** All components render with dark backgrounds (`colors.surface` or `colors.background`), theme-aware text colours, and visible borders — matching the rest of the dark UI.
+**Actual result (before fix):** All 5 sub-components used `CHEFOOZ_COLORS.*` static constants (deprecated), rendering with hardcoded light colours (`#F8F8F8`, `#FFFFFF`, `#333333`, `#F5F5F5`, `#FFF8E1`, `#FFEBEE`) regardless of theme — appearing as bright white blocks in dark mode.
+**Fix applied:** Migrated all 5 components to `makeStyles(colors, isDark)` factory pattern called via `useMemo`. Replaced all `CHEFOOZ_COLORS.*` references with adaptive `useChefoozTheme()` tokens (`colors.surface`, `colors.background`, `colors.textPrimary`, `colors.textSecondary`, `colors.textMuted`, `colors.border`, `colors.interactiveSubtle`, `colors.warning`, `colors.danger`). Removed `CHEFOOZ_TYPOGRAPHY` spread color conflicts by inlining explicit `fontSize`/`color` properties where needed.
+**Regression test:** Manual — toggle dark mode and verify all 5 components adapt: UploadQuotaBanner, CaptionInputWithSuggestions, MetadataRow, LocationRow, VisibilitySelector
+**Status:** Fixed ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**  
-*Media Module QA Test Cases - Updated March 16, 2026 (62 test cases, ~82% automation coverage)*
+*Media Module QA Test Cases - Updated March 2026 (63 test cases)*
