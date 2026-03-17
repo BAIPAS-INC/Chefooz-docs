@@ -2978,3 +2978,73 @@ REDIS_PASSWORD=<secure_password>
 **Feed Module - Technical Guide**  
 **Generated:** February 14, 2026  
 **Lines:** ~2,000
+
+---
+
+## Home Feed UI Redesign — Technical Notes (March 2026)
+
+### Layout Engine (`apps/chefooz-app/src/utils/feed-layout.ts`)
+
+`groupItemsIntoBlocks(items: HomeFeedItem[]): LayoutBlock[]` — pure function, no side effects.
+
+Block type priority (checked in order):
+1. `ORDERABLE` — item has `feedCardPreview.linkedOrder` or `feedCardPreview.linkedMenu` → solo card
+2. `REEL_LANDSCAPE` — item is reel with `feedCardPreview.aspectRatio ≥ 1.5` → cinema card
+3. `POST_SQUARE_PAIR` — two consecutive posts both with `aspectRatio ≤ 1.1` → mosaic pair
+4. `STANDARD` — everything else → `FeedReelCard` or `FeedPostCard`
+
+### Component Dependency Map
+
+```
+home.tsx
+  └── FeedHeader (unchanged)
+  └── HomeFeedCanvas (FEATURES.homeFeedMosaic=true)  OR  HomeFeedEnhanced (default)
+        ├── ListHeaderComponent
+        │     ├── TodaysSpecialsRail   ← derives data from itemsFlat, no API call
+        │     └── ChefOpenNowRow       ← derives data from itemsFlat, no API call
+        ├── StaggeredEntry             ← mounts each card with stagger
+        ├── OrderablePostCard          ← for linked content (menu/order)
+        ├── FeedCinemaCard             ← for 16:9 landscape reels
+        ├── FeedMosaicPair             ← for paired 1:1 posts (Canvas only)
+        ├── FeedReelCard               ← standard reel (with HeartBurst + FoodEmojiParticles)
+        └── FeedPostCard               ← standard post (with HeartBurst + FoodEmojiParticles)
+```
+
+### Animation Implementation
+
+| Component | Library | Key detail |
+|---|---|---|
+| `HeartBurst` | `react-native-reanimated` | 6 particles at 0°/60°/120°/180°/240°/300°, `useSharedValue` per particle, `withSpring` icon scale |
+| `FoodEmojiParticles` | `react-native-reanimated` | 3 random emojis, `translateY` −80px, `opacity` 0→1→0, 80ms stagger, `absolute` positioned |
+| `StaggeredEntry` | `react-native-reanimated` | `useRef` guard prevents FlatList recycle triggering re-animation; `delay = Math.min(index * 60, 300)` |
+| Pulsing open dot in `ChefOpenNowRow` | `react-native-reanimated` | `withRepeat(withSequence(...), -1)` on `scale` + `opacity` |
+
+### BlurView Usage
+
+`expo-blur` `BlurView` is used in:
+- `OrderablePostCard` — bottom glassmorphism overlay (`intensity=65`, `tint=dark`)
+- `ChefOpenNowRow` — glass card background (`intensity=55`, `tint` conditional on `theme.isDark`)
+
+### Switching Layouts
+
+To try Option A (Mosaic Canvas):
+```ts
+// apps/chefooz-app/src/constants/features.ts
+homeFeedMosaic: true,
+```
+
+To revert to Option B (Enhanced Single-Column, the default):
+```ts
+homeFeedMosaic: false,
+```
+
+### Smart Polling
+
+Auto-refresh is throttled: `useFocusEffect` only calls `refetch()` if more than 20 seconds have elapsed since last refetch. This prevents redundant network calls when switching between tabs.
+
+### Constraints & Edge Cases
+
+- `linkedOrder.itemPreviews` is a display string (e.g. "Biryani, Raita"), not an array of `menuItemIds` — direct add-to-cart is not possible; both orderable CTAs navigate to chef page instead
+- `TodaysSpecialsRail` returns `null` if no items in current feed page have `feedCardPreview.previewImage` — no empty rail shown
+- `ChefOpenNowRow` returns `null` when no open chefs in current page — no empty row shown
+- `FeedMosaicPair` exists only in Canvas (Option A); Enhanced (Option B) uses full-width cards only

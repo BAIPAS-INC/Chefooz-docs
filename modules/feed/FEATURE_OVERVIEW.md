@@ -1889,3 +1889,57 @@ setInterval(() => {
 **Feed Module - Feature Overview**  
 **Generated:** February 14, 2026  
 **Lines:** ~950
+
+---
+
+## Home Feed UI Redesign (March 2026)
+
+**Last Updated:** March 2026
+
+### Overview
+
+The home feed has been redesigned from a single Instagram-style list into a **feature-flag-controlled dual-layout system** that is unique to the Chefooz food platform.
+
+### Layout Options
+
+| Flag value | Component | Layout style |
+|---|---|---|
+| `FEATURES.homeFeedMosaic = true` | `HomeFeedCanvas` | **Option A — Mosaic Canvas**: groups posts by aspect ratio into mosaic pairs, cinema strips, and shoppable tiles |
+| `FEATURES.homeFeedMosaic = false` *(default)* | `HomeFeedEnhanced` | **Option B — Enhanced Single-Column**: standard scroll with orderable cards inserted for linked content |
+
+Switch the flag in `apps/chefooz-app/src/constants/features.ts` to compare both layouts in the simulator.
+
+### New Card Types
+
+| Card | Used for | Visual |
+|---|---|---|
+| `OrderablePostCard` | Posts with `linkedMenu` or `linkedOrder` | Full-bleed food image + BlurView glass overlay + CTA button |
+| `FeedCinemaCard` | Reels with `aspectRatio ≥ 1.5` (16:9) | Wide cinema strip with LinearGradient left overlay + play button |
+| `FeedMosaicPair` | Two consecutive 1:1 square posts | Side-by-side tiles with shared action bar |
+
+### Discovery Header Sections
+
+Both layouts render these sections above the feed (derived from current feed data — zero extra API calls):
+
+- **TodaysSpecialsRail** — horizontal food-thumbnail rail showing chefs offering specials; food photo as primary circle, chef avatar overlaid bottom-right; open chefs get gradient ring border
+- **ChefOpenNowRow** — BlurView glass card showing chefs currently open with pulsing green dot animations
+
+### Micro-Animations
+
+All card types include:
+- **HeartBurst** — like button with radial particle burst (6 hearts at 60° intervals, spring + scale animation)
+- **FoodEmojiParticles** — save/bookmark celebration (3 random food emojis float upward 80px and fade)
+- **StaggeredEntry** — each card mounts with `translateY + opacity` stagger (60ms between cards, capped at 300ms)
+
+### Shoppable Content (Orderable Cards)
+
+Posts with `feedCardPreview.linkedMenu` navigate to `router.push('/chef/<chefId>')`.  
+Posts with `feedCardPreview.linkedOrder` navigate to the author's profile page (direct 1-tap reorder is not yet possible — `linkedOrder` lacks individual `menuItemIds`).  
+Future: backend `POST /api/v1/cart/reorder` endpoint will enable 1-tap reorder.
+
+### Navigation
+
+- Chef profile taps → `/profile/<username>`
+- "View Menu →" / "Reorder →" CTA → `/chef/<chefId>`
+- Cinema card play → `/(tabs)/feed?highlightReel=<id>`
+- TodaysSpecialsRail circles → `/profile/<username>`
