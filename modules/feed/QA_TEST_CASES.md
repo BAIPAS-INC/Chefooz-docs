@@ -2950,4 +2950,51 @@ Race between `expo-video` status (`readyToPlay`) and the FlatList viewability ca
 
 ---
 
+### TC-FEED-BUG-006: Tapping a Reel on Home Feed Opens First Reel in Tab Instead of the Tapped Reel
+
+**Type:** Bug Regression  
+**Feature area:** `FeedReelCard` (home feed) → reel viewer navigation  
+**Priority:** P0
+
+**Preconditions:**
+- User is logged in and has a home feed with following-only reels loaded
+- The tapped reel is NOT present in the first page of the global ranked reel feed tab
+
+**Steps:**
+1. Open Home tab, scroll until a reel video card appears
+2. Tap the media area / play button on that reel
+3. The reel viewer opens
+
+**Expected result:** The viewer plays the exact reel that was tapped.  
+**Actual result (before fix):** The viewer opened the reel feed tab (`/(tabs)/feed`) and attempted to scroll to the reel using `highlightReel=ID` param. Because the home feed uses `followingOnly=true` and the reel tab uses `sort=default`, the reel was rarely in the first 10 results. `findIndex` returned -1, scroll never happened, and the first reel in the ranked feed was displayed instead.  
+**Fix applied:** `handleMediaPress` in `FeedReelCard.tsx` now navigates to `router.push({ pathname: '/(tabs)/reels/[reelId]', params: { reelId: reel.id, source: '/(tabs)/home' } })`. The `/(tabs)/reels/[reelId]` route uses `useReelDetail(reelId)` which fetches that exact reel — no dependency on feed ordering.  
+**Regression test:** Verify by tapping any reel on the home feed; confirm the title/thumbnail of the opened viewer matches the card that was tapped.  
+**Status:** Fixed ✅
+
+---
+
+### TC-FEED-UI-001: OrderablePostCard (Shop-linked content) Uses Old Flat Card Design
+
+**Type:** Bug Regression / UI Enhancement  
+**Feature area:** `OrderablePostCard` (home feed — orderable items)  
+**Priority:** P1
+
+**Preconditions:**
+- User follows at least one chef who has posted a reel with a linked menu item or order
+- Home feed renders that post as an `OrderablePostCard`
+
+**Steps:**
+1. Open Home tab
+2. Scroll to a card labelled "🛒 Shop" (shop/order linked content)
+3. Observe card visual design
+
+**Expected result:** The card uses the same floating recipe-card design as `FeedReelCard` and `FeedPostCard`: raised shadow card, 4-stop gradient accent stripe, gradient avatar ring, inset rounded media, engagement pills ("yummies" / "thoughts"), warm caption box. The glassmorphism CTA overlay and "Order This" gradient pill remain inside the inset media container.  
+**Actual result (before fix):** The card used the old Instagram-style flat full-bleed design with no shadow, no gradient stripe, plain circle avatar, full-width media, and plain icon actions row.  
+**Fix applied:** `OrderablePostCard.tsx` updated with `shadowWrapper`/`cardInner` floating shell, `LinearGradient` accent stripe, gradient ring avatar, `mediaWrapper` + `mediaContainer` using `MEDIA_DISPLAY_WIDTH` (not `SCREEN_WIDTH`), engaged pill actions row, warm caption box. `mediaHeight` calculation updated to use `MEDIA_DISPLAY_WIDTH`.  
+**Regression test:** Visual QA — confirm card is visually consistent with the other two card types.  
+**Status:** Fixed ✅
+
+---
+
 **Last Updated**: March 2026
+

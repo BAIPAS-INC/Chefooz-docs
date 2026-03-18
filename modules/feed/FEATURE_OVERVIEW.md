@@ -1,7 +1,7 @@
 # Feed Module - Feature Overview
 
 **Version:** 1.0  
-**Last Updated:** March 15, 2026  
+**Last Updated:** March 18, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Domain Logic:** `libs/domain/src/feed/`  
 **Purpose:** Home feed with advanced ranking algorithm, CRS reputation boost, engagement tracking, and abuse prevention
@@ -46,7 +46,25 @@ The **Feed module** provides a personalized, ranked content stream for the Chefo
 - **Order Conversion**: Order context overlays drive food orders from reels
 - **Platform Health**: Abuse controls prevent spam and gaming without permanent bans
 - **Revenue Growth**: Promoted content boosts with higher visibility
-- **Social Graph**: Following filter creates Instagram-style curated feeds
+- **Social Graph**: Following filter creates curated feeds for each user
+
+### Feed Card Visual Design (Updated March 2026)
+
+Both `FeedReelCard` and `FeedPostCard` have been redesigned with a **Chefooz Food-First** aesthetic — distinct from Instagram-style flat cards.
+
+| Design Element | Description |
+|---|---|
+| **Card shape** | Floating recipe card with `12px` side margins, `20px` border radius, warm drop shadow |
+| **Accent stripe** | Full 4-stop Chefooz brand gradient bar at the very top of each card |
+| **Avatar** | Gradient ring (brand colors) wrapping a circular avatar — emphasises the chef's identity |
+| **Author badges** | `🧑‍🍳 Chef` badge (purple tint) or `🌿 Chef` badge (green tint) for verified creators |
+| **Content tag** | `🎬 Reel` / `📸 Post` pill at top-right of the header |
+| **Media** | Inset with `14px` radius, does not bleed to card edges — gives a recipe-card feel |
+| **Engagement pills** | Like = **"yummies"** label in a rounded pill; Comment = **"thoughts"** pill |
+| **Caption area** | Warm rounded box (`accent` tint on light / `surfaceElevated` on dark) |
+| **Footer** | `"Read all X thoughts 💭"` + time-ago, both in `textMuted` |
+| **Save animation** | FoodEmojiParticles burst (unchanged) |
+| **Like animation** | HeartBurst (unchanged) |
 
 ---
 

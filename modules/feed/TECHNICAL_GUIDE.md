@@ -22,6 +22,11 @@
 10. [Testing Approach](#testing-approach)
 11. [Deployment Notes](#deployment-notes)
 
+- 2026-03-18: `FeedReelCard` and `FeedPostCard` redesigned with Chefooz food-first visual identity — floating recipe card layout, brand gradient accent stripe, gradient avatar ring, inset rounded media container, engagement pills ("yummies" / "thoughts"), warm caption area. No longer uses an Instagram-style flat list layout.
+- 2026-03-18: Card width now `SCREEN_WIDTH - 24` (margins each side) — media heights calculated against `CARD_WIDTH` not `SCREEN_WIDTH`. FeedPostCard carousel also uses `MEDIA_DISPLAY_WIDTH = CARD_WIDTH - 24` (wrapper padding) so images fill the inset container correctly.
+- 2026-03-19: `OrderablePostCard` redesigned with the same floating card shell (shadowWrapper + cardInner, gradient stripe, gradient avatar ring, inset media using `MEDIA_DISPLAY_WIDTH`). The `BlurView` glassmorphism CTA overlay and "Order This" gradient pill are preserved as its unique differentiators. `mediaHeight` now calculated against `MEDIA_DISPLAY_WIDTH` instead of `SCREEN_WIDTH`.
+- 2026-03-19: **Reel navigation bug fixed** — `FeedReelCard.handleMediaPress` was navigating to `/(tabs)/feed?highlightReel=ID` which tried to find the reel inside the ranked reel-feed page (different query: `sort=default, type=reel`). The home reel was unlikely to appear in the first 10 results so `findIndex` returned -1 and the feed showed the first reel. Fix: now navigates to `/(tabs)/reels/[reelId]` with `{ reelId, source: '/(tabs)/home' }`, using the single-reel viewer route that fetches exactly that reel via `useReelDetail`.
+
 ## Recent Fixes
 
 - 2026-03-03: Client engagement cache merge now preserves `isLiked`/`isSaved` flags and aliases `savedCount` to `saves`, preventing like counts from resetting after refetches/tab switches.
