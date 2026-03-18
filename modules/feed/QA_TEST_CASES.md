@@ -1,10 +1,10 @@
 # Feed Module - QA Test Cases
 
 **Version:** 1.0  
-**Last Updated:** March 15, 2026  
+**Last Updated:** March 18, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Test Environment:** Staging (staging.chefooz.app)  
-**Total Test Cases:** 89
+**Total Test Cases:** 90
 
 ---
 
@@ -2529,11 +2529,31 @@ DELETE FROM engagements WHERE user_id LIKE 'test_%'
 
 ---
 
-### TC-REG-002: Legacy getFeedOld() Method (Deprecated)
+### TC-FEED-092: ChefOpenNowRow shows for all reel types
 
-**Priority**: LOW  
-**Type**: Regression  
-**Prerequisites**: Legacy method exists for reference
+**Type:** Bug Regression
+**Feature area:** Home feed – ChefOpenNowRow / feedCardPreview.chefContext
+**Priority:** P1
+
+**Preconditions:**
+- At least one followed chef has an open kitchen (isOpen: true per kitchen schedule)
+- That chef has posted PROMOTIONAL or MENU_SHOWCASE reels (not linked to any order)
+- User is on the Home tab
+
+**Steps:**
+1. Log in as a customer who follows the open chef.
+2. Navigate to the Home tab; wait for the feed to load.
+3. Observe whether the "N chefs open now" glass card renders above the feed.
+
+**Expected result:** The ChefOpenNowRow glass card is visible, showing the open chef's avatar with a pulsing green dot.
+**Actual result (before fix):** ChefOpenNowRow returned null because `feedCardPreview.chefContext` was `undefined` for PROMOTIONAL and MENU_SHOWCASE reels — `chefContext` was only populated when `reel.linkedOrderId` existed.
+**Fix applied:** `mapReelToFeedItem()` in `feed.service.ts` now falls back to looking up the reel author's kitchen status directly (using the existing `chefContextCache` and `computeChefIsOpen` utility) when no `orderContext` is available.
+**Regression test:** apps/chefooz-apis/src/modules/feed/feed.service.spec.ts (chefContext fallback test)
+**Status:** Fixed ✅
+
+---
+
+### TC-REG-002: Legacy getFeedOld() Method (Deprecated)
 
 **Test Steps**:
 1. Verify `getFeedOld()` method exists but not called

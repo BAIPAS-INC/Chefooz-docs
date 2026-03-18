@@ -1,7 +1,7 @@
 # Feed Module - Technical Guide
 
 **Version:** 1.0  
-**Last Updated:** March 15, 2026  
+**Last Updated:** March 18, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Domain Logic:** `libs/domain/src/feed/`  
 **Tech Stack:** NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis/Valkey
@@ -968,13 +968,14 @@ async mapReelToFeedItem(
 1. Build linkedOrder object (if reel has linkedOrderId)
 2. Build orderContext object (if order exists)
 3. Build linkedMenu object (if reel has linkedMenu string ID)
-4. Fetch Media document for S3 variants (fallback to reel.videoUrl)
-5. Convert S3 URIs to HTTPS URLs
-6. Fetch author profile (username, fullName, avatarUrl)
-7. Fetch tagged user profiles (if taggedUserIds exists)
-8. Check user engagement (isLiked, isSaved)
-9. Build feedCardPreview object
-10. Return FeedItem
+4. **Build `chefContextData`** — if `orderContext` present, derive from it; otherwise fall back to looking up the reel author's kitchen status directly via `chefKitchenService` + `chefScheduleService` + `computeChefIsOpen()`. Uses `chefContextCache` keyed on `reel.userId` to avoid N+1 queries. (⚠️ **Edge case fixed March 2026**: previously `undefined` for PROMOTIONAL/MENU_SHOWCASE reels, causing `ChefOpenNowRow` to always return null.)
+5. Fetch Media document for S3 variants (fallback to reel.videoUrl)
+6. Convert S3 URIs to HTTPS URLs
+7. Fetch author profile (username, fullName, avatarUrl)
+8. Fetch tagged user profiles (if taggedUserIds exists)
+9. Check user engagement (isLiked, isSaved)
+10. Build feedCardPreview object using `chefContextData`
+11. Return FeedItem
 
 **Implementation** (condensed, see full code for details):
 ```typescript
