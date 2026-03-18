@@ -28,6 +28,64 @@
 - 2026-03-03: Feed UI seeds `visibleItemIds` with the first reel when focused so autoplay starts without requiring an initial scroll.
 - 2026-03-14: Following-only feed now resolves the viewer from JWT inside `FeedService`, preventing authenticated home refreshes from falling back to the global ranked feed.
 - 2026-03-14: Home feed now requests `sort=RECENT` with `followingOnly=true` so new friend posts appear first on refresh; the reel feed tab remains `sort=DEFAULT` for ranking.
+- 2026-03-18: `chefContext` bug — was only populated when `reel.linkedOrderId` existed; now populated for ALL reel types via direct kitchen lookup with `chefContextCache` fallback.
+- 2026-03-18: `feedCardPreview.chefContext` extended with `kitchenName`, `distanceKm`, `isPackaged`. `isPackaged` is derived from `ChefMenuItem.isPackagedFood` (per-item), NOT a kitchen-level flag.
+- 2026-03-18: ETA formula improved — road correction factor ×1.3 on Haversine, actual `prepTimeMinutes` used when available, clamped 20–90 min.
+- 2026-03-18: `orderContext` block fixed to use `kitchen.latitude/longitude` instead of `chef.lat/lng` for accurate distance.
+- 2026-03-18: `ChefOpenNowRow` redesigned from avatar circles to vertical info cards: kitchen name, "by @username", delivery badge (Pan India 📦 or ~Xm 🛵), distance chip.
+- 2026-03-18: `chefContextCache` entry now includes `hasPackagedItems` (bool). Built by checking `ChefMenuItem` for any `isPackagedFood: true, isActive: true` entry — 1 extra query per unique chef per feed load.
+
+## isPackaged — Design Decision
+
+`isPackaged` is intentionally at the **`ChefMenuItem` level** (`isPackagedFood: boolean`), not the kitchen level.  
+A chef can have a mix of fresh/live dishes and packaged/shelf-stable products.
+
+| Reel type | `chefContext.isPackaged` derived from |
+|---|---|
+| `MENU_SHOWCASE` | `linkedMenuItem.isPackagedFood` |
+| `PROMOTIONAL` | `chefContextCache.hasPackagedItems` (any active packaged item) |
+| `USER_REVIEW` / linked order | `chefContextCache.hasPackagedItems` |
+
+Chef updates this per menu item via the create/edit item screens (`isPackagedFood` toggle already present in both forms).
+
+## ChefOpenNowRow — Data Flow
+
+```
+[feed API response]
+  └─ Reel[].feedCardPreview.chefContext
+        ├─ isOpen       ← computeChefIsOpen(kitchen, schedule)
+        ├─ kitchenName  ← ChefKitchen.kitchenName
+        ├─ chefName     ← User.fullName || User.username
+        ├─ etaMinutes   ← orderContext.etaMinutes OR dist/20*60+20
+        ├─ distanceKm   ← distanceKm(userLat,userLng, kitchen.lat,kitchen.lng)
+        └─ isPackaged   ← ChefKitchen.isPackaged
+
+[ChefOpenNowRow]
+  extractOpenChefs(items)
+    → filter: isOpen && author.username
+    → deduplicate by username
+    → max 10 chefs
+
+  render: horizontal FlatList of vertical cards
+    Card:
+      - avatar + pulsing green dot
+      - kitchenName (bold)
+      - "by @username" (muted)
+      - delivery badge → isPackaged ? "Pan India 📦" : "~Xm 🛵"
+      - distance chip  → "1.2km" or "800m"
+    tap → router.push('/profile/:username')
+```
+
+### Delivery time logic (non-order reels)
+```
+roadKm     = haversineKm × 1.3          // urban road correction (standard: 1.2–1.4×)
+travelMin  = round((roadKm / 20) × 60)  // 20 km/h 2-wheeler urban average (India)
+prepMin    = item.prepTimeMinutes OR 20  // linked item or default
+etaMinutes = clamp(travelMin + prepMin, 20, 90)
+// No user location → 30 min conservative default
+```
+This is a **discovery-level estimate** (labelled "~Xm"), not an order-confirmed ETA.  
+For order-confirmed ETA use `DeliveryEtaService` (Google Maps Directions API with traffic).
 - 2026-03-14: Home post cards now use icon components instead of emoji glyphs and no longer navigate to the placeholder post route; multi-image posts stay swipeable in place.
 - 2026-03-15: Home post cards and the dedicated post viewer now share one post media layout helper for the 16:9 to 4:5 clamp; post cards size from the actual post image via `Image.getSize`, matching the post viewer, while reel previews can still use feed preview metadata.
 - 2026-03-14: Home reel cards continue to use feed preview aspect ratios, but their rendered preview height is capped at 4:5 so the home tab stays compact before routing into the dedicated reel feed.
