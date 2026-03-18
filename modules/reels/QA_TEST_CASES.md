@@ -1748,4 +1748,55 @@ Increase menu item query batch size or implement pagination.
 
 ---
 
+### TC-REELS-DRAFT-DELETE-NAV-001: Deleting last draft navigates to deprecated select screen
+
+**Type:** Bug Regression / Manual
+**Feature area:** Upload Select screen (`reels/upload-v2/select.tsx`)
+**Priority:** P1
+
+**Preconditions:**
+- User has one or more saved upload drafts
+
+**Steps:**
+1. Open the Upload flow — draft cards are shown
+2. Tap the delete (✕) button on a draft card and confirm deletion
+3. If this was the last draft, observe where the user is taken
+
+**Expected result:** User is navigated to the Edit screen (`/reels/upload-v2/edit`) so they can start a fresh upload with the camera-first flow.
+**Actual result (before fix):** After the last draft was deleted, the screen stayed on `select.tsx` and rendered the deprecated Reel/Post content-type selection cards, which no longer match the actual upload flow.
+**Fix applied:** In `select.tsx → handleDeleteDraft` and `handleContinueDraft` (media not found case), after deleting the last draft `router.replace('/reels/upload-v2/edit')` is called.
+**Regression test:** Manual — delete last draft, verify user lands on edit (camera) screen
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-SHARE-WATCH-UX-001: Share page still editable after user opts to "Watch progress"
+
+**Type:** Bug Regression / UX
+**Feature area:** Share screen (`reels/upload-v2/share.tsx`), `UploadS3SuccessSheet`
+**Priority:** P1
+
+**Preconditions:**
+- User has uploaded a reel (S3 upload completed)
+- The `UploadS3SuccessSheet` is visible with "Watch progress" and "Go to feed" options
+
+**Steps:**
+1. Complete reel upload
+2. When the success sheet appears, tap "Watch progress"
+3. Observe the share screen state
+
+**Expected result:** The share form (caption, metadata, publish button) is replaced by a locked processing status view showing 3 steps: Uploaded → Transcoding → Going live. The user can see live progress. A "Go to Feed" button is available.
+**Actual result (before fix):** The success sheet closed but the share form remained fully editable, leaving the user on an interactive form with no processing status. "Watch progress" didn't communicate what the user was watching or provide any status feedback.
+**Fix applied:**
+- Added `isWatching` state to `share.tsx`
+- `handleStayAndWatch` now sets `isWatching = true`
+- When `isWatching` is true, the ScrollView is replaced by a `watchingView` with: a cloud-check icon, "Reel Uploaded!" title, subtitle, 3-step progress tracker driven by `progressPhase` from `useUploadProgressStore`, and a hint about the notification banner
+- Footer shows just "Go to Feed" / "View Your Reel" button when watching
+- `UploadS3SuccessSheet` "Stay & watch" button renamed to "Watch progress" with updated body copy
+- Media guard updated to `if (!media && !isWatching)` so the watching view stays visible during the brief window between `resetUpload()` and navigation
+**Regression test:** Manual — publish reel, tap "Watch progress", verify form is replaced by status view
+**Status:** Fixed ✅
+
+---
+
 **Last Updated**: March 2026

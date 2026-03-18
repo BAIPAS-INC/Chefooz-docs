@@ -1946,6 +1946,36 @@ Images in `ReelPlayer` use `resizeMode="cover"` to fill the feed container immer
 
 ---
 
-**Document Version**: 1.1  
-**Last Updated**: 2026-03-12  
+### Upload Draft Navigation Constraint
+
+When a user deletes the **last remaining draft** from the `select.tsx` screen, `router.replace('/reels/upload-v2/edit')` is called immediately. The deprecated Reel/Post content-type selection view on `select.tsx` is never shown — all content-type selection is now handled by the inline toggle on `edit.tsx`.
+
+The same navigation fires in `handleContinueDraft` when the media file for a draft is no longer found, and after deletion no drafts remain.
+
+---
+
+### Share Screen — Watching / Processing View
+
+After the S3 upload completes, the `UploadS3SuccessSheet` offers two paths:
+
+1. **Go to feed** — navigates immediately; `GlobalUploadBanner` tracks processing
+2. **Watch progress** — closes sheet, locks the share form, shows a `watchingView`
+
+**`isWatching` state flow:**
+- Set to `true` inside `handleStayAndWatch`
+- When true: `ScrollView` (the editable form) is replaced by the watching view; footer shows only "Go to Feed" / "View Your Reel"
+- `progressPhase` from `useUploadProgressStore` drives the 3-step tracker in real time
+- Media guard changed from `if (!media)` to `if (!media && !isWatching)` so the watching view persists through the brief window between `resetUpload()` clearing media and `router.replace()` completing navigation
+- `handlePublish` has an early-return `if (!media) return` guard for TypeScript safety
+
+**Step tracker states:**
+| Phase | Step 1 (Upload) | Step 2 (Transcode) | Step 3 (Go live) |
+|---|---|---|---|
+| `s3-complete` / `processing` | Done ✅ | Active (spinner) 🔄 | Pending ⏳ |
+| `complete` | Done ✅ | Done ✅ | Done ✅ |
+
+---
+
+**Document Version**: 1.2
+**Last Updated**: 2026-03-18
 **Next Review**: 2026-03-28
