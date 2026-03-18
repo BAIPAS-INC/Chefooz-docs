@@ -1356,5 +1356,43 @@ RESPONSE=$(curl -s \
 
 **Fix applied:** All three components converted from static `StyleSheet.create` to `makeStyles(colors: any)` factory pattern. `const styles = useMemo(() => makeStyles(theme.colors), [theme.colors])` added in each component body after `const theme = useChefoozTheme()`.
 
-**Regression test:** `apps/chefooz-app/src/components/collections/__tests__/CollectionSheet.dark-mode.spec.ts`  
+**Regression test:** `apps/chefooz-app/src/components/collections/__tests__/CollectionSheet.dark-mode.spec.ts`
+**Status:** Fixed ✅
+
+---
+
+### TC-COL-SAV-001: Saved Tab — Thumbnails Not Showing on Profile
+
+**Type:** Bug Regression
+**Feature area:** Profile → Saved tab (`[username].tsx`, `ProfileGrid`, `collections.service.ts`)
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- User has saved at least one reel from the feed using the bookmark/save button
+- User navigates to their own profile
+
+**Steps:**
+1. Save one or more reels from the home feed (tap bookmark → select collection or "Save")
+2. Navigate to Profile (`/profile/me`)
+3. Tap the **Saved** tab
+4. Observe the grid of saved reels
+
+**Expected result:**
+- Each saved reel cell shows its video thumbnail image, same as the Reels and Reviews tabs
+
+**Actual result (before fix):**
+- Saved reel cells are blank squares (no thumbnail visible)
+- The Reels and Reviews tabs on the same profile show thumbnails correctly
+
+**Root causes:**
+1. **Backend (`collections.service.ts` — `getSavedReels`):** `thumbnailMap.get(saved.mediaId)` could miss because the map was keyed with `doc._id.toString()` (always lowercase) while `saved.mediaId` was stored with whatever casing the client sent. Additionally, when `thumbnailUrl` in MongoDB was an empty string, the expression `s3UriToHttps('', cdnUrl) || ''` stored `''` in the map, and then `thumbnailMap.get(key) || undefined` silently dropped the field from the response instead of forwarding the resolved URL.
+2. **Frontend (`ProfileGrid.tsx`):** `<Image source={{ uri: '' }} />` when `thumbnailUrl` was empty string rendered as a blank square with no placeholder — no error was visible to the user.
+
+**Fix applied:**
+- Backend: map keys and lookup keys are both normalised to `.toLowerCase()` before comparison. Only truthy URLs are inserted into the map (the `|| ''` fallback is removed). A `??` operator replaces `|| undefined` to preserve the actual resolved URL.
+- Frontend `ProfileGrid`: the `<Image>` is now conditionally rendered. When `thumbnailUrl` is falsy, a dark placeholder cell with a play-circle icon is shown instead of a blank square.
+- Backend: added `this.logger.debug(...)` log showing how many docs were resolved so future investigations are easier.
+
+**Regression test:** `apps/chefooz-apis/src/modules/collections/__tests__/collections.service.thumbnail.spec.ts` (add when writing unit tests)
 **Status:** Fixed ✅
