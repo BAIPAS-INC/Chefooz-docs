@@ -1322,11 +1322,121 @@ Write-Host "Rider 2 Success: $($result2.success)"
 
 ---
 
+## � **Category 11: COD Assignment & Retry-Until-Pickup (March 2026 Bug Fix)**
+
+### TC-DEL-36: COD order triggers immediate rider assignment on confirmation
+
+**Type:** Bug Regression  
+**Feature area:** `order.service.ts` → `createPaymentIntent()` COD branch  
+**Priority:** P0
+
+**Preconditions:**
+- At least one rider is online and active in the same city as the order
+
+**Steps:**
+1. Place an order using Cash on Delivery (COD)
+2. Call `POST /v1/orders/payment-intent` with `{ paymentMethod: "COD" }`
+3. Observe order status and delivery partner assignment immediately after response
+
+**Expected result:** Within ~2 seconds of the COD confirmation response, `order.deliveryPartnerId` is set (or a retry cycle picks it up within 30s if no riders are available).  
+**Actual result (before fix):** `autoAssignRider()` was never called in the COD branch. The order waited up to 30s for the retry cron to fire.  
+**Fix applied:** Added `this.deliveryAssignmentService.autoAssignRider(order.id)` non-blocking call immediately after saving the COD order in `createPaymentIntent()`.  
+**Regression test:** `apps/chefooz-apis/src/modules/order/order.service.spec.ts` — COD auto-assignment test  
+**Status:** Fixed ✅
+
+---
+
+### TC-DEL-37: Retry cron continues after maxAssignmentRetries (no hard stop)
+
+**Type:** Bug Regression  
+**Feature area:** `assignment-retry.service.ts`  
+**Priority:** P1
+
+**Preconditions:**
+- Order is paid (COD or UPI), no riders available in city
+- `maxAssignmentRetries` is reached
+
+**Steps:**
+1. Create a paid order with no riders available
+2. Wait for `maxAssignmentRetries` cron cycles (~2.5 minutes for 5 retries × 30s)
+3. Bring a rider online
+4. Wait for next cron cycle (up to 30s)
+
+**Expected result:** After a rider comes online, the order is assigned regardless of `assignmentRetryCount`.  
+**Actual result (before fix):** After `maxAssignmentRetries`, the cron excluded the order with `WHERE assignmentRetryCount < :maxRetries`. The order was silently abandoned.  
+**Fix applied:** Removed the upper-bound `assignmentRetryCount` filter from the cron query. After threshold, order is flagged `needsManualAssignment = true` for ops visibility but continues to be retried.  
+**Status:** Fixed ✅
+
+---
+
+### TC-DEL-38: needsManualAssignment flag is set and visible in admin dashboard
+
+**Type:** Manual  
+**Feature area:** `assignment-retry.service.ts`, `admin-orders.controller.ts`, admin orders page  
+**Priority:** P1
+
+**Preconditions:**
+- Order has `assignmentRetryCount >= maxAssignmentRetries` and no rider assigned
+
+**Steps:**
+1. Navigate to Admin → Orders → "Unassigned" tab
+2. Check for orders flagged with warning icon
+
+**Expected result:** Orders with `needsManualAssignment = true` appear with a warning icon and are sorted to the top. The "Assign Rider" button is visible.  
+**Status:** Implemented ✅
+
+---
+
+### TC-DEL-39: Admin manual rider assignment — successful flow
+
+**Type:** Manual  
+**Feature area:** `GET /v1/admin/orders/:id/eligible-riders`, `POST /v1/admin/orders/:id/assign-rider`  
+**Priority:** P1
+
+**Preconditions:**
+- Unassigned paid order exists
+- Admin is logged in
+
+**Steps:**
+1. Navigate to Admin → Orders → Unassigned tab
+2. Click "Assign Rider" on any unassigned order
+3. Select a rider from the dialog (including offline/busy ones)
+4. Click "Confirm Assignment"
+
+**Expected result:** 
+- Rider receives assignment notification
+- `order.deliveryPartnerId` is set
+- `order.needsManualAssignment` is cleared to `false`
+- Unassigned orders list refreshes (order disappears)  
+**Status:** Implemented ✅
+
+---
+
+### TC-DEL-40: Admin manual assignment — bypass busy check
+
+**Type:** Manual  
+**Feature area:** `DeliveryAssignmentService.adminManualAssignRider()`  
+**Priority:** P2
+
+**Preconditions:**
+- A rider exists with `isBusy = true` (at capacity)
+
+**Steps:**
+1. Open the Assign Rider dialog for an unassigned order
+2. Select the busy rider
+3. Confirm
+
+**Expected result:** Assignment succeeds (admin override bypasses `isBusy` check).  
+**Expected result (auto-assign):** The same rider would be skipped by `autoAssignRider` since it respects `isBusy`.  
+**Status:** Implemented ✅
+
+---
+
 ## 📊 **Test Execution Summary**
 
 ```powershell
 # Run all tests and generate report
-$totalTests = 35
+$totalTests = 40
 $passedTests = 0
 $failedTests = 0
 
@@ -1347,8 +1457,8 @@ Write-Host "Failed: $failedTests ($([math]::Round($failedTests/$totalTests*100, 
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: February 22, 2026  
-**Module**: Delivery (Week 7 - Chef Fulfillment)  
-**Test Cases**: 35 (10 categories)  
+**Document Version**: 1.1  
+**Last Updated**: March 22, 2026  
+**Module**: Delivery  
+**Test Cases**: 40 (11 categories)  
 **Status**: ✅ Complete

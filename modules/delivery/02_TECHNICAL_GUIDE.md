@@ -1893,13 +1893,76 @@ if (!canTransitionActiveDeliveryState(currentState, newState)) {
 
 ---
 
+## 🔧 **Edge Cases & Constraints (March 2026 Updates)**
+
+### COD Orders — Assignment Trigger
+
+**Issue (fixed):** COD orders set `paymentStatus = PAID` synchronously but previously never called `autoAssignRider()`. Assignment only happened via the 30-second retry cron, causing unnecessary delay and missing the case where a rider came online shortly after order placement.
+
+**Fix:** `createPaymentIntent()` now calls `autoAssignRider(order.id)` non-blocking immediately after saving the COD order, mirroring the UPI/Razorpay flow.
+
+```ts
+// order.service.ts — COD branch
+await this.orderRepository.save(order);
+// Immediate assignment attempt — retry cron is the safety net
+this.deliveryAssignmentService.autoAssignRider(order.id).catch(err => ...);
+```
+
+---
+
+### Retry-Until-Pickup Behaviour (Zomato/Swiggy-style)
+
+**Previous behaviour:** `AssignmentRetryService` stopped retrying after `maxAssignmentRetries` (5 in prod). Orders exceeding this count were silently excluded from all future cron cycles.
+
+**New behaviour:**
+- The cron retries **indefinitely** — the upper-bound filter on `assignmentRetryCount` is removed
+- After `maxAssignmentRetries` failed attempts, `order.needsManualAssignment = true` is set for ops visibility
+- Retrying continues regardless of how high the count grows
+- Orders are only removed from the retry pool when assigned or in a terminal state (CANCELLED / DELIVERED)
+
+| State | Meaning | Action |
+|---|---|---|
+| `assignmentRetryCount < maxRetries` | Normal | Auto-retry every 30s |
+| `assignmentRetryCount >= maxRetries` | Struggling | Flag `needsManualAssignment`, keep retrying |
+| `deliveryPartnerId IS NOT NULL` | Assigned | Remove from retry pool |
+
+**`markNeedsManualAttention()`** — was a TODO stub (console.log only). Now persists via `orderRepository.update({ id: orderId }, { needsManualAssignment: true })`.
+
+---
+
+### Admin Manual Assignment
+
+New endpoints added to `AdminOrdersController` (`/v1/admin/orders`):
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/unassigned` | Paid orders with no rider — sorted: `needsManualAssignment` first, then oldest |
+| `GET` | `/:orderId/eligible-riders` | All active riders + Haversine distance (km) from pickup |
+| `POST` | `/:orderId/assign-rider` | Force-assign a specific rider (bypasses `isBusy` check) |
+
+**Admin override rules:**
+- Skips `isBusy` check (human decision override)
+- Still requires `rider.isActive = true`
+- Clears `needsManualAssignment` flag on success
+- Stores admin user ID on the assignment record for audit traceability
+- Triggers standard assignment push notification to rider
+
+**New `needsManualAssignment` column** on `Order` entity — `boolean DEFAULT false`. Requires a DB migration:
+
+```sql
+ALTER TABLE orders ADD COLUMN needs_manual_assignment boolean NOT NULL DEFAULT false;
+CREATE INDEX idx_needs_manual_assignment ON orders (needs_manual_assignment);
+```
+
+---
+
 **[DELIVERY_TECHNICAL_GUIDE_COMPLETE ✅]**
 
 *For business overview, see `01_FEATURE_OVERVIEW.md`. For testing scenarios, see `03_QA_TEST_CASES.md`.*
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: February 22, 2026  
-**Module**: Delivery (Week 7 - Chef Fulfillment)  
+**Document Version**: 1.1  
+**Last Updated**: March 22, 2026  
+**Module**: Delivery  
 **Status**: ✅ Complete
