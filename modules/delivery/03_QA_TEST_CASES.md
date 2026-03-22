@@ -1432,6 +1432,30 @@ Write-Host "Rider 2 Success: $($result2.success)"
 
 ---
 
+### TC-DEL-41: Auto-assignment initial failure leaves order in retry queue
+
+**Type:** Bug Regression  
+**Feature area:** Auto-assignment / AssignmentRetryService  
+**Priority:** P0
+
+**Preconditions:**
+- No online riders available at the moment of order creation
+- A rider comes online within 30 seconds of the order being placed
+
+**Steps:**
+1. Place an order (stubbed or real payment) with no online riders
+2. Observe backend logs — `autoAssignRider` fires and returns "No eligible rider found"
+3. Wait 30 seconds — rider comes online and sends heartbeat
+4. Wait for the `AssignmentRetryService` cron to fire (every 30s)
+
+**Expected result:** At step 4, the retry cron picks up the order (`needsManualAssignment = false`, `assignmentRetryCount < max`), calls `autoAssignRider` again, and successfully assigns the now-online rider.  
+**Actual result (before fix):** `autoAssignRider` called `markNeedsManualAttention()` on the first failed attempt, setting `needsManualAssignment = true` immediately. The retry cron's query filters `needsManualAssignment = false`, so the order was permanently excluded from auto-retry after just 1 attempt. The rider who came online 17 seconds later was never tried.  
+**Fix applied:** Removed `markNeedsManualAttention()` call from `autoAssignRider()`. The method now logs a warning and returns, leaving the order for the `AssignmentRetryService` to retry. `markNeedsManualAttention` is only called from `retryAssignment()` (when `retryCount >= maxAssignmentRetries`) and from the cron's bulk-UPDATE step.  
+**Regression test:** `apps/chefooz-apis/src/modules/delivery/services/delivery-assignment.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
 ## 📊 **Test Execution Summary**
 
 ```powershell
@@ -1460,5 +1484,5 @@ Write-Host "Failed: $failedTests ($([math]::Round($failedTests/$totalTests*100, 
 **Document Version**: 1.1  
 **Last Updated**: March 22, 2026  
 **Module**: Delivery  
-**Test Cases**: 40 (11 categories)  
+**Test Cases**: 41 (11 categories)  
 **Status**: ✅ Complete
