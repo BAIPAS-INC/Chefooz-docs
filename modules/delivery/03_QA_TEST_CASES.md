@@ -1524,11 +1524,69 @@ Write-Host "Rider 2 Success: $($result2.success)"
 
 ---
 
+### TC-DEL-45: `handleOrderDelivered` early-return skipped notification and ratingPending for non-attributed orders
+
+**Type:** Bug Regression  
+**Feature area:** Order delivery → post-delivery side effects  
+**Priority:** P0
+
+**Preconditions:**
+- Order placed directly (not via a reel) — `order.attribution.linkedReelId` is null/absent
+- Rider delivers order
+
+**Steps:**
+1. Rider marks order DELIVERED
+2. Check that `order.delivered` push notification was sent to buyer
+3. Check that `order.ratingPending = true` was set in DB
+
+**Expected result:** Notification sent and `ratingPending = true`. Log shows `✅ Order X marked for rider rating`. No coin credit to buyer (coins are NOT earned for placing orders — only reel creators earn commission coins when their reel drives orders).  
+**Actual result (before fix):** `handleOrderDelivered()` checked `order.attribution?.linkedReelId` and returned early when absent — "has no attribution, skipping commission" — skipping the `order.delivered` notification and `ratingPending` update for ALL non-reel orders.  
+**Fix applied (TC-DEL-45):** Restructured `handleOrderDelivered()` so notification (step 1) and ratingPending (step 2) run unconditionally. The attribution check only gates step 3 (commission block).  
+**Business model clarification (TC-DEL-45 followup):** An earlier version of this code erroneously included a "buyer loyalty coins" step that credited coins to the buyer on every delivery. This was REMOVED — it does not match the Chefooz business model. Coins are earned ONLY by reel creators via commission when their USER_REVIEW reel drives another user's order. Buyers receive no coins for placing orders.  
+**Files changed:**  
+- `apps/chefooz-apis/src/modules/order/order.service.ts` — removed buyer loyalty coin credit (step 2), removed `UserService` injection  
+- `apps/chefooz-apis/src/modules/order/order.module.ts` — removed `UserModule` import  
+**Regression test:** `apps/chefooz-apis/src/modules/order/order.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
+### TC-DEL-46: Commission created for reel-attributed order placed via "View Menu" CTA
+
+**Type:** Bug Regression  
+**Feature area:** Attribution chain — reel CTA → cart → checkout → commission  
+**Priority:** P0
+
+**Preconditions:**
+- User A has posted a USER_REVIEW reel with a linkedMenu (MENU_SHOWCASE) or any shoppable reel
+- User B views that reel and taps the "View Menu →" CTA
+
+**Steps:**
+1. User B taps "View Menu" on User A's reel in the feed  
+2. User B is navigated to the chef page; cart contains the first item from the reel
+3. User B proceeds to checkout and places the order
+4. Rider delivers the order
+5. Check `order.attribution.linkedReelId` in DB — should be the reel's ID
+6. Check commission ledger — should have a PENDING entry for User A
+
+**Expected result:** `order.attribution.linkedReelId` = User A's reel ID. After `processPendingCommissionsJob` runs, User A receives coins per the V2 commission formula.  
+**Actual result (before fix):** `addToCart.mutate({ menuItemId, quantity: 1 })` was called without `reelId`. `cart.service.addItem()` never wrote attribution to Redis. `checkoutCart()` read null attribution. `order.attribution` = null in DB. Commission check returned "has no attribution, skipping commission".  
+**Fix applied (5-file chain):**  
+1. `libs/types/src/lib/cart.types.ts` — Added `reelId?: string` to `AddCartItemPayload`  
+2. `apps/chefooz-apis/src/modules/cart/dto/add-item.dto.ts` — Added `@IsOptional() @IsString() reelId?: string`  
+3. `apps/chefooz-apis/src/modules/cart/cart.service.ts` — `addItem()` now writes `cart:{userId}:attribution` to Redis when `dto.reelId` present (same format as `addCreatorOrderToCart`)  
+4. `apps/chefooz-app/src/components/ReelCard.tsx` — `addToCart.mutate(...)` now passes `reelId: item.id`  
+5. `apps/chefooz-app/src/components/home-feed/OrderablePostCard.tsx` — Same fix, passes `reelId: post.id`  
+**Regression test:** `apps/chefooz-apis/src/modules/cart/cart.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
 ## 📊 **Test Execution Summary**
 
 ```powershell
 # Run all tests and generate report
-$totalTests = 40
+$totalTests = 46
 $passedTests = 0
 $failedTests = 0
 
@@ -1552,5 +1610,5 @@ Write-Host "Failed: $failedTests ($([math]::Round($failedTests/$totalTests*100, 
 **Document Version**: 1.1  
 **Last Updated**: March 22, 2026  
 **Module**: Delivery  
-**Test Cases**: 44 (11 categories)  
+**Test Cases**: 46 (11 categories)  
 **Status**: ✅ Complete
