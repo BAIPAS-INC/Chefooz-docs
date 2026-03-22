@@ -1699,5 +1699,39 @@ When reporting media upload bugs, include:
 
 ---
 
+---
+
+### TC-MEDIA-BUG-007: Review reel upload crashes with 500 — "Cannot read properties of undefined (reading 'count')"
+
+**Type:** Bug Regression  
+**Feature area:** `apps/chefooz-apis/src/modules/media/media.service.ts` — `initReelUpload`  
+**Priority:** P0
+
+**Preconditions:**
+- User has at least one completed (DELIVERED) order
+- User attempts to upload a review reel (DTO includes `orderId`)
+
+**Steps:**
+1. Open the upload flow on staging
+2. Record or select a video
+3. Set the reel type as a review (link to an order)
+4. Tap "Share" / publish
+
+**Expected result:** Upload initialises successfully; S3 pre-signed URL returned  
+**Actual result (before fix):** Server responds with HTTP 500: `TypeError: Cannot read properties of undefined (reading 'count')`  
+**Root cause:** `initReelUpload` references `this.ordersRepository` (with an extraneous 's') inside the `USER_REVIEW` quota check branch. The injected property is `this.orderRepository` (singular). The typo meant the property was always `undefined` at runtime; calling `.count()` on it crashed every review reel upload attempt.  
+Line 325 in `media.service.ts`:
+```ts
+// BEFORE (broken)
+const completedOrdersCount = await this.ordersRepository.count({ ... });
+// AFTER (fixed)
+const completedOrdersCount = await this.orderRepository.count({ ... });
+```
+**Fix applied:** Corrected typo `ordersRepository` → `orderRepository` in `media.service.ts` line 325. Also corrected hardcoded `'DELIVERED'` → `OrderStatus.DELIVERED` (enum value is `'delivered'` lowercase) — the case mismatch caused the order count to always return 0, blocking all review reel uploads with a false "quota full" error even when users had completed orders.  
+**Regression test:** Manual — upload a review reel on staging; confirm 200 + presigned URL returned.  
+**Status:** Fixed ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**  
 *Media Module QA Test Cases - Updated March 2026 (63 test cases)*
