@@ -1456,6 +1456,51 @@ Write-Host "Rider 2 Success: $($result2.success)"
 
 ---
 
+### TC-DEL-42: Customer coins credited after real rider delivery
+
+**Type:** Bug Regression  
+**Feature area:** Rider delivery → coin reward  
+**Priority:** P0
+
+**Preconditions:**
+- Order placed, accepted, and progressed to READY by chef
+- Rider assigned and picks up order
+- `RAZORPAY_STUB_PAYMENTS=false` (real or stub UPI — does not matter, bug existed in both)
+
+**Steps:**
+1. Rider taps "Mark Delivered" in the rider app
+2. Check user's `coins` column in the DB immediately after
+
+**Expected result:** User's `coins` are incremented by `floor(dishTotal_paise / 100) × reputationMultiplier`. If the order was linked to a `USER_REVIEW` reel, a pending commission ledger entry is also created for the reel creator.  
+**Actual result (before fix):** `handleOrderDelivered()` in `OrderService` was only called from the payment simulator. Real rider delivery (`rider-orders.service.ts DELIVERED case`) never called it → 0 coins credited, 0 commission created.  
+**Fix applied:** Injected `OrderService` into `RiderOrdersService`; added non-blocking `this.orderService.handleOrderDelivered(orderId)` call after rider earning record is created in the `DELIVERED` block.  
+**Regression test:** `apps/chefooz-apis/src/modules/rider-orders/rider-orders.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
+### TC-DEL-43: Reel creator commission created after real delivery of attributed order
+
+**Type:** Bug Regression  
+**Feature area:** Rider delivery → reel commission  
+**Priority:** P1
+
+**Preconditions:**
+- Order was placed after watching a `USER_REVIEW` reel (order has `attribution.linkedReelId`)
+- Rider completes delivery
+
+**Steps:**
+1. Rider marks order DELIVERED  
+2. Check `commission_ledger` table for a `PENDING` entry with this `orderId`
+
+**Expected result:** A `PENDING` commission entry exists. On next `processPendingCommissionsJob` run (or admin trigger `POST /admin/jobs/process-commissions`), the reel creator's `coins` are incremented.  
+**Actual result (before fix):** Same root cause as TC-DEL-42 — `handleOrderDelivered` never called on real delivery.  
+**Fix applied:** Same fix — `handleOrderDelivered` now wired into real delivery path.  
+**Regression test:** `apps/chefooz-apis/src/modules/rider-orders/rider-orders.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
 ## 📊 **Test Execution Summary**
 
 ```powershell
@@ -1484,5 +1529,5 @@ Write-Host "Failed: $failedTests ($([math]::Round($failedTests/$totalTests*100, 
 **Document Version**: 1.1  
 **Last Updated**: March 22, 2026  
 **Module**: Delivery  
-**Test Cases**: 41 (11 categories)  
+**Test Cases**: 43 (11 categories)  
 **Status**: ✅ Complete
