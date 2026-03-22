@@ -1799,4 +1799,51 @@ Increase menu item query batch size or implement pagination.
 
 ---
 
-**Last Updated**: March 2026
+### TC-REELS-BUG-PROFILE-GRID-REVIEW: Profile grid shows "Under Review" badge correctly after AI moderation
+
+**Type:** Bug Regression  
+**Feature area:** `apps/chefooz-app/src/app/profile/_components/ProfileGrid.tsx`  
+**Priority:** P1
+
+**Preconditions:**
+- User has uploaded a reel that was flagged by AI moderation (AWS Rekognition)
+
+**Steps:**
+1. Upload a reel
+2. Wait for processing and AI moderation to complete
+3. Navigate to profile → grid view
+
+**Expected result:** Reel thumbnail shows ⏳ "Under Review" overlay  
+**Actual result (before fix):** Badge was NOT shown — reel appeared as a normal thumbnail with no status indicator, giving the user no feedback that it was pending manual moderation  
+**Root cause:** `isPending` check used the legacy value `'reviewing'` (`moderationStatus === 'pending' || moderationStatus === 'reviewing'`). The backend Reel schema enum uses `'needs_review'` (not `'reviewing'`), so reels in AI-flagged state were invisible to the badge renderer.  
+**Fix applied:** Changed `'reviewing'` → `'needs_review'` in `ProfileGrid.tsx` line 41.  
+**Regression test:** Manual — upload a reel that triggers AI flag, check profile grid for ⏳ overlay  
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-BUG-UPLOAD-QUOTA-MESSAGE: User-friendly message shown when upload quota exceeded
+
+**Type:** Bug Regression  
+**Feature area:** `apps/chefooz-app/src/app/reels/upload-v2/share.tsx` — upload catch block  
+**Priority:** P1
+
+**Preconditions:**
+- User has used all review reels for their completed orders OR reached weekly promo limit OR uploaded showcase for an item
+
+**Steps:**
+1. Try to upload a reel when quota is full
+2. Observe the error alert
+
+**Expected result:**
+- Review quota: "You've reached your review reel limit for completed orders. Complete more orders to unlock additional review reels."
+- Menu showcase quota: "You've already uploaded a showcase reel for this menu item. Only 1 showcase reel is allowed per menu item."
+- Weekly promo quota: "You've reached your weekly upload limit. Your quota resets every Monday - come back then!"
+
+**Actual result (before fix):** Generic `Alert.alert('Upload Error', 'Failed to upload reel. Please try again.')` — no guidance on what to do next  
+**Root cause:** The `catch` block in `handlePublish` did not inspect `error.response.data.errorCode`. The backend returns `POLICY_UPLOAD_QUOTA_EXCEEDED` with a `data.type` field (`review` | `menu_showcase` | `promotional`) but the frontend ignored it.  
+**Fix applied:** Added `POLICY_UPLOAD_QUOTA_EXCEEDED` branch in catch, with type-specific messages keyed on `errData.data.type`.  
+**Status:** Fixed ✅
+
+---
+

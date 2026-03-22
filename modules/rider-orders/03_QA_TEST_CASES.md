@@ -1351,8 +1351,76 @@ Write-Host "Failed: $failedTests ($([math]::Round($failedTests/$totalTests*100, 
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: February 22, 2026  
-**Module**: Rider-Orders (Week 7 - Chef Fulfillment)  
-**Test Cases**: 34 (9 categories)  
+## 🐛 Bug Regression Tests
+
+### TC-RIDER-BUG-001: OrderDetail screen — styles/colors undefined crash
+
+**Type:** Bug Regression  
+**Feature area:** `apps/chefooz-app/src/app/rider/orders/[id].tsx`  
+**Priority:** P0
+
+**Preconditions:**
+- Rider is logged in and has an active order assigned
+
+**Steps:**
+1. Navigate to the Rider Orders tab
+2. Tap any order to open the detail screen
+
+**Expected result:** Order detail screen renders successfully showing timeline and info rows  
+**Actual result (before fix):** React Native runtime crash — `ReferenceError: styles is not defined` (or TypeScript compile error `Cannot find name 'styles'`) because `TimelineItem` and `InfoRow` components referenced `styles` and `colors` from the parent component's local scope, which is inaccessible to standalone module-level functions.  
+**Fix applied:** Added `styles: any` prop to `TimelineItem` and `styles: any; colors: any` props to `InfoRow`. Updated all call sites to pass `styles={styles}` and `colors={colors}`. Removed direct closure reference to outer scope variables.  
+**Regression test:** N/A — visual/render crash; fix verified by TypeScript 0 errors and manual render test  
+**Status:** Fixed ✅
+
+---
+
+### TC-RIDER-BUG-002: OrderDetail screen — COD confirmation shows wrong amount
+
+**Type:** Bug Regression  
+**Feature area:** `apps/chefooz-app/src/app/rider/orders/[id].tsx` — COD delivery confirmation  
+**Priority:** P1
+
+**Preconditions:**
+- Rider has a COD order in active delivery
+
+**Steps:**
+1. Navigate to the order detail screen for a COD order
+2. Tap "Mark as Delivered"
+
+**Expected result:** Alert shows correct formatted amount (e.g. ₹150.00)  
+**Actual result (before fix):** TypeScript error `Property 'totalAmount' does not exist on type 'RiderOrderDetail'` — the COD Alert referenced `order.totalAmount` but the type uses `totalPaise` (stored in paise/smallest unit)  
+**Fix applied:** Changed `order?.totalAmount` to `(order.totalPaise / 100).toFixed(2)` with null guard  
+**Status:** Fixed ✅
+
+---
+
+### TC-RIDER-BUG-003: Rider registration page reload loop after successful registration
+
+**Type:** Bug Regression  
+**Feature area:** `apps/chefooz-app/src/app/rider/register.tsx` + `apps/chefooz-app/src/app/rider/_layout.tsx`  
+**Priority:** P0
+
+**Preconditions:**
+- User is NOT yet a rider (role = 'customer')
+- User arrives at `/rider/register`
+
+**Steps:**
+1. Fill in display name and phone number
+2. Tap "Register"
+3. API returns success
+4. Tap "Continue" on the success alert
+
+**Expected result:** User navigates to `/rider/home`  
+**Actual result (before fix):** User is sent back to `/rider/register` — the layout guard at `_layout.tsx` sees `user.role !== 'rider'` and redirects  
+**Root cause:** After the registration API succeeded, the screen called `updateUser({ role: 'rider' })` — a local-only Zustand patch. If a background `me()` refetch was in flight (triggered by React Query invalidation or the app shell), it could overwrite the local patch with stale server data (the DB role update and the frontend refetch could race). The layout guard then fires on `segments` change and redirects back.  
+**Fix applied:** After `register()` succeeds, explicitly call `authService.me()` to get the server-confirmed user and call `setUser(meResponse.data.user)`. This ensures the Zustand store holds the DB-confirmed role before navigation. Falls back to `updateUser({ role: 'rider' })` if `me()` fails.  
+**Regression test:** Manual — register as rider, tap Continue, verify landing on `/rider/home`  
+**Status:** Fixed ✅
+
+---
+
+**Document Version**: 1.2  
+**Last Updated**: March 2026  
+**Module**: Rider-Orders  
+**Test Cases**: 34 + 3 bug regressions  
 **Status**: ✅ Complete

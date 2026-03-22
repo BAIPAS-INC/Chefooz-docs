@@ -2027,7 +2027,40 @@ const mockRiderEarningsService = {
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: February 22, 2026  
-**Module**: Rider-Orders (Week 7 - Chef Fulfillment)  
+## 📐 Responsive Scaling (Order Detail Screen)
+
+**File:** `apps/chefooz-app/src/app/rider/orders/[id].tsx`
+
+All style values in `makeStyles` use the responsive utilities from `@chefooz-app/utils/responsive`:
+- All spacing/padding/margin/gap/borderRadius/fixed dimensions → `normalize(value)`
+- All font sizes and lineHeight → `normalizeFontSize(value)`
+
+Import path (important — cannot use the barrel `@chefooz-app/utils` since it excludes RN-dependent exports for backend compatibility):
+```ts
+import { normalize, normalizeFontSize } from '@chefooz-app/utils/responsive';
+```
+
+---
+
+## ⚠️ Sub-component Scope Constraint
+
+`TimelineItem` and `InfoRow` are defined as module-level functions (outside the main component function). They **cannot close over** `styles` or `colors`, which are local variables created inside the component via `useMemo(() => makeStyles(colors, isDark))`.
+
+**Rule**: Any standalone sub-component in this file that needs theme values must receive them as explicit props:
+```tsx
+// ✅ CORRECT — pass styles and colors as props
+<TimelineItem styles={styles} ... />
+<InfoRow styles={styles} colors={colors} ... />
+
+// ❌ WRONG — sub-components cannot reference outer scope variables
+function TimelineItem() {
+  return <View style={styles.foo}> // styles is undefined here
+}
+```
+
+---
+
+**Document Version**: 1.1  
+**Last Updated**: March 2026  
+**Module**: Rider-Orders  
 **Status**: ✅ Complete
