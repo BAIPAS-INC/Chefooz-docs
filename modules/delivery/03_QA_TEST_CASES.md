@@ -1501,6 +1501,29 @@ Write-Host "Rider 2 Success: $($result2.success)"
 
 ---
 
+### TC-DEL-44: Assignment retry cron runs only once across multiple pods (distributed lock)
+
+**Type:** Bug Regression  
+**Feature area:** AssignmentRetryService / multi-pod deployment  
+**Priority:** P0
+
+**Preconditions:**
+- Backend running with 2+ pod/worker instances (observable via PID 18 and PID 60 in logs)
+- At least 1 unassigned paid order exists
+
+**Steps:**
+1. Observe backend logs during a 30s retry cycle with 2+ workers
+2. Before fix: both workers log "🚴 Retrying assignment for order X (attempt 1/15)" simultaneously for the same order
+3. After fix: only one worker logs the retry; all others log "Distributed lock held by another instance, skipping..."
+
+**Expected result:** Exactly one pod acquires the Redis lock per cron tick and processes the retry cycle. All other pods skip. The lock auto-expires in 25 s (< 30 s cron interval), so no pod is permanently blocked.  
+**Actual result (before fix):** `isRunning` was an in-memory boolean — each pod had its own `isRunning = false`, so all pods started the cycle simultaneously. Every unassigned order received duplicate `autoAssignRider` calls. If a rider was available, the pessimistic DB lock inside `assignRiderToOrder` prevented double-assignment, but `assignmentRetryCount` was double-incremented — burning through the retry budget twice as fast.  
+**Fix applied:** Replaced `isRunning` with `cacheService.acquireLock('lock:assignment-retry:cron', 25_000)` (Redis `SET NX PX`). Lock is released in `finally` block via `releaseLock` (Lua atomic check-and-delete). TTL of 25 s ensures auto-expiry if the pod crashes mid-cycle.  
+**Regression test:** `apps/chefooz-apis/src/modules/delivery/services/assignment-retry.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
 ## 📊 **Test Execution Summary**
 
 ```powershell
@@ -1529,5 +1552,5 @@ Write-Host "Failed: $failedTests ($([math]::Round($failedTests/$totalTests*100, 
 **Document Version**: 1.1  
 **Last Updated**: March 22, 2026  
 **Module**: Delivery  
-**Test Cases**: 43 (11 categories)  
+**Test Cases**: 44 (11 categories)  
 **Status**: ✅ Complete
