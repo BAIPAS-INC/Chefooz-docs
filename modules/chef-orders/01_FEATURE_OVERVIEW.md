@@ -1267,6 +1267,36 @@ Suggested Prep Time = (
 
 ---
 
+## ENH-01: Chef Earning Dashboard (March 2026)
+
+### Overview
+A real-money earnings dashboard accessible from the Chef Dashboard quick actions. Chefs can see how much they have earned from delivered orders and track active in-progress amounts.
+
+### Screens
+- **Route:** `/chef/earnings`
+- **Navigation:** Chef Dashboard → "My Earnings"
+
+### Key Features
+| Feature | Description |
+|---|---|
+| Lifetime Total | Sum of all delivered orders (gross, before any deductions) |
+| This Month | Gross this calendar month (IST) |
+| This Week | Gross this Mon–Sun week (IST) |
+| In Progress | Value of orders currently being prepared or out for delivery |
+| Average Order Value | Lifetime average across delivered orders |
+| Transaction List | Paginated list of all revenue orders (delivered + active), newest first |
+| Withdrawals CTA | Direct link to `/monetization` to initiate a withdrawal |
+
+### Business Rules
+- "Earned" = gross `totalPaise` of DELIVERED orders only
+- "In Progress" = CONFIRMED + PREPARING + READY + OUT_FOR_DELIVERY orders
+- Week starts Monday (IST)
+- All amounts displayed in ₹ (paise / 100)
+- No commission deductions shown — gross only
+- Transactions paginated with cursor (20 per page)
+
+---
+
 **Document Version**: 1.0  
 **Last Updated**: February 22, 2026  
 **Module**: Chef-Orders (Week 7 - Chef Fulfillment)  

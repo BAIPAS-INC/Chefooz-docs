@@ -1177,4 +1177,122 @@ Reel uploaded 5 days ago: 40 freshness score
 
 ---
 
+---
+
+### TC-EXPLORE-FILTER-001: "Food Fun" filter shows only 3 items while "Mixed Vibe" has more
+
+**Type:** Bug Regression / Manual
+**Feature area:** `[sectionKey].tsx` — client-side filter tabs
+**Priority:** P1
+
+**Preconditions:**
+- User is on any Explore section page (e.g. "From the Community")
+- Page has fewer than ~5 PROMOTIONAL reels in the first 30 returned
+
+**Steps:**
+1. Open any category section screen (not "Recommended for you")
+2. Tap "🎬 Food Fun" filter tab
+3. Note number of items displayed (e.g. 3)
+4. Tap "🎉 Mixed Vibe" filter tab
+5. Observe number of items displayed
+
+**Expected result:** Mixed Vibe shows all reels (30+), Food Fun shows only the PROMOTIONAL subset
+**Actual result (before fix):** Mixed Vibe showed only ~30 reels from page 2, skipping page 1
+**Fix applied:** Page accumulation pattern — `accumulatedReels` state (Map<page, reels[]>) accumulates every fetched page; `allLoadedReels` derives a deduplicated flat list across all pages; `filteredReels` operates on `allLoadedReels` instead of `data?.reels`
+**Regression test:** Manual — automated test requires mock React Query
+**Status:** Fixed ✅
+
+---
+
+### TC-EXPLORE-FILTER-002: Switching filter tabs after load-more shows wrong dataset
+
+**Type:** Bug Regression / Manual
+**Feature area:** `[sectionKey].tsx` — filter tab switching + pagination
+**Priority:** P1
+
+**Preconditions:**
+- User is on any Explore section page
+- Active filter yields fewer items than screen height (< ~6 cards)
+
+**Steps:**
+1. Open a section with a sparse filter (e.g. "🎬 Food Fun" shows 3 items)
+2. Scroll down slightly to trigger `onEndReached`
+3. Wait for next page to load
+4. Tap "🎉 Mixed Vibe" tab
+
+**Expected result:** Mixed Vibe shows all reels loaded across both pages
+**Actual result (before fix):** Mixed Vibe showed only page-2 reels; page-1 was lost because `data?.reels` was replaced by React Query on page increment
+**Fix applied:** Same accumulation fix as TC-EXPLORE-FILTER-001
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-EXPLORE-FILTER-003: Filter tabs work in "Recommended for you" but not other sections
+
+**Type:** Bug Regression / Manual
+**Feature area:** `[sectionKey].tsx` — filter state + section density
+**Priority:** P2
+
+**Preconditions:**
+- Navigate to both "Recommended for you" and another section (e.g. "New on Chefooz")
+
+**Steps:**
+1. Open "Recommended for you" → tap "🎬 Food Fun" → switch back to "🎉 Mixed Vibe" — correct
+2. Open "New on Chefooz" → tap "🎬 Food Fun" → switch back to "🎉 Mixed Vibe" — observe
+
+**Expected result:** Both sections should behave identically for filter switching
+**Actual result (before fix):** "Recommended" worked because its page-1 density (~30 mixed reels) filled the viewport so `onEndReached` never fired — the bug was masked. Sparse sections triggered it.
+**Fix applied:** Root cause resolved via accumulation — behaviour is now consistent regardless of page-1 density
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-EXPLORE-LOC-001: Dishes Near You shows only chefs within delivery range
+
+**Type:** Bug Regression / Manual
+**Feature area:** `ExploreMenuShowcase` + `getNearYouItems` backend
+**Priority:** P0
+
+**Preconditions:**
+- User has a default delivery address set with valid lat/lng
+- At least one chef with kitchen lat/lng set within 25 km exists
+- At least one chef with kitchen lat/lng set outside 50 km exists
+
+**Steps:**
+1. Open Explore tab with a default address set
+2. View "Order Something Delicious" or "Dishes Near You" section
+3. Note the chef names shown
+4. Compare against chefs known to be far away
+
+**Expected result:** Only chefs within `min(EXPLORE_NEAR_YOU_RADIUS_KM, chef.deliveryRadiusKm)` km appear
+**Actual result (before fix):** Global trending+recommended reels shown regardless of distance — subtitle "near you" was a lie
+**Fix applied:** Implemented `getNearYouItems` with Haversine filtering on `ChefKitchen.latitude`/`longitude`; frontend prefers `nearYou` section; location passed from `useAddressStore`
+**Regression test:** Manual — requires a test chef with known lat/lng set in `chef_kitchen` table
+**Status:** Fixed ✅
+
+---
+
+### TC-EXPLORE-LOC-002: Dishes section falls back gracefully when no location available
+
+**Type:** Manual
+**Feature area:** `ExploreMenuShowcase` + `menuFoodItems` fallback logic
+**Priority:** P1
+
+**Preconditions:**
+- User has NO default delivery address set (new user or address cleared)
+
+**Steps:**
+1. Open Explore tab
+2. View the food showcase section
+
+**Expected result:** Section shows "Popular Dishes / from home kitchens" (no "near you" text); content is populated from global trending+recommended
+**Actual result (before fix):** Same global content shown but with "near you" subtitle — misleading
+**Fix applied:** Frontend checks `userLat != null` before showing "near you" copy; `nearYou` section is empty so fallback to `trending + recommended` is used
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
 **Last Updated**: March 2026

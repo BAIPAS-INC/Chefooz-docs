@@ -1761,7 +1761,68 @@ if (authIsLoading || (isAuthenticated && !userId)) {
 ---
 
 **Document Version**: 1.1  
-**Last Updated**: March 2026 (Bug regression TCs added; menu image upload TCs added)  
-**Total Test Cases**: 62  
+**Last Updated**: March 2026 (ENH-02 Reorder Items TCs added)  
+**Total Test Cases**: 66  
 **Estimated Test Execution Time**: ~4 hours (manual), ~30 minutes (automated)  
 **Next Review**: Q2 2026 (Add caching tests)
+
+---
+
+## ENH-02 QA Scenarios — Menu Item Reorder
+
+### TC-CHEF-KITCHEN-63: Reorder Items modal opens from category menu
+
+**Type:** Manual  
+**Feature area:** Chef Menu Screen — Category Dot-menu  
+**Priority:** P1
+
+**Preconditions:** Chef has at least 2 items in one platform category.
+
+**Steps:**
+1. Open Chef Menu screen
+2. Tap ⋮ menu on a category header
+3. Verify "Edit Category" option is NOT present
+4. Tap "Reorder Items"
+
+**Expected result:** Bottom-sheet modal opens listing all items in that category in their current `displayOrder` sequence. "Edit Category" does not appear.
+
+---
+
+### TC-CHEF-KITCHEN-64: Reorder items up/down and save
+
+**Type:** Manual  
+**Priority:** P1
+
+**Steps:**
+1. Open Reorder modal for a category
+2. Tap ▲ on the 2nd item to move it to position 1
+3. Tap "Save Order"
+4. Close and reopen the menu screen
+
+**Expected result:** Item that was moved to position 1 now appears first in the category list. `displayOrder` persisted in DB (0-based index).
+
+---
+
+### TC-CHEF-KITCHEN-65: Arrow buttons disabled at boundaries
+
+**Type:** Manual  
+**Priority:** P2
+
+**Steps:**
+1. Open Reorder modal
+2. Verify ▲ button on first item is visually muted/disabled
+3. Verify ▼ button on last item is visually muted/disabled
+4. Tap disabled ▲ on first item
+
+**Expected result:** No change to order. No crash.
+
+---
+
+### TC-CHEF-KITCHEN-66: Reorder with items from another category rejected
+
+**Type:** Automated (backend unit test)  
+**Priority:** P1
+
+**Test:** Call `PATCH /api/v1/chef/menu/items/reorder` with an `orderedItemIds` that includes an item from a different category.
+
+**Expected result:** 403 ForbiddenException returned; no items modified.

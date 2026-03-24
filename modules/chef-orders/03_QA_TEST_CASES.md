@@ -1542,7 +1542,80 @@ if ($failedTests -eq 0) {
 **Status:** Fixed ✅
 
 **Document Version**: 1.0  
-**Last Updated**: February 22, 2026  
+**Last Updated**: March 2026 (ENH-01 Earnings Dashboard added)  
 **Module**: Chef-Orders (Week 7 - Chef Fulfillment)  
 **Status**: ✅ Complete  
-**Total Test Cases**: 35
+**Total Test Cases**: 40
+
+---
+
+## ENH-01 QA Scenarios — Chef Earning Dashboard
+
+### TC-CHEF-ORDERS-36: Earnings summary loads correctly
+
+**Type:** Manual  
+**Feature area:** Chef Earnings Screen (`/chef/earnings`)  
+**Priority:** P1
+
+**Preconditions:**
+- Chef has at least 3 DELIVERED orders
+
+**Steps:**
+1. Open Chef Dashboard → tap "My Earnings"
+2. Observe summary cards at top of screen
+
+**Expected result:** "Total Earned" shows correct gross sum (paise ÷ 100). "This Month" and "This Week" show correct filtered amounts.
+
+---
+
+### TC-CHEF-ORDERS-37: In-progress earning banner shown/hidden correctly
+
+**Type:** Manual  
+**Feature area:** Chef Earnings Screen  
+**Priority:** P2
+
+**Steps:**
+1. When chef has active orders (PREPARING/READY) → banner should show "In Progress" with amount
+2. When chef has no active orders → banner should NOT appear
+
+**Expected result:** Conditional render based on `inProgressPaise > 0`.
+
+---
+
+### TC-CHEF-ORDERS-38: Transaction list paginates correctly
+
+**Type:** Manual  
+**Feature area:** Chef Earnings Screen  
+**Priority:** P1
+
+**Steps:**
+1. Chef with > 20 orders opens earnings screen
+2. Scroll to bottom of transaction list
+3. Verify "load more" spinner appears and next page loads
+
+**Expected result:** Cursor pagination works; duplicate orders not shown; total count visible.
+
+---
+
+### TC-CHEF-ORDERS-39: Empty state for new chef
+
+**Type:** Manual  
+**Feature area:** Chef Earnings Screen  
+**Priority:** P2
+
+**Preconditions:** Chef has zero delivered orders
+
+**Expected result:** "No orders yet" empty state shown with receipt icon. No crash.
+
+---
+
+### TC-CHEF-ORDERS-40: Withdrawals CTA navigates to /monetization
+
+**Type:** Manual  
+**Feature area:** Chef Earnings Screen  
+**Priority:** P2
+
+**Steps:**
+1. Tap "View Withdrawals" button
+
+**Expected result:** Navigates to `/monetization` screen.

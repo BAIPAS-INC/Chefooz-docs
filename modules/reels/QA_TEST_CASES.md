@@ -1847,3 +1847,38 @@ Increase menu item query batch size or implement pagination.
 
 ---
 
+### TC-REELS-BUG-DETAIL-OVERLAY-MISSING: Order/menu overlay not shown when opening reel via deep-link or explore tap
+
+**Type:** Bug Regression
+**Feature area:** `[reelId].tsx` tab reel viewer, `ReelCard.tsx` overlay logic
+**Priority:** P1
+
+**Preconditions:**
+- At least one `MENU_SHOWCASE` reel with `linkedMenu` exists
+- At least one `USER_REVIEW` reel with `linkedOrder` exists
+- User taps a reel from "Cooking Right Now" section or any direct-link path
+
+**Steps:**
+1. From the Explore tab, tap a reel card in "Cooking Right Now"
+2. The reel opens in the tab `[reelId].tsx` full-screen viewer
+3. Wait for reel to load
+
+**Expected result:**
+- `MENU_SHOWCASE` reels: "Add to cart" / "View menu" button visible at bottom-left of the reel
+- `USER_REVIEW` reels: "Order again ₹X" button visible at bottom-left of the reel
+
+**Actual result (before fix):** No overlay rendered at all; `reelPurpose` and `linkedMenu` were absent in the `GET /v1/reels/detail/:id` response.
+
+**Root cause:** `mapToDetailResponse()` in `reels.service.ts` returned `linkedOrder` correctly but omitted `reelPurpose` and `linkedMenu`. Since `ReelCard` checks `(item as any).reelPurpose === 'MENU_SHOWCASE'` first, an absent `reelPurpose` (undefined) caused the MENU_SHOWCASE overlay condition to be falsy. For USER_REVIEW reels, `reelPurpose` being undefined means the condition `!== 'MENU_SHOWCASE'` is true, but the overlay still depends on `linkedOrder` which requires correct data flow.
+
+**Fix applied:** Added `reelPurpose: reel.reelPurpose` and `linkedMenu: reel.linkedMenu || null` to the return object of `mapToDetailResponse()`. Added corresponding fields to `ReelDetailResponseDto`. Also added `linkedMenu` availability check (inactive/sold-out items suppress overlay), `linkedOrder` availability check (all-items-unavailable suppresses overlay), and `orderContext` (chef isOpen + identity) to `getReelDetail` — bringing it to parity with feed enrichment. Imported `ChefKitchenModule` into `ReelsModule` to enable `chefKitchenService`/`chefScheduleService`.
+
+**Files changed:**
+- `apps/chefooz-apis/src/modules/reels/reels.service.ts`
+- `apps/chefooz-apis/src/modules/reels/dto/get-reel-detail.dto.ts`
+
+**Regression test:** Verify `getReelDetail` API response body includes `reelPurpose` and `linkedMenu` fields.
+**Status:** Fixed ✅
+
+---
+

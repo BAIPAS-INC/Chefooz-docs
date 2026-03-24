@@ -1683,6 +1683,44 @@ if (!canChefAcceptOrder(orderDomain, order.chefStatus)) {
 
 ---
 
+## ENH-01: Earning Dashboard — Technical Notes (March 2026)
+
+### New Backend Methods
+
+**`ChefOrdersService.getEarningsSummary(chefId)`**
+- Runs 4 separate TypeORM aggregate queries: lifetime, this-week, this-month, in-progress
+- IST offset computed using `IST_OFFSET_MS = 5.5 * 60 * 60 * 1000` (no external dep)
+- Returns all amounts in paise
+
+**`ChefOrdersService.getEarningsTransactions(chefId, cursor?, limit=20)`**
+- Cursor = ISO `createdAt` of last item; filters `createdAt < :cursor`
+- Includes DELIVERED + active orders (CONFIRMED/PREPARING/READY/OUT_FOR_DELIVERY)
+- Extracts `titleSnapshot`, `quantity`, `unitPricePaise` from JSONB `items` column
+
+### New Endpoints
+| Method | Route | Auth |
+|---|---|---|
+| GET | `/api/v1/chef/orders/earnings/summary` | JWT Chef |
+| GET | `/api/v1/chef/orders/earnings/transactions?cursor&limit` | JWT Chef |
+
+**Important**: Earnings endpoints use `GET earnings/summary` and `GET earnings/transactions` — these must be placed before `GET :orderId` to avoid NestJS param route collision.
+
+### New Files
+| File | Purpose |
+|---|---|
+| `libs/types/src/lib/chef-earnings.types.ts` | `ChefEarningSummary`, `ChefEarningTransaction`, `ChefEarningsTransactionsData` |
+| `libs/api-client/src/lib/clients/chef-earnings.client.ts` | Axios wrapper |
+| `libs/api-client/src/lib/hooks/useChefEarnings.ts` | `useChefEarningsSummary()` (useQuery) + `useChefEarningsTransactions()` (useInfiniteQuery) |
+| `apps/chefooz-app/src/app/chef/earnings/index.tsx` | Earnings screen |
+
+### Edge Cases
+- Zero earnings state: shows "No orders yet" with empty state icon
+- Error state: shows error banner with color `colors.danger`
+- In-progress banner only renders if `inProgressPaise > 0`
+- `orderNumber` falls back to last 8 chars of ID if field is null (legacy orders)
+
+---
+
 **Document Version**: 1.0  
 **Last Updated**: February 22, 2026  
 **Module**: Chef-Orders (Week 7 - Chef Fulfillment)  

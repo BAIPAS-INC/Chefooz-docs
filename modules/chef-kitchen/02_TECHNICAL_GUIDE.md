@@ -1804,6 +1804,47 @@ describe('Chef Menu (E2E)', () => {
 
 ---
 
+## ENH-02: Menu Item Reorder — Technical Notes (March 2026)
+
+### New DB Column
+`chef_menu_item.displayOrder` (int, default 0) — lower = displayed first within platform category.
+
+**Migration note:** The column uses TypeORM `@Column` with `default: 0`, so existing rows will receive 0 automatically. No explicit migration needed for cloud-dev environments; for production, run a schema sync or TypeORM migration before deployment.
+
+### New Service Method
+**`ChefMenuService.reorderMenuItems(chefId, categoryId, orderedItemIds[])`**
+- Validates every ID belongs to the chef + category (throws `ForbiddenException` if not)
+- Assigns `displayOrder = index (0-based)` to each item in the supplied order
+- Batch-saves all updated items with `menuItemRepo.save(toSave)`
+- Returns items sorted by new `displayOrder`
+
+### Updated Query
+`getMenuByChef()` now orders by `displayOrder ASC, createdAt DESC` (was: `createdAt DESC` only)
+
+### New Endpoint
+| Method | Route | Auth |
+|---|---|---|
+| PATCH | `/api/v1/chef/menu/items/reorder` | JWT Chef |
+
+**Body:** `{ categoryId: string, orderedItemIds: string[] }`
+
+**Placement:** Must appear BEFORE `PATCH :id` in the controller to prevent NestJS routing `"items/reorder"` as a param value for `:id`.
+
+### Frontend Changes
+| File | Change |
+|---|---|
+| `apps/chefooz-app/src/app/chef/menu/index.tsx` | Removed "Edit Category" menu item; wired "Reorder Items" to bottom-sheet modal |
+| `useChefMenu.ts` | Added `useReorderMenuItems()` mutation |
+| `chef-menu.client.ts` | Added `reorderMenuItems()` PATCH call |
+| `libs/types/src/lib/chef-menu.types.ts` | Added `displayOrder?: number` to `ChefMenuItem` |
+
+### UX Notes
+- Reorder modal opens as a `Modal` bottom-sheet (RN core Modal, not paper portal)
+- Items displayed with ▲▼ buttons; Save calls the PATCH endpoint
+- On success: invalidates `['chef-menu']` and `['chef-menu-grouped']` queries + shows toast
+
+---
+
 **Document Version**: 1.0  
 **Last Updated**: March 2026  
 **Implementation Status**: ✅ Complete (Caching Pending)  

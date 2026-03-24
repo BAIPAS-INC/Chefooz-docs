@@ -1279,4 +1279,38 @@ The previously separate `ExploreTrendingThemes` component (scroll-section hashta
 - `ExploreTrendingThemes` is no longer rendered in `explore.tsx` for the returning-user scroll section (Module 3b removed)
 - The `ExploreTrendingThemes.tsx` file remains on disk (not deleted) but is no longer imported in any active screen
 
+---
+
+## Near-You Distance Filtering (implemented March 2026)
+
+### Problem
+`ExploreMenuShowcase` ("Dishes Near You" / "Order Something Delicious") was showing global trending and recommended reels with **zero location awareness**. The backend `getNearYouItems()` was a TODO stub that always returned empty.
+
+### Architecture
+
+**Backend (`explore.service.ts`)**
+- `getNearYouItems()` now implements Haversine-based proximity filtering:
+  1. Loads all `ChefKitchen` records with non-null `latitude`/`longitude`
+  2. Computes great-circle distance from user's coordinates to each chef kitchen
+  3. Filters to chefs within `min(EXPLORE_NEAR_YOU_RADIUS_KM, kitchen.deliveryRadiusKm)` km
+  4. Maps `ChefProfile.id → User.id` to match reel `userId` for `MENU_SHOWCASE` reels
+  5. Queries MongoDB reels where poster is a nearby chef (`userId IN nearbyChefUserIds`) OR `linkedMenu.chefId` is a nearby chefId
+  6. Applies the same enrichment pipeline (users, orders, linkedMenu, privacy filter) as `getTrendingItems`
+- Env var `EXPLORE_NEAR_YOU_RADIUS_KM` (default: `25`) — platform-wide max search radius
+- `ChefKitchen.deliveryRadiusKm` further restricts per-chef; effective radius = `min(platform max, chef radius)`
+- Cache key now includes rounded lat/lng (`round(lat * 100) / 100`) so nearby users share the same cache bucket
+- When coordinates are present in the request, `nearYou` is always fetched (regardless of `includeNearYou` flag)
+
+**Frontend (`explore.tsx`)**
+- Reads `defaultAddress.lat` / `defaultAddress.lng` from `useAddressStore`
+- Passes them to `useConsolidatedExploreSections` when available
+- `menuFoodItems` source: prefers `sections.nearYou` when it has results; falls back to `trending + recommended` when no location or no nearby chefs found
+- Both `ExploreMenuShowcase` titles/subtitles update dynamically: "Dishes Near You / near you" vs "Popular Dishes / online chefs" depending on location availability
+
+### Edge cases
+- No default address set → location params omitted → `nearYou` section is empty → fallback to global trending
+- Chef has no `latitude`/`longitude` in their `chef_kitchen` record → excluded from near-you results (does not appear in "near you", may appear in trending/recommended fallback)
+- Chef's `deliveryRadiusKm = 0` → treated as no restriction, uses platform max
+- User located further than `EXPLORE_NEAR_YOU_RADIUS_KM` from all chefs → `nearYou` empty → fallback to trending
+
 **Last Updated**: March 2026
