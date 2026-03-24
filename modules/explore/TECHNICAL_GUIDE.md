@@ -1313,4 +1313,89 @@ The previously separate `ExploreTrendingThemes` component (scroll-section hashta
 - Chef's `deliveryRadiusKm = 0` → treated as no restriction, uses platform max
 - User located further than `EXPLORE_NEAR_YOU_RADIUS_KM` from all chefs → `nearYou` empty → fallback to trending
 
+---
+
+## PAN-India Packaged Food Delivery Enrichment (March 2026)
+
+### Problem
+Packaged food items (`isPackagedFood=true`, `nationalDeliveryEnabled=true`) can be shipped across India via courier. However, if a product's shelf life is short (e.g., 3 days), it may expire in transit before reaching a user far from the kitchen. The explore feed needed to surface this constraint so users could see at a glance whether a national item can actually reach them.
+
+### Domain Rule
+```
+isOrderable = (dispatchBufferDays + estimatedDeliveryDays) < shelfLifeDays
+```
+**STRICT**: equal is NOT orderable — a product arriving on its expiry day is unacceptable.
+See `libs/domain/src/lib/packaged-food-delivery.ts`.
+
+### Data Model Additions
+
+| Column | Table | Type | Default | Purpose |
+|---|---|---|---|---|
+| `nationalDeliveryEnabled` | `chef_menu_item` | `BOOLEAN` | `false` | Per-item PAN-India shipping toggle |
+| `dispatchBufferDays` | `chef_menu_item` | `SMALLINT` | `1` | Packing days before courier pickup |
+| `pincode` | `chef_kitchen` | `VARCHAR(10)` | `NULL` | Kitchen PIN code for Shiprocket serviceability |
+
+Migration: `1775000000000-AddPackagedDeliveryFields.ts` (idempotent, uses `IF NOT EXISTS`).
+
+### Backend Enrichment Flow (`explore.service.ts`)
+
+1. `getAllSections()` calls `enrichWithDeliveryFeasibility(result, userId)` **after** full section mapping, **before** Redis caching
+2. `enrichWithDeliveryFeasibility()`:
+   - Collects all `menuItemIds` from items with a `linkedMenu` property
+   - Queries TypeORM for those items where `nationalDeliveryEnabled = true` (one batched query)
+   - Fetches user's default `UserAddress` (pincode, lat, lng)
+   - Fetches `ChefKitchen.pincode` for relevant chef IDs
+   - For each matching reel item, calls `PackagedDeliveryService.checkFeasibility()`
+   - Attaches result to `item.linkedMenu.deliveryFeasibility`
+3. If the `chef_menu_item` table doesn't yet have the `nationalDeliveryEnabled` column (pre-migration), the query failure is caught silently and enrichment is skipped
+
+### PackagedDeliveryService
+
+Located at `apps/chefooz-apis/src/modules/packaged-delivery/packaged-delivery.service.ts`.
+
+- `checkFeasibility(params)`: Shiprocket serviceability → domain rule → `DeliveryFeasibility`
+- `checkFeasibilityBatch(request)`: runs all items via `Promise.all`
+- When `noLocationData=true` (user has no address/coords): returns `isOrderable=true` (optimistic — cannot gate without data)
+
+### ShiprocketClient
+
+Located at `apps/chefooz-apis/src/modules/packaged-delivery/shiprocket.client.ts`.
+
+| Operation | Endpoint | Cache TTL |
+|---|---|---|
+| Auth | `POST /v1/external/auth/login` | 9 days (`shiprocket:token`) |
+| Serviceability | `GET /v1/external/courier/serviceability` | 6 hours (`courier:svc:{origin}:{dest}`) |
+
+- On HTTP 401: invalidates cached token, retries once
+- Fallback (Shiprocket unavailable or unconfigured): distance-based zone estimate
+  - 0–200 km → 2 days, 200–600 km → 3 days, 600–1500 km → 4 days, 1500+ km → 5 days
+
+### Required Environment Variables
+
+| Variable | Example | Description |
+|---|---|---|
+| `SHIPROCKET_BASE_URL` | `https://apiv2.shiprocket.in` | Shiprocket API base |
+| `SHIPROCKET_EMAIL` | `ops@chefooz.com` | Shiprocket login email |
+| `SHIPROCKET_PASSWORD` | `***` | Shiprocket login password |
+
+### Frontend Implementation (`ExploreMenuShowcase.tsx`)
+
+| State | UI Behaviour |
+|---|---|
+| `isNational` | "🇮🇳 Ships India" badge overlaid on item image (bottom-right) |
+| `isNational` + orderable | "Delivers in N days" label instead of ETA minutes |
+| `isNotOrderable` | Card opacity 65%, CTA = "Not Available" (grey, disabled), red reason text below price |
+| `noLocationData=true` | CTA remains "Order Now" (optimistic — user hasn't set address yet) |
+
+### Edge Cases
+
+| Scenario | Behaviour |
+|---|---|
+| User has no default address | `noLocationData=true` → CTA optimistically enabled |
+| Chef kitchen has no `pincode` | Falls back to Haversine distance estimate |
+| Shiprocket returns no available couriers | `isServiceable=false` → `isOrderable=false` |
+| `shelfLifeDays=0` or unset | Domain rule always fails → not orderable |
+| `dispatchBuffer + deliveryDays === shelfLifeDays` | NOT orderable (strict boundary) |
+| Pre-migration table state | TypeORM query fails gracefully; enrichment skipped |
+
 **Last Updated**: March 2026

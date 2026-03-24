@@ -2080,7 +2080,51 @@ See `03_QA_TEST_CASES.md` for complete API testing suite.
 
 ---
 
+---
+
+## `not_deliverable` Validation Type (March 2026)
+
+### Overview
+
+As part of the PAN-India packaged food delivery feature, `validateCart()` was extended to check whether each nationally-enabled packaged item can physically reach the user before its shelf life expires.
+
+### New Change Type
+
+`CartValidationChange.type` now includes `'not_deliverable'` alongside the existing `'removed'`, `'quantity_adjusted'`, and `'price_changed'` types.
+
+```ts
+// libs/types/src/lib/cart.types.ts
+type CartValidationChangeType = 'removed' | 'quantity_adjusted' | 'price_changed' | 'not_deliverable';
+```
+
+### Validation Logic (added to `validateCart()`)
+
+```
+For each cart item where item.isPackagedFood && item.nationalDeliveryEnabled:
+  1. Fetch user's default UserAddress
+  2. Fetch ChefKitchen.pincode for the item's chef
+  3. Call PackagedDeliveryService.checkFeasibility(origin, destination, shelfLife, dispatchBuffer)
+  4. If !isOrderable && !noLocationData:
+     → Remove item from cart
+     → Push CartValidationChange { type: 'not_deliverable', itemId, reason }
+```
+
+### Edge Cases
+
+| Scenario | Behaviour |
+|---|---|
+| User has no default address | `noLocationData=true` → item stays in cart (optimistic) |
+| PackagedDeliveryService throws | Error caught silently; item stays in cart (fail-safe) |
+| Local-only items (`nationalDeliveryEnabled=false`) | Not checked — unaffected |
+
+### Consuming Modules
+
+`PackagedDeliveryModule` imported into `CartModule`.
+`UserAddress` and `ChefKitchen` repositories injected into `CartService`.
+
+---
+
 **Document Version**: 1.0  
-**Last Updated**: February 14, 2026  
+**Last Updated**: March 2026  
 **Module**: Cart (Week 6 - Order Flow)  
 **Status**: ✅ Complete

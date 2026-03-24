@@ -1845,7 +1845,46 @@ describe('Chef Menu (E2E)', () => {
 
 ---
 
+## PAN-India Packaged Food Delivery Fields (March 2026)
+
+The following fields were added to support national delivery feasibility. See `docs/modules/packaged-delivery/` for the full system design.
+
+### New Menu Item DTO Fields
+
+Added to `create-menu-item.dto.ts` and `update-menu-item.dto.ts`:
+
+| Field | Type | Validation | Description |
+|---|---|---|---|
+| `nationalDeliveryEnabled` | `boolean` (optional) | `@IsBoolean` | Enables PAN-India courier shipping for this item |
+| `dispatchBufferDays` | `number` (optional) | `@Min(0) @Max(7)` | Days needed to pack and hand off to courier (default: 1) |
+
+Both fields are optional — existing items remain unaffected (columns default to `false` / `1`).
+
+### New Kitchen DTO Field
+
+Added to `create-kitchen.dto.ts`:
+
+| Field | Type | Validation | Description |
+|---|---|---|---|
+| `pincode` | `string` (optional) | `@Matches(/^\d{6}$/)` | Kitchen's 6-digit Indian PIN code, used as Shiprocket origin |
+
+### Entity Changes
+
+- `ChefMenuItemEntity`: `nationalDeliveryEnabled: boolean`, `dispatchBufferDays: number`
+- `ChefKitchenEntity`: `pincode?: string`
+
+### Migration
+
+`1775000000000-AddPackagedDeliveryFields.ts` — idempotent `ADD COLUMN IF NOT EXISTS`.
+
+### Constraint
+
+`dispatchBufferDays + estimatedDeliveryDays` must be **strictly less than** `shelfLifeDays` for a national item to be orderable. Configuring `dispatchBufferDays` too high relative to `shelfLifeDays` will result in a disabled CTA in the explore feed and item removal at cart validation.
+
+---
+
 **Document Version**: 1.0  
 **Last Updated**: March 2026  
-**Implementation Status**: ✅ Complete (Caching Pending)  
+**Implementation Status**: ✅ Complete (Caching Pending)
+
 **Next Review**: Q2 2026 (Caching + Menu Templates)

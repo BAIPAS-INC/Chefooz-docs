@@ -1295,4 +1295,159 @@ Reel uploaded 5 days ago: 40 freshness score
 
 ---
 
+## PAN-India Packaged Food Delivery — Test Cases (March 2026)
+
+---
+
+### TC-PACKAGED-001: National item with short shelf life blocked in explore
+
+**Type:** Manual
+**Feature area:** `ExploreMenuShowcase` + `enrichWithDeliveryFeasibility`
+**Priority:** P0
+
+**Preconditions:**
+- User has a default delivery address with pincode set (e.g., Mumbai — 400001)
+- A chef kitchen in Delhi (110001) has a menu item: `nationalDeliveryEnabled=true`, `dispatchBufferDays=1`, `shelfLifeDays=3`, `isPackagedFood=true`
+- Shiprocket estimated transit from 110001 → 400001 is ~2 days
+
+**Steps:**
+1. Open Explore tab
+2. Scroll to the national packaged item card
+
+**Expected result:**
+- "🇮🇳 Ships India" badge visible
+- CTA shows "Not Available" (grey/disabled)
+- Red reason text: e.g., "Shelf life too short to deliver to your location"
+
+**Actual result (before feature):** CTA showed "Order Now" regardless — customer could order an item guaranteed to arrive expired
+
+**Fix applied:** `enrichWithDeliveryFeasibility()` calls shelf-life domain rule; frontend disables CTA when `isOrderable=false`
+**Regression test:** `libs/domain/src/lib/packaged-food-delivery.spec.ts`
+**Status:** Fixed ✅
+
+---
+
+### TC-PACKAGED-002: National item with long shelf life — CTA enabled
+
+**Type:** Manual
+**Feature area:** `ExploreMenuShowcase` + `PackagedDeliveryService`
+**Priority:** P0
+
+**Preconditions:**
+- User in Bangalore (560001), chef kitchen in Delhi (110001)
+- Menu item: `nationalDeliveryEnabled=true`, `dispatchBufferDays=1`, `shelfLifeDays=14`
+
+**Steps:**
+1. Open Explore tab
+2. View the national packaged item card
+
+**Expected result:**
+- "🇮🇳 Ships India" badge visible
+- "Delivers in N days" label shown (totalDaysFromOrder)
+- CTA = "Order Now" (active, enabled)
+
+**Actual result (before feature):** No badge, no days label
+**Fix applied:** Full national delivery enrichment pipeline
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-PACKAGED-003: No user address → CTA optimistically enabled
+
+**Type:** Manual
+**Feature area:** `PackagedDeliveryService.checkFeasibility`
+**Priority:** P1
+
+**Preconditions:**
+- User has NO default delivery address (new account or address cleared)
+- A national item with short shelf life exists in explore
+
+**Steps:**
+1. Open Explore tab (no address set)
+2. View the national packaged item card
+
+**Expected result:**
+- "🇮🇳 Ships India" badge visible
+- CTA = "Order Now" (enabled — device location unknown, cannot gate)
+- No reason text shown
+
+**Rationale:** Blocking the CTA with no location data harms conversion; the final gate exists at cart validation.
+**Regression test:** Manual
+**Status:** Verified ✅
+
+---
+
+### TC-PACKAGED-004: Shiprocket returns not-serviceable route → CTA blocked
+
+**Type:** Manual (requires Shiprocket staging)
+**Feature area:** `ShiprocketClient` + `PackagedDeliveryService`
+**Priority:** P1
+
+**Preconditions:**
+- Origin pincode and destination pincode are a known non-serviceable pair in Shiprocket staging
+
+**Steps:**
+1. User's default address set to a remote non-serviceable pincode
+2. Open Explore tab with the national item from that kitchen
+
+**Expected result:** CTA disabled; reason text shows route is not serviceable
+**Regression test:** Mock Shiprocket returning empty couriers array in `packaged-delivery.service.spec.ts` (to be written)
+**Status:** Verified via manual review ✅
+
+---
+
+### TC-PACKAGED-005: National item badge visibility
+
+**Type:** Manual
+**Feature area:** `ExploreMenuShowcase` visual
+**Priority:** P2
+
+**Steps:**
+1. View any reel card with `deliveryType='national'`
+2. Check image overlay
+
+**Expected result:** "🇮🇳 Ships India" badge visible bottom-right of image; does not appear on local items
+**Status:** Verified ✅
+
+---
+
+### TC-PACKAGED-006: Cart validates and removes not_deliverable item
+
+**Type:** Manual / Automated
+**Feature area:** `cart.service.ts` → `validateCart()`
+**Priority:** P0
+
+**Preconditions:**
+- Cart contains a `nationalDeliveryEnabled=true` item
+- User's address → chef kitchen distance makes `isOrderable=false`
+
+**Steps:**
+1. Add item to cart
+2. Navigate to cart / call `validateCart`
+
+**Expected result:**
+- Item removed from cart automatically
+- `CartValidationChange.type = 'not_deliverable'` returned
+- Cart shows appropriate removal message to user
+
+**Regression test:** Manual
+**Status:** Implemented ✅
+
+---
+
+### TC-PACKAGED-007: Strict shelf-life boundary (buffer + delivery === shelfLife)
+
+**Type:** Automated unit test
+**Feature area:** `libs/domain/src/lib/packaged-food-delivery.ts`
+**Priority:** P0
+
+**Scenario:** `shelfLifeDays=3`, `dispatchBufferDays=1`, `estimatedDeliveryDays=2` → sum equals shelf life
+
+**Expected result:** `isPackagedFoodOrderable` returns `false` (arrives on expiry day = NOT orderable)
+**Regression test:** `libs/domain/src/lib/packaged-food-delivery.spec.ts` → "returns false when buffer + delivery === shelfLife"
+**Status:** Passing ✅
+
+---
+
 **Last Updated**: March 2026
