@@ -2124,7 +2124,49 @@ For each cart item where item.isPackagedFood && item.nationalDeliveryEnabled:
 
 ---
 
-**Document Version**: 1.0  
+---
+
+## Self-Order Prevention Guard (March 2026)
+
+**BUG FIX** — Chefs could previously add their own menu items to a cart and complete a purchase, enabling commission abuse.
+
+### Root Cause
+
+`addItem()` in `CartService` only enforced the single-chef-per-cart rule; it never compared the requesting user against the owning chef of the menu item.
+
+> ⚠️ An earlier version of this guard incorrectly injected `ChefProfile` and compared `menuItem.chefId === chefProfile.id`. This was always `false` because `ChefMenuItem.chefId` stores the chef's **User.id**, not `ChefProfile.id`. The guard was removed and replaced with a direct comparison.
+
+### Fix
+
+`CartService.addItem()` now performs a direct comparison immediately after fetching the menu item:
+
+```ts
+// BUG FIX: menuItem.chefId IS the chef's User.id — direct comparison works
+if (menuItem.chefId === userId) {
+  throw new BadRequestException({ errorCode: 'CANNOT_ORDER_OWN_ITEM' });
+}
+```
+
+`ChefMenuItem.chefId === User.id` of the chef — the same namespace as `userId` (the requesting user's JWT-extracted User.id). No extra DB query required.
+
+### Error Response
+
+```json
+{ "success": false, "message": "You cannot order from your own kitchen", "errorCode": "CANNOT_ORDER_OWN_ITEM" }
+```
+
+### Frontend Companion Fixes
+
+| Screen | Fix |
+|---|---|
+| Profile reel viewer (`/profile/reels/[reelId].tsx`) | Passes `hideOrderOverlay={isSelfReel}` to `ReelCard` |
+| Feed (`feed.tsx`) | Computes `isSelfReel = item.userId === user?.id`, passes `hideOrderOverlay={isSelfReel}` |
+| Chef public page (`/chef/[chefId].tsx`) | `isOwnKitchen = chefId === user?.id`; `handleAddToCart` early-returns when true |
+| `ReelCard` `onError` | No longer silently navigates — shows `Alert.alert` with the error message |
+
+---
+
+**Document Version**: 1.1  
 **Last Updated**: March 2026  
 **Module**: Cart (Week 6 - Order Flow)  
 **Status**: ✅ Complete

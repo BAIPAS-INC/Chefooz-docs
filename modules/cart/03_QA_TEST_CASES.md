@@ -2113,4 +2113,49 @@ $env:TEST_MENU_ITEM_ID = "menu-item-uuid"
 
 ---
 
+### TC-CART-SELF-ORDER-001: Chef cannot add own menu items to cart
+
+**Type:** Bug Regression / Automated
+**Feature area:** Cart — `addItem` API
+**Priority:** P0
+
+**Preconditions:**
+- User is authenticated as a chef (has an associated `ChefProfile`)
+- Chef has at least one published `ChefMenuItem`
+
+**Steps:**
+1. Log in as a chef user
+2. Call `POST /api/v1/cart/items` with a `menuItemId` belonging to the same chef's kitchen
+
+**Expected result:** `400 Bad Request` with `errorCode: CANNOT_ORDER_OWN_ITEM`
+**Actual result (before fix):** Item was added to cart successfully — chef could complete an order against their own kitchen
+**Fix applied:** `CartService.addItem()` performs direct comparison `menuItem.chefId === userId` (both are `User.id` — no ChefProfile lookup needed). An earlier incorrect guard used `ChefProfile.id` and always evaluated to `false`.
+**Regression test:** `apps/chefooz-apis/src/modules/cart/cart.service.spec.ts`
+**Status:** Fixed ✅
+
+---
+
+### TC-CART-SELF-ORDER-002: Order CTA hidden on chef's own reels
+
+**Type:** Bug Regression / Manual
+**Feature area:** Profile reel viewer — `ReelCard` order overlay
+**Priority:** P1
+
+**Preconditions:**
+- User is authenticated as a chef with published reels of type `MENU_SHOWCASE` or containing `linkedOrder`
+- User navigates to their own profile and opens one of their reels
+
+**Steps:**
+1. Open the Chefooz app as a chef
+2. Navigate to own profile
+3. Tap a reel that is of type `MENU_SHOWCASE` or `USER_REVIEW`
+
+**Expected result:** The order overlay / "Order Now" CTA is NOT visible
+**Actual result (before fix):** `ReelOrderOverlay` was rendered unconditionally regardless of whether the reel belonged to the viewing user
+**Fix applied:** `ReelCard` accepts new prop `hideOrderOverlay?: boolean`; profile reel viewer passes `hideOrderOverlay={isSelfReel}`; `isSelfReel` gates both `MENU_SHOWCASE` and `USER_REVIEW` overlay blocks
+**Regression test:** N/A — manual verification; component contract is enforced via TypeScript prop type
+**Status:** Fixed ✅
+
+---
+
 **Last Updated**: March 2026
