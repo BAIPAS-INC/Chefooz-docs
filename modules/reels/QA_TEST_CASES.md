@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Test Coverage**: Functional, Security, Performance, Integration  
 **Version**: 1.0  
-**Last Updated**: 2026-02-28
+**Last Updated**: 2026-03-XX
 
 ---
 
@@ -1878,6 +1878,45 @@ Increase menu item query batch size or implement pagination.
 - `apps/chefooz-apis/src/modules/reels/dto/get-reel-detail.dto.ts`
 
 **Regression test:** Verify `getReelDetail` API response body includes `reelPurpose` and `linkedMenu` fields.
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-BUG-005: Text Overlay Vertical Position Shifted for 4:5 and 1:1 REEL Images
+
+**Type:** Bug Regression  
+**Feature area:** Upload — Edit screen text overlays / Feed playback  
+**Priority:** P1  
+**Last Updated:** 2026-03-XX
+
+**Preconditions:**
+- User selects a 4:5 (portrait, non-9:16) image from gallery for a REEL
+- User adds one or more text overlays (e.g. centre, top, bottom of visible image)
+- User saves and posts the reel
+
+**Steps:**
+1. Open the upload flow, select a 4:5 portrait image from gallery as a REEL
+2. On the edit screen, add text overlays — one near the top of the image, one at centre, one near the bottom
+3. Publish the reel
+4. Open the feed and observe the reel with overlays in playback
+
+**Expected result:** Text overlays appear at the same relative position on the image in playback as they appeared in the edit preview.
+
+**Actual result (before fix):** Overlays appear significantly lower (or shifted) in playback. For a 4:5 image the centre overlay shifts by ~14% downward; a text placed near the top of the image in edit appears roughly 18% from the top of the image in playback instead of at the top.
+
+**Root cause:**
+`AspectRatioPreview` received `media.width / media.height` from the edit screen (e.g. 1080×1350 for 4:5). Because the image AR (0.8) is wider than the 9:16 target (0.5625), `AspectRatioPreview` letterboxed the image: `videoArea.top = 99px`, `displayHeight = 469px` inside a 667px container. The `OverlayCanvas` spanned the full 667px container. Overlays were therefore stored with normalized `y` values relative to the full 667px canvas, where the image only occupied y=[99, 568].
+
+In playback (`ReelCard`), the image fills `VIEWPORT_HEIGHT` in cover mode (no letterbox). The OverlayCanvas (667px) is centred within the taller viewport with `overlayCanvasTopOffset ≈ 40px`. So `canvas_y = 0` maps to `viewport_y = 40`, but the image starts at `viewport_y = 0`. A normalized `y = 0.148` (edit "image top" = canvas px 99) maps to `viewport_y = 40 + 99 = 139` in playback, while the image top is at `viewport_y = 0` — a 139px discrepancy.
+
+**Fix applied:**  
+`apps/chefooz-app/src/app/reels/upload-v2/edit.tsx` — For REEL images (`media.type === 'image'`), pass `videoWidth=9, videoHeight=16` to `AspectRatioPreview` instead of `media.width / media.height`. This forces `videoAspectRatio == targetAspectRatio`, so `videoArea` fills the entire 9:16 container with `top=0, left=0`. The image with `resizeMode="cover"` then fills the container edge-to-edge — the same visual crop as in playback — and the OverlayCanvas covers the exact same image region in edit and in the feed.
+
+**Residual known gap:** A small viewport-height margin (~5% at top, ~8% at bottom) means content placed at the very extreme edges of the edit canvas may appear slightly clipped at the edge in playback. This is inherent in the architecture where `VIEWPORT_HEIGHT > NINE_SIXTEEN_CANVAS_HEIGHT` (tab bar offset) and affects all content types including native 9:16 video. Central overlay positions are unaffected.
+
+**For 1:1 images (contain mode):** A smaller mismatch of ~11px remains. The same 9:16 force is applied (videoArea fills container), but contain mode still letterboxes the image at canvas `top=146`. In playback, the canvas offset shifts this to `top≈157`. This is a known, pre-existing minor constraint.
+
+**Regression test:** Manual — after fix, place text at top/centre/bottom of a 4:5 image REEL in edit; verify positions match in playback within 1–2 lines of text tolerance.  
 **Status:** Fixed ✅
 
 ---
