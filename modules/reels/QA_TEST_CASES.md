@@ -1887,7 +1887,7 @@ Increase menu item query batch size or implement pagination.
 **Type:** Bug Regression  
 **Feature area:** Upload — Edit screen text overlays / Feed playback  
 **Priority:** P1  
-**Last Updated:** 2026-03-XX
+**Last Updated:** 2026-03-25
 
 **Preconditions:**
 - User selects a 4:5 (portrait, non-9:16) image from gallery for a REEL
@@ -1902,21 +1902,23 @@ Increase menu item query batch size or implement pagination.
 
 **Expected result:** Text overlays appear at the same relative position on the image in playback as they appeared in the edit preview.
 
-**Actual result (before fix):** Overlays appear significantly lower (or shifted) in playback. For a 4:5 image the centre overlay shifts by ~14% downward; a text placed near the top of the image in edit appears roughly 18% from the top of the image in playback instead of at the top.
+**Actual result (before fix):** Overlays appeared significantly lower in playback. For a 4:5 image the centre overlay shifted by ~14% downward; a text placed near the top of the image in edit appeared roughly 18% from the top in playback. After the first partial fix (forced 9:16 dimensions), text still shifted upward by ~16px due to the canvas not being at the same screen-y position as the feed.
 
-**Root cause:**
-`AspectRatioPreview` received `media.width / media.height` from the edit screen (e.g. 1080×1350 for 4:5). Because the image AR (0.8) is wider than the 9:16 target (0.5625), `AspectRatioPreview` letterboxed the image: `videoArea.top = 99px`, `displayHeight = 469px` inside a 667px container. The `OverlayCanvas` spanned the full 667px container. Overlays were therefore stored with normalized `y` values relative to the full 667px canvas, where the image only occupied y=[99, 568].
+**Root cause (final):**
+The edit screen had `paddingTop: insets.top` on the outer container, pushing the REEL preview below the status bar. The `AspectRatioPreview` container height was `SCREEN_WIDTH*(16/9)` ≈ 693px. In the feed, `ReelCard` renders the image fullscreen from `y=0` (behind transparent status bar) at `VIEWPORT_HEIGHT` ≈ 756px, with `OverlayCanvas` offset by `(VIEWPORT_HEIGHT - 693) / 2 ≈ 34px`. Combined with the 47px status-bar padding, the canvas start in edit was ~81px below the feed canvas position → direct vertical mismatch in perceived text position.
 
-In playback (`ReelCard`), the image fills `VIEWPORT_HEIGHT` in cover mode (no letterbox). The OverlayCanvas (667px) is centred within the taller viewport with `overlayCanvasTopOffset ≈ 40px`. So `canvas_y = 0` maps to `viewport_y = 40`, but the image starts at `viewport_y = 0`. A normalized `y = 0.148` (edit "image top" = canvas px 99) maps to `viewport_y = 40 + 99 = 139` in playback, while the image top is at `viewport_y = 0` — a 139px discrepancy.
+**Fix applied:**
+Full WYSIWYG approach in `apps/chefooz-app/src/app/reels/upload-v2/edit.tsx`:
+1. `paddingTop/Bottom` removed from the REEL container (POST keeps safe-area padding)
+2. `AspectRatioPreview` receives `videoWidth=windowWidth, videoHeight=REEL_VIEWPORT_HEIGHT` with `forceNineSixteen=false` — container fills exactly `SCREEN_WIDTH × VIEWPORT_HEIGHT` starting at y=0
+3. `VideoView` changed to `contentFit="cover"` to match feed playback
+4. `VideoFilterPreview.tsx` changed to `contentFit="cover"` for the same reason
 
-**Fix applied:**  
-`apps/chefooz-app/src/app/reels/upload-v2/edit.tsx` — For REEL images (`media.type === 'image'`), pass `videoWidth=9, videoHeight=16` to `AspectRatioPreview` instead of `media.width / media.height`. This forces `videoAspectRatio == targetAspectRatio`, so `videoArea` fills the entire 9:16 container with `top=0, left=0`. The image with `resizeMode="cover"` then fills the container edge-to-edge — the same visual crop as in playback — and the OverlayCanvas covers the exact same image region in edit and in the feed.
+`apps/chefooz-app/src/components/ReelCard.tsx`:
+5. `NINE_SIXTEEN_CANVAS_HEIGHT` and `overlayCanvasTopOffset` removed
+6. `OverlayCanvas` now uses `canvasHeight=VIEWPORT_HEIGHT, top=0` — identical coordinate space to edit
 
-**Residual known gap:** A small viewport-height margin (~5% at top, ~8% at bottom) means content placed at the very extreme edges of the edit canvas may appear slightly clipped at the edge in playback. This is inherent in the architecture where `VIEWPORT_HEIGHT > NINE_SIXTEEN_CANVAS_HEIGHT` (tab bar offset) and affects all content types including native 9:16 video. Central overlay positions are unaffected.
-
-**For 1:1 images (contain mode):** A smaller mismatch of ~11px remains. The same 9:16 force is applied (videoArea fills container), but contain mode still letterboxes the image at canvas `top=146`. In playback, the canvas offset shifts this to `top≈157`. This is a known, pre-existing minor constraint.
-
-**Regression test:** Manual — after fix, place text at top/centre/bottom of a 4:5 image REEL in edit; verify positions match in playback within 1–2 lines of text tolerance.  
+**Regression test:** Manual — place text at top/centre/bottom of a 4:5 image REEL in edit; positions must be pixel-accurate in feed playback.  
 **Status:** Fixed ✅
 
 ---

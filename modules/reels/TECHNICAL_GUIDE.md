@@ -1907,45 +1907,45 @@ const VIEWPORT_HEIGHT = getReelViewportHeight(insets.bottom, insets.top, { inclu
 
 ### Overlay Canvas Coordinate System
 
-Text overlays are stored as normalized positions `(x: 0–1, y: 0–1)` relative to the **edit screen canvas**.
+Text overlays are stored as normalized positions `(x: 0–1, y: 0–1)` relative to a WYSIWYG canvas that is identical in the edit screen and in playback.
 
-**Edit screen canvas formula** (`AspectRatioPreview` with `forceNineSixteen=true`):
+**Canvas dimensions (both edit and playback):**
 ```
-canvasWidth  = SCREEN_WIDTH
-canvasHeight = SCREEN_WIDTH * (16 / 9)   // e.g. 375 → 666.7px
+canvasWidth  = SCREEN_WIDTH          (device screen width)
+canvasHeight = VIEWPORT_HEIGHT       = getReelViewportHeight(insets.bottom, insets.top)
+                                       (window height minus absolute tab bar height)
+canvasTop    = 0                     (from screen y=0, behind transparent status bar)
 ```
 
-**How `AspectRatioPreview` receives video dimensions (edit.tsx):**
+**Why VIEWPORT_HEIGHT (not SCREEN_WIDTH \* 16/9):**  
+The feed renders each reel card at exactly `VIEWPORT_HEIGHT` starting from `y=0` (behind the transparent status bar). The edit screen REEL preview also fills `VIEWPORT_HEIGHT` from `y=0`, so images and overlays occupy the same pixels on screen in both contexts. Normalized positions are therefore identical regardless of device size.
 
-| Content type | `videoWidth` passed | `videoHeight` passed | Effect |
-|---|---|---|---|
-| POST | `postAspectRatio` mapping (16/9/4/5/1) | matching height | videoArea letterboxed to POST ratio |
-| REEL image | `9` (forced) | `16` (forced) | videoArea fills full 9:16 container — no letterbox |
-| REEL video | `media.width` (actual) | `media.height` (actual) | videoArea letterboxed to real video AR |
-
-**Why REEL images use forced 9:16 dimensions:**  
-Passing `media.width/media.height` for a 4:5 image (AR=0.8 > 9/16=0.5625) caused `AspectRatioPreview` to letterbox it with `videoArea.top ≈ 99px` inside the 667px canvas. The `OverlayCanvas` always spans the full 667px container, so normalized `y` values were relative to canvas-top, not image-top. In playback, the same image fills `VIEWPORT_HEIGHT` with `cover` (no letterbox), creating a 99–139px vertical shift for text placed near the image edges.
-
-Forcing `videoWidth=9, videoHeight=16` makes `videoAspectRatio == targetAspectRatio`, which produces `videoArea.top=0, displayHeight=containerHeight` — the image fills the container edge-to-edge in both edit and playback.
-
-**ReelCard overlay rendering** (`ReelCard.tsx`):
+**How the edit screen achieves this** (`edit.tsx`):
 ```tsx
-const NINE_SIXTEEN_CANVAS_HEIGHT = SCREEN_WIDTH * (16 / 9);
-const overlayCanvasTopOffset = Math.max(0, Math.floor((VIEWPORT_HEIGHT - NINE_SIXTEEN_CANVAS_HEIGHT) / 2));
-
-// OverlayCanvas is wrapped in a positioned View:
-<View style={{ position: 'absolute', top: overlayCanvasTopOffset, left: 0 }}>
-  <OverlayCanvas
-    canvasWidth={SCREEN_WIDTH}
-    canvasHeight={NINE_SIXTEEN_CANVAS_HEIGHT}
-    ...
+// REEL content: no safe-area padding on outer container
+<View style={styles.container}>   // flex:1, bg=#000
+  <AspectRatioPreview
+    videoWidth={windowWidth}       // AR = windowWidth / REEL_VIEWPORT_HEIGHT
+    videoHeight={REEL_VIEWPORT_HEIGHT}
+    maxWidth={windowWidth}
+    maxHeight={REEL_VIEWPORT_HEIGHT}
+    forceNineSixteen={false}       // targetAR = maxWidth/maxHeight = same as videoAR
+    // → videoArea fills the container with top=0, no letterbox
+    // → OverlayCanvas injected with canvasWidth=SCREEN_WIDTH, canvasHeight=VIEWPORT_HEIGHT
   />
+```
+
+**How the feed matches** (`ReelCard.tsx`):
+```tsx
+// OverlayCanvas placed at top=0, height=VIEWPORT_HEIGHT (no offset)
+<View style={{ position: 'absolute', top: 0, left: 0 }}>
+  <OverlayCanvas canvasWidth={SCREEN_WIDTH} canvasHeight={VIEWPORT_HEIGHT} />
 </View>
 ```
 
-This aligns the overlay canvas with the vertically-centred 9:16 region inside the taller viewport. **Do not change this** without also updating the edit screen's `AspectRatioPreview` configuration.
+**Do not** re-introduce `overlayCanvasTopOffset` or `NINE_SIXTEEN_CANVAS_HEIGHT` in `ReelCard.tsx` — these were the source of the vertical mismatch.
 
-**Residual edge gap (all content types):** Because `VIEWPORT_HEIGHT > NINE_SIXTEEN_CANVAS_HEIGHT` (by ≈40–70px depending on device/tab-bar), the overlay canvas does not reach the absolute top and bottom of the image in cover mode. Roughly the top ~5% and bottom ~8% of the image fall outside the canvas. Overlays placed at the extreme edges of the edit canvas may therefore appear slightly inside the frame edges in playback. This is inherent in the current architecture and is consistent for all content including native 9:16 video.
+**POST content** continues to use `forceNineSixteen={false}` with POST aspect-ratio dimensions (`4:5`, `16:9`, or `1:1` mappings) and safe-area padding. POST images are not full-screen and do not use VIEWPORT_HEIGHT.
 
 ### Content-Type Toggle
 
