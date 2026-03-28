@@ -1607,8 +1607,109 @@ Write-Host "Failed: $failedTests ($([math]::Round($failedTests/$totalTests*100, 
 
 ---
 
-**Document Version**: 1.1  
-**Last Updated**: March 22, 2026  
+**Document Version**: 1.2  
+**Last Updated**: March 2026  
 **Module**: Delivery  
-**Test Cases**: 46 (11 categories)  
+**Test Cases**: 50 (12 categories)  
 **Status**: ✅ Complete
+
+---
+
+## Category 12: Live Tracking Bugs (Regression Suite)
+
+### TC-DELIVERY-47: Rider location updates not stored — `req.user.userId` undefined
+
+**Type:** Bug Regression  
+**Feature area:** `POST /api/v1/rider/location` — `RiderLocationController`  
+**Priority:** P0
+
+**Preconditions:**
+- Rider is authenticated (JWT issued)
+- Order is in `ASSIGNED` status with `deliveryPartnerId` set to the rider's UUID
+
+**Steps:**
+1. Rider app calls `POST /api/v1/rider/location` with `{ orderId, latitude, longitude }`
+2. Server receives request
+
+**Expected result:** `200 OK`, coordinates stored in Redis key `rider_location:{orderId}`
+
+**Actual result (before fix):** `404 Not Found — Order not found or not assigned to this rider`  
+Root cause: `RiderLocationController` extracted `riderId = req.user.userId`. Because `JwtStrategy.validate()` returns the full `User` entity, `req.user.userId` is `undefined`. The service query `WHERE deliveryPartnerId = undefined` never matches any row.
+
+**Fix applied:** Changed `req.user.userId` → `req.user.id` in `rider-location.controller.ts:40`
+
+**Regression test:** `apps/chefooz-apis/src/modules/rider-location/rider-location.controller.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
+### TC-DELIVERY-48: Live/Static button hidden on `ASSIGNED` status
+
+**Type:** Bug Regression / UI  
+**Feature area:** `apps/chefooz-app/src/app/orders/[id]/track.tsx`  
+**Priority:** P1
+
+**Preconditions:**
+- Customer has a paid order with a rider manually assigned by admin
+- Order is in `ASSIGNED` delivery status (rider not yet picked up)
+
+**Steps:**
+1. Customer opens the order tracking screen
+2. Customer expects to see the Live/Static map toggle button
+
+**Expected result:** Button is visible but disabled, with label "Live" and 50% opacity, indicating tracking will be available after pickup.
+
+**Actual result (before fix):** Button is completely hidden because the condition only showed it for `PICKED_UP` or `OUT_FOR_DELIVERY`. Customer has no feedback that tracking exists.
+
+**Fix applied:** Expanded condition to include `ASSIGNED` status, rendered button with `disabled={true}` and reduced opacity.
+
+**Regression test:** Manual UI check on 375px device  
+**Status:** Fixed ✅
+
+---
+
+### TC-DELIVERY-49: Static map shows Delhi for orders outside Delhi
+
+**Type:** Bug Regression / UI  
+**Feature area:** `apps/chefooz-app/src/app/orders/[id]/track.tsx`  
+**Priority:** P1
+
+**Preconditions:**
+- Order placed in Bengaluru or any non-Delhi city
+- Chef or customer address coordinates absent from API response
+
+**Steps:**
+1. Customer opens tracking screen when `chefInfo.latitude` / `addressSnapshot.latitude` are missing from the response
+
+**Expected result:** Map defaults to a generic India centre view; no polyline drawn.
+
+**Actual result (before fix):** Map centred at `28.6100, 77.2000` (Delhi) — a hardcoded fallback. Polyline drawn between two Delhi points.
+
+**Fix applied:** Removed all hardcoded Delhi fallbacks. Added `hasChefCoords` / `hasDestCoords` guards. `staticMapRegion` falls back to `{ latitude: 20.5937, longitude: 78.9629 }` (India centre). Polylines only rendered when both endpoints have real coordinates.
+
+**Regression test:** Manual UI check with mock response missing coordinates  
+**Status:** Fixed ✅
+
+---
+
+### TC-DELIVERY-50: No UI feedback between rider assignment and pickup (ASSIGNED state)
+
+**Type:** Bug Regression / UX  
+**Feature area:** `apps/chefooz-app/src/app/orders/[id]/track.tsx`  
+**Priority:** P2
+
+**Preconditions:**
+- Order is in `ASSIGNED` status, rider has not yet picked up
+
+**Steps:**
+1. Customer opens tracking screen
+2. Customer sees Rider Card (name, phone)
+3. Customer looks for status guidance
+
+**Expected result:** A contextual card reads "Rider is on the way to restaurant — Live tracking starts once your rider picks up the order."
+
+**Actual result (before fix):** No such card existed. Transition between "Finding rider..." and active tracking was silent.
+
+**Fix applied:** Added ASSIGNED status banner card above Rider Card, visible only when `deliveryStatus === DeliveryStatus.ASSIGNED && riderInfo` is truthy.
+
+**Status:** Fixed ✅

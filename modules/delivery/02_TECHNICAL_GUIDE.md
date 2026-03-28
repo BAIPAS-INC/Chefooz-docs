@@ -1962,7 +1962,36 @@ CREATE INDEX idx_needs_manual_assignment ON orders (needs_manual_assignment);
 
 ---
 
-**Document Version**: 1.1  
-**Last Updated**: March 22, 2026  
+**Document Version**: 1.2  
+**Last Updated**: March 2026  
 **Module**: Delivery  
 **Status**: ✅ Complete
+
+---
+
+## Live Tracking — Critical Constraints
+
+### JWT user identity field
+`JwtStrategy.validate()` returns the full `User` TypeORM entity.  
+Inside any controller decorated with `@UseGuards(JwtAuthGuard)` the correct property to read the authenticated user's ID is **`req.user.id`**, NOT `req.user.userId` (which is `undefined`).
+
+```ts
+// ✅ Correct
+const riderId = req.user.id;
+
+// ❌ Wrong — always undefined, causes NotFoundException downstream
+const riderId = req.user.userId;
+```
+
+This was the root cause of TC-DELIVERY-47: all `POST /rider/location` calls from the rider app silently failed, so no GPS coordinates were ever written to Redis and live tracking never worked.
+
+### Rider location Redis key
+`rider_location:{orderId}` — TTL 5 minutes.  
+Data: `{ lat: number, lng: number, updatedAt: ISO string }`.  
+Sentinel response when key absent: `{ lat: 0, lng: 0 }` — frontend guards with `location.lat !== 0`.
+
+### Tracking gate on the customer app
+Live tracking polling (`useLiveLocation`) and the Live/Static map toggle are only **active** on `PICKED_UP` and `OUT_FOR_DELIVERY` statuses. On `ASSIGNED` the button is visible but disabled with a contextual explanation card.
+
+### Coordinate fallback rule
+Never use hardcoded regional coordinates (e.g. Delhi `28.61, 77.20`) as fallbacks. If chef or destination coordinates are missing from the API response, omit polylines and centre the map on India (`20.5937, 78.9629`) at zoom `latitudeDelta: 15`.

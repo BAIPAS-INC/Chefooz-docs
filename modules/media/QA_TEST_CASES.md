@@ -1733,5 +1733,36 @@ const completedOrdersCount = await this.orderRepository.count({ ... });
 
 ---
 
+### TC-MEDIA-BUG: Food video incorrectly flagged as `needs_review` on staging
+
+**Type:** Bug Regression  
+**Feature area:** `aws-rekognition.provider.ts` — explicit score calculation  
+**Priority:** P1
+
+**Preconditions:**
+- Staging environment (`CHEFOOZ_ENV=staging`)
+- Chef uploads a legitimate food video (e.g. brownie, dark chocolate sauce, grilled meat)
+
+**Steps:**
+1. Chef records and uploads a food video
+2. Video processing completes (FFmpeg / MediaConvert)
+3. Moderation pipeline runs `analyzeVideo()` via Rekognition
+4. AWS Rekognition returns `Suggestive` label at 65-75% confidence for dark/brown food tones
+5. `explicitScore` exceeds the staging `explicitContentReviewThreshold` (65%)
+
+**Expected result:** Video is approved; chef's content goes live.
+
+**Actual result (before fix):** Video receives `moderationStatus = needs_review` despite showing entirely safe food content. The video is still visible to customers (feed includes `needs_review`) but it lands in the admin human-review queue as a false positive, creating noise and review workload.
+
+**Root cause:** `Suggestive` was included in the four labels used to compute `explicitScore`. AWS Rekognition's `Suggestive` category is too broad — it matches dark/brown textures (chocolate, sauces, brownie batter) commonly found in food photography. The explicit review threshold on staging (65%) is below the typical `Suggestive` confidence for food close-ups (65-75%).
+
+**Fix applied:** Removed `'Suggestive'` from the explicit-score label arrays in both `analyzeContent()` (image) and `analyzeVideo()` (video) in `aws-rekognition.provider.ts`. Truly explicit content in a food-app context will still be caught by `'Explicit Nudity'`, `'Nudity'`, and `'Sexual Activity'`.
+
+**Regression test:** Upload a dark-food video (brownie, grilled meat, chocolate sauce) on staging; confirm `moderationStatus = approved`.  
+**Status:** Fixed ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**  
-*Media Module QA Test Cases - Updated March 2026 (63 test cases)*
+*Media Module QA Test Cases - Updated March 2026 (64 test cases)*
+

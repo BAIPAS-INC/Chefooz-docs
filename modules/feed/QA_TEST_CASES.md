@@ -2996,5 +2996,55 @@ Race between `expo-video` status (`readyToPlay`) and the FlatList viewability ca
 
 ---
 
-**Last Updated**: March 2026
+### TC-FEED-BUG-007: Soft-deleted reels appear in public feed
+
+**Type:** Bug Regression  
+**Feature area:** `feed.service.ts` — Mongoose query filter  
+**Priority:** P0 (banned content visible to users)
+
+**Preconditions:**
+- A reel has been soft-deleted (its `deletedAt` field is set to a non-null Date)
+- User opens the home feed
+
+**Steps:**
+1. Chef or admin soft-deletes a reel (API sets `deletedAt = now()`)
+2. Customer opens the home feed
+
+**Expected result:** Deleted reels do not appear in the feed.
+
+**Actual result (before fix):** Deleted reels appeared because the Mongoose feed query had no `deletedAt` filter. The query only checked `moderationStatus` and `videoUrl` presence.
+
+**Fix applied:** Added `filter.$and.push({ deletedAt: null })` before content-type filters in `feed.service.ts`. MongoDB `{ deletedAt: null }` matches both `null` and absent field — covers legacy data.
+
+**Regression test:** Manual — delete a reel via API and confirm it is absent from feed response.  
+**Status:** Fixed ✅
+
+---
+
+### TC-FEED-BUG-008: Reels from auto-banned users remain visible in feed
+
+**Type:** Bug Regression  
+**Feature area:** `moderation.service.ts` (auto-ban) → Mongoose reel documents  
+**Priority:** P0 (banned user content visible)
+
+**Preconditions:**
+- A user has 3+ rejected content violations in 24 hours
+- Auto-ban fires (`checkForAutoBan`) and sets `accountStatus = 'suspended'`
+
+**Steps:**
+1. Auto-ban job fires for user X
+2. Customer opens the home feed
+
+**Expected result:** All content from user X is hidden from public feed.
+
+**Actual result (before fix):** The auto-ban updated `User.accountStatus = 'suspended'` in PostgreSQL, but did NOT cascade to MongoDB reel documents. The feed query checks `moderationStatus` per-reel (MongoDB) and has no join to `User.accountStatus` (PostgreSQL). So approved/pending/needs_review reels from the banned user stayed visible.
+
+**Fix applied:** In `checkForAutoBan()`, after updating the user record, added `reelModel.updateMany({ userId, moderationStatus: { $in: ['approved', 'pending', 'needs_review'] } }, { $set: { moderationStatus: 'rejected' } })` to cascade the ban to all active MongoDB reel documents.
+
+**Regression test:** Manual — create user with 3 rejections → confirm their visible reels disappear from feed after auto-ban.  
+**Status:** Fixed ✅
+
+---
+
+**Last Updated**: March 2026 (updated March 27 2026)
 
