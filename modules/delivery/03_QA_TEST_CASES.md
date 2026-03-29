@@ -1694,6 +1694,58 @@ Root cause: `RiderLocationController` extracted `riderId = req.user.userId`. Bec
 
 ### TC-DELIVERY-50: No UI feedback between rider assignment and pickup (ASSIGNED state)
 
+---
+
+### TC-DELIVERY-51: Active delivery screen crashes on render (deprecated hook stubs)
+
+**Type:** Bug Regression
+**Feature area:** `apps/chefooz-app/src/app/delivery/active.tsx`
+**Priority:** P0
+
+**Preconditions:**
+- Rider is assigned to an order
+- Rider navigates to `/delivery/active`
+
+**Steps:**
+1. Rider accepts a delivery request and is routed to the active delivery screen
+2. Screen attempts to render
+
+**Expected result:** Active delivery screen loads with map and delivery details.
+**Actual result (before fix):** Screen crashed immediately — `useActiveDelivery`, `useUpdateDeliveryState`, and `useCompleteDelivery` were deprecated stubs in `@chefooz-app/api-client` that threw `Error: deprecated` on every render.
+**Fix applied:** Replaced all three deprecated hook calls with inline `useQuery` / `useMutation` calls using `apiClient` directly (interceptor handles auth). Added `refetchInterval: 15000` to the active delivery query.
+**Regression test:** Manual — open `/delivery/active` as a rider; screen should load without crash.
+**Status:** Fixed ✅
+
+---
+
+### TC-DELIVERY-52: Rider stuck on active delivery screen after order auto-cancel
+
+**Type:** Bug Regression
+**Feature area:** `apps/chefooz-app/src/app/delivery/active.tsx`, `apps/chefooz-apis/src/modules/delivery/delivery.service.ts`
+**Priority:** P1
+
+**Preconditions:**
+- Rider has accepted an order and is on the active delivery screen
+- Order is still in `out_for_delivery` or pre-pickup state
+- Pickup timeout cron fires (`PICKUP_TIMEOUT` or `DELIVERY_TIMEOUT`)
+
+**Steps:**
+1. Rider accepts delivery and stays on `/delivery/active`
+2. Timeout cron fires, marking `order.status = CANCELLED`
+3. Within 15 seconds, the active delivery query refetches. Backend `getActiveDelivery` detects `order.status === CANCELLED`, clears `user.currentDeliveryId`, returns `null`.
+4. Frontend `useEffect` detects `activeDelivery === null` with `hadDeliveryRef.current === true`
+5. Alert shown: "This order was cancelled. You have been returned to the delivery dashboard."
+6. Rider taps OK → routed to `/delivery/home`
+
+**Expected result:** Rider sees alert explaining cancellation and is unblocked within 15 seconds.
+**Actual result (before fix):** Rider was permanently stuck — `autoCancelOrder` did NOT clear `user.currentDeliveryId`, so subsequent `getActiveDelivery` calls kept returning the cancelled delivery. Screen had no polling and no cancellation check.
+**Fix applied:**
+- `autoCancelOrder` in `order.service.ts` now clears `user.currentDeliveryId = undefined` and `user.deliveryStatus = 'online'` via `userRepo.update()` when `order.deliveryPartnerId` is set.
+- `getActiveDelivery` in `delivery.service.ts` also has a defensive guard: if the loaded delivery's order is CANCELLED/REFUNDED, it performs the same cleanup and returns `null`.
+- `delivery/active.tsx` added `refetchInterval: 15000` and a `hadDeliveryRef` to detect mid-session cancellation and show an alert.
+**Regression test:** Dev test: assign rider to order → trigger auto-cancel → verify rider is redirected within 15s with alert.
+**Status:** Fixed ✅
+
 **Type:** Bug Regression / UX  
 **Feature area:** `apps/chefooz-app/src/app/orders/[id]/track.tsx`  
 **Priority:** P2
@@ -1713,3 +1765,106 @@ Root cause: `RiderLocationController` extracted `riderId = req.user.userId`. Bec
 **Fix applied:** Added ASSIGNED status banner card above Rider Card, visible only when `deliveryStatus === DeliveryStatus.ASSIGNED && riderInfo` is truthy.
 
 **Status:** Fixed ✅
+
+---
+
+### TC-DELIVERY-53: Pickup timeout fires while chef is still preparing (false auto-cancel)
+
+**Type:** Bug Regression / Automated
+**Feature area:** Delivery timeout cron / Pickup policy
+**Priority:** P0
+
+**Preconditions:**
+- `pickupTimeoutMin = 30` (dev config)
+- Order placed at 6:00 PM
+- Rider assigned and accepts at 6:01 PM
+- Chef prep time = 45 minutes (food ready at 6:46 PM)
+
+**Steps:**
+1. Rider accepts delivery request at 6:01 PM
+2. Chef starts preparing — order status moves to `PREPARING`
+3. Cron runs at 6:32 PM (31 min since rider accepted)
+4. Food is not yet ready (`order.readyAt` is null, status is `PREPARING`)
+
+**Expected result:** Cron does NOT cancel the order. Rider correctly waits for food to be ready.
+
+**Actual result (before fix):** Cron measured time from `deliveryAcceptedAt` (6:01 PM). At 6:32 PM, `minutesSinceAcceptance = 31 > 30` → order auto-cancelled while chef was still cooking.
+
+**Fix applied:**
+- `shouldAutoCancelForPickupDelay` now accepts `readyAt: Date | null` instead of `acceptedAt: Date`
+- If `readyAt` is null → food not ready → `allowed: true` (no cancellation)
+- Clock starts only after chef marks food READY
+- `checkPickupTimeouts` cron now queries `status = READY` orders and passes `order.readyAt`
+
+**Regression test:** `libs/domain/src/policies/delivery.policy.spec.ts` — `shouldAutoCancelForPickupDelay` describe block
+**Status:** Fixed ✅
+
+---
+
+### TC-DELIVERY-54: Rider home page shows stale "1 active order" / busy banner after order auto-cancel
+
+**Type:** Bug Regression / Manual
+**Feature area:** Rider home page (`delivery/home.tsx`), `autoCancelOrder`, `RiderBusyBanner`
+**Priority:** P0
+
+**Preconditions:**
+- Rider has an active order in `ASSIGNED` delivery status
+- Order is auto-cancelled by timeout cron (`autoCancelOrder`)
+
+**Steps:**
+1. Auto-cancel fires (pickup or delivery timeout)
+2. Rider opens home page
+
+**Expected result:**
+- Banner shows "Available for new deliveries" (green)
+- "My Deliveries" Assigned section is empty
+- Active order count = 0
+
+**Actual result (before fix):**
+- Banner shows "You're currently delivering an order — New assignment paused (1/2 active)" (yellow)
+- "My Deliveries" Assigned section shows the cancelled order with "This order is cancelled" label
+- Backend log: `Found 1 orders for rider ... status: ASSIGNED`
+
+**Root cause:** `autoCancelOrder` set `order.status = CANCELLED` and cleared `user.currentDeliveryId`, but never set `order.deliveryStatus = 'CANCELLED'`. The rider orders query filters by `order.deliveryStatus = ASSIGNED`, and the `ACTIVE_DELIVERY_STATUSES` busy-state count includes `ASSIGNED` — both still matched the cancelled order.
+
+**Fix applied:**
+- In `autoCancelOrder` (`order.service.ts`): set `order.deliveryStatus = 'CANCELLED'` before saving — immediately removes order from `deliveryStatus = ASSIGNED` queries
+- Inject `RiderBusyService` into `OrderService` and call `recalculateBusyState(riderId)` after clearing user state — immediately corrects `riderProfile.isBusy` and `riderProfile.activeOrderCount`
+
+**Regression test:** n/a (integration-level; covered by manual QA)
+**Status:** Fixed ✅
+
+---
+
+### TC-DEL-55: Online rider with `isBusy=true` (stale flag) is not assigned new orders
+
+**Type:** Bug Regression / Manual
+**Feature area:** `RiderAvailabilityService.updateHeartbeat`, `DeliveryAssignmentService.findEligibleRider`
+**Priority:** P0
+
+**Preconditions:**
+- Rider is verified (`isActive=true`)
+- Rider has no active orders (`activeOrderCount=0`, `maxConcurrentDeliveries=5`)
+- `isBusy=true` stuck in DB — set by `recalculateBusyState` while heartbeat was stale or rider was offline
+- Rider is actively sending heartbeats (`isOnline=true`, fresh `lastHeartbeatAt` in logs)
+
+**Steps:**
+1. Rider comes back online — heartbeats arrive every 30s
+2. Customer places an order in the same city (Bengaluru)
+3. Chef accepts the order
+4. `AssignmentRetryService` cron fires → calls `findEligibleRider`
+5. Query: `WHERE rider.isOnline = true AND rider.isActive = true AND rider.isBusy = false AND LOWER(rider.city) IN (...)`
+
+**Expected result:** Rider matched and assigned. Log: `✅ Rider assigned to order`.
+
+**Actual result (before fix):** `No eligible riders found for order <id> in Bengaluru`. Rider excluded because `isBusy = true` in DB even though `activeOrderCount = 0`.
+
+**Root cause:**
+`shouldRiderBeBusy` returns `isBusy: true` when called while heartbeat is stale (rule 2) or rider is offline (rule 3). `recalculateBusyState` persists this. When the rider comes back and sends heartbeats, `updateHeartbeat` restored `isOnline=true` and a fresh `lastHeartbeatAt` — but **never cleared `isBusy`**. The flag stayed permanently `true`.
+
+**Fix applied:**
+In `RiderAvailabilityService.updateHeartbeat` (`rider-availability.service.ts`): after setting `isOnline=true`, if `rider.isBusy && rider.activeOrderCount < rider.maxConcurrentDeliveries`, set `rider.isBusy = false`. Self-heals on every fresh heartbeat with no extra queries.
+
+**Regression test:** n/a (integration-level)
+**Status:** Fixed ✅
+**Date:** 2026-03-29

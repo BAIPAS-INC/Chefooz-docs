@@ -1799,6 +1799,33 @@ async checkDeliveryTimeouts() {
 
 ---
 
+### **`autoCancelOrder` — Rider Lifecycle Constraint (Critical)**
+
+> Updated: March 2026 — BUG FIX for rider stuck after timeout cancellation
+
+When `autoCancelOrder` fires (from any of the three jobs above), the following **must** happen atomically:
+
+1. `order.status` → `CANCELLED`
+2. Push notifications sent to customer + chef + rider
+3. **`user.currentDeliveryId` → `undefined`** ← previously missing
+4. **`user.deliveryStatus` → `'online'`** ← previously missing
+
+Without steps 3 & 4, the rider remained permanently stuck: their `currentDeliveryId` pointed to a cancelled order, `getActiveDelivery` returned it, and the `active.tsx` screen showed an unactionable delivery.
+
+**Defence-in-depth chain:**
+
+| Layer | Guard | Where |
+|-------|-------|--------|
+| 1 (proactive) | `autoCancelOrder` clears `currentDeliveryId` + sets `deliveryStatus = online` | `order.service.ts` |
+| 2 (reactive) | `getActiveDelivery` detects `order.status === CANCELLED/REFUNDED`, clears state, returns `null` | `delivery.service.ts` |
+| 3 (UI) | `active.tsx` polls every 15 s, shows `Alert` when delivery disappears, routes to `/delivery/home` | `delivery/active.tsx` |
+| 4 (detail screen) | `rider/orders/[id].tsx` shows cancelled banner when `order.status === cancelled/refunded` | `rider/orders/[id].tsx` |
+
+**`active.tsx` hook migration note:**  
+`useActiveDelivery`, `useUpdateDeliveryState`, `useCompleteDelivery` are **deprecated stubs** that throw on every render. As of March 2026, `active.tsx` uses inline `useQuery`/`useMutation` from `@tanstack/react-query` + `apiClient` directly. Do **not** re-introduce those deprecated hooks.
+
+---
+
 ## ⚠️ **Error Handling**
 
 ### **Error Codes**
