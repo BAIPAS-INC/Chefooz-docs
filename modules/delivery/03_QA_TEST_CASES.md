@@ -1868,3 +1868,134 @@ In `RiderAvailabilityService.updateHeartbeat` (`rider-availability.service.ts`):
 **Regression test:** n/a (integration-level)
 **Status:** Fixed ✅
 **Date:** 2026-03-29
+
+---
+
+### TC-DEL-56: Customer tracking screen shows static San Francisco map after payment
+
+**Type:** Bug Regression / Manual
+**Feature area:** `payment-status.tsx`, `orders/[orderId]/track.tsx`, `orders/[id]/track.tsx`
+**Priority:** P0
+
+**Preconditions:**
+- Customer completes payment via UPI/Razorpay
+- Payment status screen polls and receives `paymentStatus: 'paid'`
+
+**Steps:**
+1. Customer places order and completes payment
+2. Payment status screen detects `paid` and navigates to the tracking screen
+3. Customer is on the tracking screen, order transitions to `OUT_FOR_DELIVERY`
+
+**Expected result:**
+- Customer sees tracking screen with correct city map
+- Rider marker appears and follows the rider's GPS in real time (5s polling)
+
+**Actual result (before fix):**
+- Customer is navigated to `orders/[orderId]/track.tsx` (old simulation screen)
+- Map was centred on San Francisco (lat: 37.78825, lng: -122.4324) — hardcoded
+- A fake WebSocket simulation randomly moved a marker around SF
+- No real rider GPS data was ever shown regardless of actual delivery location
+
+**Root cause:**
+`payment-status.tsx` used `pathname: '/orders/[orderId]/track'` which explicitly
+routed to the old `[orderId]/track.tsx` file (WebSocket simulation screen).
+The real tracking screen `[id]/track.tsx` uses REST polling (`GET /v1/orders/:id/live-location`)
+against Redis-backed real GPS data but was unreachable from the payment flow.
+
+**Fix applied:**
+1. `payment-status.tsx`: changed route to `pathname: '/orders/[id]/track'`, `params: { id: orderId }`
+2. `orders/[orderId]/track.tsx`: replaced 630-line simulation with a redirect component
+   that bounces to `[id]/track.tsx` for any remaining legacy navigations
+3. `orders/[id]/track.tsx`: removed controlled `region` prop during live tracking
+   (was fighting `animateToRegion` and locking map). Enabled `scrollEnabled` and
+   `zoomEnabled` when live tracking is active (Zomato/Swiggy style interaction).
+   `animateToRegion` now also fires when `showLiveTracking` first activates.
+
+**Regression test:** Manual — place order, complete payment, verify map shows Bengaluru
+**Status:** Fixed ✅
+**Date:** 2026-03-29
+
+---
+
+### TC-DEL-57: Rider location not posted when state transitions to en_route after screen mount
+
+**Type:** Bug Regression / Manual
+**Feature area:** `apps/chefooz-app/src/app/delivery/active.tsx`
+**Priority:** P0
+
+**Preconditions:**
+- Rider opens `delivery/active.tsx` while delivery state is `navigate_to_chef`
+- Rider presses button to mark food as collected → state becomes `picked_up`
+- Rider presses button again → state becomes `en_route`
+
+**Steps:**
+1. Rider mounts `active.tsx` at state `navigate_to_chef`
+2. Location `useEffect` runs, creates `setInterval`; captures `state = 'navigate_to_chef'` from closure
+3. Rider advances to `en_route` (button press)
+4. `activeDelivery.state = 'en_route'` in React Query, BUT `activeDelivery?.id` unchanged
+5. `useEffect` does NOT re-run; interval still has stale `state = 'navigate_to_chef'`
+6. Interval condition `state !== 'picked_up' && state !== 'en_route'` → true → returns early
+7. No GPS is ever posted to backend → customer tracking screen always shows `{lat:0, lng:0}`
+
+**Expected result:** Rider location posted every 5s once state reaches `picked_up` or `en_route`
+
+**Actual result (before fix):** Location never posted if state advanced while `active.tsx` was open
+
+**Fix applied:**
+- Added `activeDeliveryRef = useRef<ActiveDelivery | null>(null)` that stays synced via
+  the existing `useEffect([activeDelivery])`.
+- `setInterval` now reads `activeDeliveryRef.current` (not the stale closure capture).
+- Also added `heading` and `speed` fields to location posts (from `expo-location` coords).
+
+**Regression test:** n/a (integration-level)
+**Status:** Fixed ✅
+**Date:** 2026-03-29
+
+---
+
+### TC-DEL-58: Rider GPS tracking silently blocked by background location permission denial
+
+**Type:** Bug Regression / Manual
+**Feature area:** `apps/chefooz-app/src/services/rider-location.service.ts`, `rider/orders/[id].tsx`
+**Priority:** P0
+
+**Preconditions:**
+- Rider is logged in and has been assigned an order
+- Rider's device has location set to "While Using App" (foreground only) — the default iOS choice
+- Rider opens `rider/orders/[id].tsx` and marks the order as `PICKED_UP`
+
+**Steps:**
+1. Rider opens order detail screen (`rider/orders/[id].tsx`)
+2. Delivery status is `PICKED_UP` or `OUT_FOR_DELIVERY` → `useEffect` calls `riderLocationService.startTracking(orderId)`
+3. `startTracking()` calls `requestPermissions()`
+4. Foreground permission: granted ✅
+5. Background permission: denied (user chose "While Using App") ⛔
+6. `requestPermissions()` returns `false`
+7. `startTracking()` logs `Location permissions not granted` and returns `false`
+8. No GPS is EVER posted to Redis → `GET /v1/orders/:id/live-location` returns null
+9. Customer tracking screen shows fixed map, rider marker never moves
+
+**Expected result:** Rider location is tracked and posted every 6s while the order is active
+
+**Actual result (before fix):**
+Logs on rider device:
+```
+WARN  Background location permission denied
+ERROR  Location permissions not granted
+```
+Customer tracking silently fails — map is static, no error shown to user.
+
+**Root cause:**
+`RiderLocationService.requestPermissions()` required *both* foreground AND background
+permissions and returned `false` if either was denied. `watchPositionAsync()` only
+requires foreground permission ("While Using App"). Requiring background = "Always Allow"
+to even start tracking was unnecessarily strict and breaks on the default iOS permission choice.
+
+**Fix applied:**
+`rider-location.service.ts` — background permission is now requested opportunistically.
+A warning is logged if denied, but `requestPermissions()` still returns `true` so
+tracking proceeds with foreground-only GPS (works while app is open).
+
+**Regression test:** n/a (integration-level)
+**Status:** Fixed ✅
+**Date:** 2026-03-30
