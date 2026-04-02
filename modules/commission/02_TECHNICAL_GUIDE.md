@@ -2,7 +2,7 @@
 
 **Module**: `commission`  
 **Type**: Core Monetization Feature  
-**Last Updated**: February 22, 2026
+**Last Updated**: April 2, 2026
 
 ---
 
@@ -454,7 +454,7 @@ async createPendingCommission(
 
 **Returns**:
 - `CommissionLedger`: Created ledger entry if eligible
-- `null`: If commission ineligible (chef, self-earning, etc.)
+- `null`: If commission ineligible (creator is the kitchen chef, self-earning, or creator not found)
 
 **Business Logic**:
 ```typescript
@@ -470,20 +470,23 @@ async createPendingCommission(
     throw new Error(`Order ${orderId} not found`);
   }
 
-  // Step 2: Fetch creator user (check role)
+  // Step 2: Fetch creator user (verify account exists; chefs ARE eligible)
   const creator = await this.userRepo.findOne({ where: { id: payeeUserId } });
   if (!creator) {
     this.logger.warn(`Creator user ${payeeUserId} not found, skipping commission`);
     return null;
   }
 
-  // Step 3: Business Rule - Chefs don't earn commissions
-  if (creator.role === 'chef') {
-    this.logger.log(`Creator ${payeeUserId} is a chef, skipping commission`);
+  // Step 3: Business Rule - Creator cannot be the chef hosting this order's kitchen.
+  // A chef reviewing ANOTHER chef's food and driving orders is legitimate.
+  // But a chef cannot earn commission bonus on top of their own kitchen revenue.
+  // (Belt-and-suspenders: self-ordering is blocked at cart level.)
+  if (payeeUserId === order.chefId) {
+    this.logger.log(`Creator ${payeeUserId} is the kitchen chef, skipping commission (no self-kitchen earning)`);
     return null;
   }
 
-  // Step 4: Business Rule - No self-earning
+  // Step 4: Business Rule - No self-earning (creator placed this specific order themselves)
   if (payeeUserId === order.userId) {
     this.logger.log(`Creator ${payeeUserId} placed order themselves, skipping commission`);
     return null;
@@ -1833,6 +1836,42 @@ for (const ledger of pendingLedgers) {
    - Create 2 pending commissions for same user
    - Credit both simultaneously (race condition test)
    - Verify both credited correctly (no lost updates)
+
+---
+
+## ⚠️ Critical Edge Cases Discovered (April 2026)
+
+### 1. `cacheService.set()` Serializes Internally — Do NOT pre-stringify
+
+`CacheService.set(key, value, ttl)` calls `JSON.stringify(value)` before storing in Redis.
+If you also pre-stringify the value, Redis holds a double-encoded string and
+`cacheService.get<T>()` returns a plain `string` instead of an object.
+
+**Rule:** Always pass the raw object to `cacheService.set()`:
+
+```typescript
+// ✅ CORRECT
+await cacheService.set(key, { linkedReelId: 'abc' }, ttl);
+
+// ❌ WRONG — double-serializes, read returns string not object
+await cacheService.set(key, JSON.stringify({ linkedReelId: 'abc' }), ttl);
+```
+
+This broke cart attribution storage. Every order was saved with `NULL attribution`,
+commissions were never generated, and creator coins were never credited.
+Fixed in `cart.service.ts` `addItem()` and `addCreatorOrderToCart()` (April 2026).
+
+### 2. Commission Cron Must Be Registered
+
+`processPendingCommissionsJob()` required a `@Cron` decorator to run automatically;
+without it commissions accumulated as `PENDING` forever.
+Current schedule: every 5 minutes (`@Cron(CronExpression.EVERY_5_MINUTES)`).
+
+### 3. Reorder Must Re-Attach Attribution
+
+`reorderToCart()` clears the cart and adds fresh items. It must explicitly call
+`cartService.setCartAttribution()` with the original order's `attribution` object.
+Without this, reordered orders have `NULL attribution` and no commission fires.
 
 ---
 

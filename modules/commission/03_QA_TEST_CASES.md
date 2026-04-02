@@ -1554,3 +1554,45 @@ it('TC-COM-050: should process all pending commissions', async () => {
 **Documentation**: QA Test Cases complete (~6,800 lines)  
 **Total Module Documentation**: ~31,600 lines (Feature Overview + Technical Guide + QA Test Cases)  
 **Next Steps**: Move to Withdrawal module (Week 8, Module 3)
+
+---
+
+## 🐛 Bug Regressions (April 2, 2026)
+
+### TC-38: Domain rule status case mismatch blocks all commission generation
+
+**Type:** Bug Regression  
+**Feature area:** `libs/domain/src/orders/order.rules.ts` → `canGenerateCommission`  
+**Priority:** P0
+
+**Preconditions:**
+- Order placed via a USER_REVIEW reel CTA with valid attribution
+- Order reaches `delivered` status
+
+**Steps:**
+1. Customer taps "Order Now" on a review reel; order is fulfilled and delivered
+2. `handleOrderDelivered` calls `canGenerateCommission()`
+3. Check `commission_ledger` for a PENDING entry
+
+**Expected result:** Commission ledger entry created  
+**Actual result (before fix):** No entry. `isOrderCompleted()` checked `order.status === 'DELIVERED'` but DB stores it as `'delivered'` (lowercase). Always returned `false` → commission never generated.  
+**Fix applied:** `isOrderCompleted()`, `canAssignChef()`, `canAssignDelivery()` now call `normalizeStatus()` before comparing. `ORDER_CONSTANTS.TERMINAL_STATUSES` and `TRACKING_STOP_STATUSES` updated from uppercase to lowercase values matching the DB enum.  
+**Files changed:** `libs/domain/src/orders/order.rules.ts`, `libs/domain/src/shared/constants.ts`  
+**Status:** Fixed ✅
+
+### TC-39: invalidateCache() wipes attribution immediately after storing it
+
+**Type:** Bug Regression  
+**Feature area:** `apps/chefooz-apis/src/modules/cart/cart.service.ts` → `addItem`, `addCreatorOrderToCart`  
+**Priority:** P0
+
+**Steps:**
+1. User taps "Order Now" on a reel → `addItem()` stores `cart:{userId}:attribution` in Redis
+2. `invalidateCache()` is called synchronously after → deletes the attribution key
+3. User calls `/cart/checkout` → `getCartAttribution()` returns null → order saved with `attribution = NULL`
+
+**Expected result:** Attribution key survives until checkout completes  
+**Actual result (before fix):** Attribution deleted on every cart mutation. All reel-attributed orders had `attribution = NULL`.  
+**Fix applied:** Removed `attributionKey` deletion from `invalidateCache()`. Attribution is now only cleared in `clearCart()` (full cart reset) and in `checkoutCart()` after order is created.  
+**Files changed:** `apps/chefooz-apis/src/modules/cart/cart.service.ts`  
+**Status:** Fixed ✅
