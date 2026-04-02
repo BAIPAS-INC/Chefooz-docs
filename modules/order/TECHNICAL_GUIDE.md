@@ -2628,4 +2628,117 @@ Amounts are always in **paise** (`totalPaise`). Divide by 100 for INR display.
 
 ---
 
+## Live Tracking Map — Production-Grade Implementation (April 2026)
+
+### Overview
+The live tracking screen (`apps/chefooz-app/src/app/orders/[id]/track.tsx`) now renders a full production-quality map experience with real road routes, custom markers, and chef kitchen location.
+
+### Chef Kitchen Coordinates
+
+`GET /v1/orders/:id/live` (`getOrderLiveStatus`) now returns `chefLocation?: { lat, lng }` by looking up the `chef_kitchen` table via `ChefKitchenService.getKitchen(order.chefId)`. This is a non-critical lookup — if the kitchen has no stored GPS, the field is omitted.
+
+### Google Directions Route Polyline
+
+| Aspect | Detail |
+|---|---|
+| API | `GET https://maps.googleapis.com/maps/api/directions/json` |
+| Mode | `driving` |
+| Key | Same key as `app.json` (`GOOGLE_MAPS_API_KEY` constant in screen) |
+| Trigger | Fires when rider has moved >100 m from last fetched origin (Haversine guard) |
+| Fallback | Dashed straight geodesic line while route loads or if API returns non-OK |
+| Cleanup | `AbortController` cancels in-flight request on unmount/re-trigger |
+
+### Custom Markers
+
+| Marker | Style | Icon |
+|---|---|---|
+| Rider | Green 44px circle, white border, elevation shadow | 🏍️ emoji, rotates with `location.heading` |
+| Destination | Red 40px circle, white border | `<Ionicons name="home" />` |
+| Chef Kitchen | Orange 40px circle, white border | 🍳 emoji |
+| Accuracy pulse | 120m radius Circle, 12% green fill | Indicates GPS accuracy zone |
+
+All markers use `tracksViewChanges={false}` to prevent re-render on every poll.
+
+### Dark Mode Map Style
+
+When `isDark` is true, `customMapStyle={DARK_MAP_STYLE}` is applied. The style:
+- Uses a dark blue-grey palette
+- Hides POI and transit layers (reduces visual noise)
+- Highway geometry uses a lighter accent colour
+
+### ETA Badge Overlay
+
+An absolute-positioned badge (bottom-left of map, above the Live/Static toggle) shows the current ETA string from `getEtaDisplay()`. It uses a semi-transparent dark background suitable for both light and dark mode.
+
+### `fitToCoordinates` Strategy
+
+The map auto-fits once per valid location session to include all 3 markers (rider, destination, chef kitchen). It fires with 800 ms delay after first valid GPS arrives and only re-fires after the session resets (rider becomes invalid then valid again).
+
+### Edge Cases
+
+| Case | Behaviour |
+|---|---|
+| Chef kitchen has no lat/lng stored | `chefLocation` omitted from response; no kitchen marker shown |
+| Google Directions API returns non-OK | `routeCoords` stays empty; fallback dashed polyline is shown |
+| Rider heading is null/undefined | Marker rendered without rotation transform |
+| Single valid coordinate | `fitToCoordinates` requires ≥2 points; deferred until second point is available |
+| Bezier arc: points too close (`dist < 0.0001`) | Returns straight line `[from, to]` to avoid divide-by-zero |
+
+---
+
+## Map Route — Bezier Arc (April 2026)
+
+Google Directions road polyline is **disabled** to eliminate per-request API costs. The route is now a client-side quadratic bezier arc.
+
+### `generateBezierArc(from, to, numPoints = 40)`
+
+Pure function — no API call, no network dependency.
+
+1. Computes the midpoint between `from` and `to` in lat/lng space
+2. Calculates a control point perpendicular to the midline at `arcHeight = 0.35 × dist`
+3. Iterates `numPoints + 1` steps along `t ∈ [0, 1]` using: `P(t) = (1-t)² × from + 2(1-t)t × cp + t² × to`
+4. Returns 41 `{ latitude, longitude }` points
+
+### Rendering (3 Polyline layers)
+
+| Layer | Colour | Width | Purpose |
+|---|---|---|---|
+| `arc-glow` | `rgba(16,185,129,0.18)` | `normalize(11)` | Soft ambient glow |
+| `arc-seg-1` (first half) | `#10B981` (brand green) | `normalize(3)` | Dotted, `lineDashPattern=[4,7]` |
+| `arc-seg-2` (second half) | `#0EA5E9` (teal) | `normalize(3)` | Dotted — creates visual gradient |
+
+### Re-enabling Google Directions
+
+Search `[COST SAVE]` in `track.tsx` and un-comment all marked blocks. Remove `bezierCoords` useMemo.
+
+---
+
+## Order Item Name Enrichment (April 2026)
+
+### Root Cause
+
+`createOrderFromCart()` stores `titleSnapshot: item.snapshot.name`. For some older orders this was null at write time.
+
+### Read-time Fix in `getOrder()`
+
+```typescript
+const missingTitleItems = order.items?.filter((i) => !i.titleSnapshot);
+if (missingTitleItems?.length > 0) {
+  const menuItems = await this.menuItemRepository.findBy({
+    id: In(missingTitleItems.map((i) => i.menuItemId)),
+  });
+  const nameMap = new Map(menuItems.map((m) => [m.id, m.name]));
+  order.items = order.items.map((item) => ({
+    ...item,
+    titleSnapshot: item.titleSnapshot || nameMap.get(item.menuItemId) || 'Menu Item',
+  }));
+}
+```
+
+- Only fires when at least one item has `null` title (zero cost for healthy orders)
+- Does **not** mutate the DB — enrichment is response-only
+- `menuItemRepository` is already injected
+
+---
+
 **[MODULE_COMPLETE ✅]**

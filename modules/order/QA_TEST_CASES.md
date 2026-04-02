@@ -1845,4 +1845,200 @@ Before deploying Order module to production:
 - Added page state and Prev/Next pagination controls.
 
 **Regression test:** Manual QA — navigate to `/dashboard/orders` as admin, confirm orders appear.
+
+---
+
+## Live Tracking Map — Production Upgrade (April 2026)
+
+### TC-ORDER-TRACK001: Chef Kitchen Pin on Live Map
+
+**Type:** Manual
+**Feature area:** Live Tracking Screen — map
+**Priority:** P1
+
+**Preconditions:**
+- Order is in `PAID` or later status
+- Chef kitchen record has `latitude` and `longitude` stored
+
+**Steps:**
+1. Customer places an order from a chef whose kitchen has GPS coordinates
+2. Navigate to the order tracking screen
+3. Observe the map
+
+**Expected result:** An orange 🍳 marker appears at the chef's kitchen location on the map. `fitToCoordinates` includes the kitchen pin so all three markers are visible.
+**Actual result (before fix):** No kitchen marker was shown — API did not return chef coordinates.
+**Fix applied:** `getOrderLiveStatus()` now fetches `ChefKitchen.latitude/longitude` via `ChefKitchenService.getKitchen(order.chefId)` and returns `chefLocation: { lat, lng }` in the response. `OrderLiveStatus` type updated with optional `chefLocation` field.
+**Status:** Fixed ✅
+
+---
+
+### TC-ORDER-TRACK002: Google Directions Road Route Polyline
+
+**Type:** Manual
+**Feature area:** Live Tracking Screen — map polyline
+**Priority:** P1
+
+**Preconditions:**
+- Order delivery status is `PICKED_UP` or `OUT_FOR_DELIVERY`
+- Rider has valid GPS
+- Google Maps Directions API is enabled on the project key
+
+**Steps:**
+1. Open the live tracking screen for an in-delivery order
+2. Wait for the rider location to load (~5s)
+3. Observe the green line on the map
+
+**Expected result:** The green line follows actual roads (not a straight line). The Directions API is only called when the rider moves >100 m from the last route fetch origin.
+**Actual result (before fix):** A straight geodesic line was drawn between rider and destination regardless of road geometry.
+**Fix applied:** Added `decodePolyline()` utility and a `useEffect` that calls `GET maps.googleapis.com/maps/api/directions/json` with an AbortController. `routeCoords` drives the `<Polyline>` component. A dashed fallback line is shown while the route loads.
+**Status:** Fixed ✅
+
+---
+
+### TC-ORDER-TRACK003: Custom Marker Rendering (Bike, Home, Chef Hat)
+
+**Type:** Manual
+**Feature area:** Live Tracking Screen — custom markers
+**Priority:** P2
+
+**Preconditions:**
+- Order is in delivery (rider has GPS)
+
+**Steps:**
+1. Open live tracking screen
+2. Observe all three markers on the map
+
+**Expected result:**
+- Rider = green circle with 🏍️ emoji, rotates based on heading
+- Destination = red circle with home icon
+- Chef kitchen = orange circle with 🍳 emoji (if kitchen has GPS)
+
+**Actual result (before fix):** Plain green/red native pin markers — no context about who/what each pin represents.
+**Fix applied:** All three markers use custom `<View>` children with `tracksViewChanges={false}`. Rider marker applies `transform: rotate(heading deg)` for directional context.
+**Status:** Fixed ✅
+
+---
+
+### TC-ORDER-TRACK004: Dark Mode Map Style
+
+**Type:** Manual
+**Feature area:** Live Tracking Screen — map aesthetics
+**Priority:** P3
+
+**Preconditions:**
+- Device/app in dark mode
+
+**Steps:**
+1. Switch app to dark mode
+2. Open live tracking screen
+
+**Expected result:** Map renders with a dark navy palette matching the app theme. POI and transit labels are hidden.
+**Actual result (before fix):** Default light Google Maps was shown regardless of app theme.
+**Fix applied:** `DARK_MAP_STYLE` constant applied via `customMapStyle` prop when `isDark` is true.
+**Status:** Fixed ✅
+
+---
+
+### TC-ORDER-TRACK005: ETA Badge Overlay on Map
+
+**Type:** Manual
+**Feature area:** Live Tracking Screen — ETA display
+**Priority:** P2
+
+**Preconditions:**
+- Order in any trackable status
+
+**Steps:**
+1. Open live tracking screen
+2. Observe bottom-left of the map tile
+
+**Expected result:** A semi-transparent badge shows the current ETA (e.g. "15-20 min") overlaid on the map.
+**Actual result (before fix):** ETA was only shown in the header bar — not visible when the user's focus was on the map.
+**Fix applied:** `etaMapBadge` View absolutely positioned at `bottom: 56, left: 12` within the mapSection container.
+**Status:** Fixed ✅
+
+---
+
+### TC-ORDER-TRACK006: Rider Accuracy Pulse Circle
+
+**Type:** Manual
+**Feature area:** Live Tracking Screen — GPS accuracy visualisation
+**Priority:** P3
+
+**Preconditions:**
+- Rider has valid GPS coordinates
+
+**Steps:**
+1. Open live tracking screen in `PICKED_UP` or `OUT_FOR_DELIVERY` state
+2. Observe the area around the rider marker
+
+**Expected result:** A soft green translucent circle (~120 m radius) pulses around the rider marker, indicating GPS accuracy zone.
+**Actual result (before fix):** No accuracy visualisation — rider appeared as a bare pin.
+**Fix applied:** Added a `<Circle radius={120} fillColor="rgba(34,197,94,0.12)">` co-located with the rider marker.
+**Status:** Fixed ✅
+
+---
+
+### TC-ORDER-TRACK007: Bezier Arc Dotted Line (Replaces Google Directions)
+
+**Type:** Manual
+**Feature area:** Live Tracking Screen — route visualisation
+**Priority:** P2
+
+**Preconditions:**
+- Order in `PICKED_UP` or `OUT_FOR_DELIVERY` status
+- Rider has valid GPS location
+
+**Steps:**
+1. Open live tracking screen with an active delivery
+2. Observe the line connecting rider marker to home marker on the map
+
+**Expected result:** A smooth curved dotted line arcs from the rider to the destination. Line transitions from brand green (#10B981) to teal (#0EA5E9) with a subtle glow underlay. No Google Directions API call is made.
+**Actual result (before fix):** A straight dashed line or Google Directions road polyline was shown (API cost incurred).
+**Fix applied:** Replaced Google Directions `useEffect` with `generateBezierArc()` quadratic bezier computation. Three `<Polyline>` segments render the glow + gradient. `GOOGLE_MAPS_API_KEY` call is commented out.
+**Regression test:** Manual — verify no network call to `maps.googleapis.com/maps/api/directions` in network inspector.
+**Status:** Fixed ✅
+
+---
+
+### TC-ORDER-TRACK008: Order Item Name Missing (titleSnapshot null)
+
+**Type:** Bug Regression
+**Feature area:** Live Tracking Screen — Chef card / order items
+**Priority:** P1
+
+**Preconditions:**
+- Order created via cart checkout (multi-item flow)
+- Order is older (created before snapshot enrichment fix)
+
+**Steps:**
+1. Place an order via cart checkout
+2. Open the live tracking screen for that order
+3. Observe the item name under the chef card
+
+**Expected result:** Each item shows its real dish name (e.g. "Chicken Biryani × 1") with price.
+**Actual result (before fix):** Items showed "Item" fallback because `titleSnapshot` was stored as null for some orders.
+**Fix applied:** `order.service.ts` `getOrder()` now queries `chef_menu_items` for any item with a null `titleSnapshot` and enriches the response at read time using `menuItemRepository.findBy({ id: In([...]) })`. Does not mutate the stored DB record.
+**Regression test:** `apps/chefooz-apis/src/modules/order/order.service.spec.ts`
+**Status:** Fixed ✅
+
+---
+
+### TC-ORDER-TRACK009: Rider Stats on Delivery Card (rating, deliveries)
+
+**Type:** Bug Regression
+**Feature area:** Live Tracking Screen — Rider card
+**Priority:** P1
+
+**Preconditions:**
+- Order has a rider assigned
+- Rider has entries in `rider_profiles` table
+
+**Steps:**
+1. Navigate to live tracking screen with a rider assigned
+2. Observe the rider card stats row
+
+**Expected result:** Shows real star rating (e.g. ★ 4.7) and delivery count (e.g. "312 deliveries") from DB. If `rider_profiles` row doesn't exist, shows "Delivery partner" fallback — no hardcoded zeros.
+**Actual result (before fix):** Hardcoded "★ 4.8" and "0 delivered" were shown regardless of real data.
+**Fix applied:** Backend `getOrderLiveStatus()` now queries `rider_profiles` via `riderProfileRepo.findOne({ userId })` and returns `rating` + `totalDeliveries` in the `courier` object. Frontend renders conditionally only when values are non-null.
 **Status:** Fixed ✅
