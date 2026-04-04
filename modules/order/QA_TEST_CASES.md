@@ -2185,3 +2185,132 @@ The heartbeat (`POST /rider-profile/heartbeat`) was correctly posting GPS to `ri
 **Regression test:** Manual — rider on Android screen in PICKED_UP state, customer on any platform, confirm rider pin appears and moves.
 **Status:** Fixed ✅
 **Date:** 2026-04-04
+
+---
+
+### TC-ORDER-TRACK014: requestForegroundPermissionsAsync hangs on every remount — GPS chain permanently frozen
+
+**Type:** Bug Regression
+**Feature area:** `rider/orders/[id].tsx`, `rider-location.service.ts`
+**Priority:** P0 (GPS tracking completely broken on Android emulator and some real devices)
+
+**Preconditions:**
+- Rider is logged in with role=rider
+- Order is in OUT_FOR_DELIVERY or PICKED_UP status
+- Rider opens the order detail screen
+
+**Steps:**
+1. Rider navigates to `rider/orders/[id]`
+2. Screen mounts, Effect 1 calls `riderLocationService.startTracking(orderId)`
+3. `startTracking` calls `requestPermissions()`
+4. `requestPermissions()` calls `requestForegroundPermissionsAsync()` — even though permission is already granted
+5. On Android emulator (and some real Android devices), this call triggers the system permission dialog
+6. The dialog either hangs indefinitely or is dismissed without action
+7. `startTracking` never proceeds past `requestPermissions()` — GPS watch never starts
+8. No `POST /v1/rider/location` is ever sent
+9. Redis has no location data → customer sees `{lat: 0, lng: 0}`
+
+**Expected result:** Location permission check is instant (silent), GPS watch starts within ~1s, `POST /v1/rider/location` appears in backend logs, customer sees real coordinates.
+
+**Actual result (before fix):** `startTracking` silently hangs at `requestForegroundPermissionsAsync()`. No GPS posts. Customer sees `{lat:0,lng:0}`.
+
+**Root cause:** `requestForegroundPermissionsAsync()` was called unconditionally on every `startTracking()` invocation. On mounts and remounts where permission is already `granted`, calling `request*` again triggers a redundant dialog. On Android the Promise suspends until the user responds (or never resolves).
+
+**Fix applied:**
+In `requestPermissions()`, added `getForegroundPermissionsAsync()` check before any dialog call:
+```ts
+const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+if (existingStatus === 'granted') return true;
+// Only show dialog if not yet granted
+const { status } = await Location.requestForegroundPermissionsAsync();
+```
+
+**Regression test:** Verify `[RiderLocation] Existing permission status: granted` log appears (not `undetermined`) on second and subsequent mounts.
+
+**Status:** Fixed ✅
+**Date:** 2026-04-05
+
+---
+
+### TC-ORDER-TRACK013: delivery/active.tsx tracking code was dead code — riders never reach that screen
+
+**Type:** Architecture Finding / Code Hygiene
+**Feature area:** `delivery/active.tsx`, `rider/orders/[id].tsx`
+**Priority:** P1 (wasted code + watchdog side-effect)
+
+**Background:**
+During over-session debugging of the lat=0,lng=0 issue, location tracking code was added to `delivery/active.tsx` under the assumption that riders used that screen. Investigation revealed they do not.
+
+**Finding:**
+The Chefooz app contains two entirely separate delivery systems:
+
+| System | Path | Status |
+|---|---|---|
+| **Rider Orders** (active) | `rider/orders/index.tsx` → `rider/orders/[id].tsx` | ✅ Used by real riders |
+| **Delivery Module** (legacy/unused) | `delivery/home.tsx` → `delivery/active.tsx` | ❌ Riders never reach this |
+
+The rider flow is: Profile → Rider Hub → `/rider/home` → "Active Deliveries" button → `/rider/orders?filter=active` → `/rider/orders/[id]`.
+
+`delivery/home.tsx` also calls `useActiveDelivery()` which is a **deprecated stub** that throws on every render, meaning `delivery/home.tsx` itself crashes on mount — making the auto-redirect to `delivery/active.tsx` impossible.
+
+**Code removed from `delivery/active.tsx`:**
+- `import { riderLocationService }` — now removed
+- `import { useAuthStore }` — now removed
+- Two tracking useEffects (Effect 1: immediate startTracking, Effect 2: stopTracking on DELIVERED) — now removed
+
+**Additional bug fixed (watchdog loop):**
+When `startTracking` was called for an ASSIGNED order (before rider picks up), the backend returns 400 and `lastPostAt` stays 0. The watchdog used `trackingStartedAt` as baseline, but `restartWatch` never updated `trackingStartedAt`. This caused the watchdog to fire → restart → fire → restart every 30 seconds indefinitely. Fixed by resetting `trackingStartedAt = Date.now()` at the top of `restartWatch`.
+
+**Files changed:**
+- `delivery/active.tsx`: removed dead tracking imports + effects
+- `rider-location.service.ts` (`restartWatch`): added `trackingStartedAt = Date.now()` reset
+
+**Status:** Fixed ✅
+**Date:** 2026-04-05
+
+---
+
+### TC-ORDER-TRACK012: Rider location shows 0,0 after navigating away and back to order detail
+
+**Type:** Bug Regression / Manual
+**Feature area:** `rider/orders/[id].tsx`, `rider-location.service.ts`
+**Priority:** P0
+
+**Preconditions:**
+- Rider is logged in with `role: rider`
+- Active order in `PICKED_UP` or `OUT_FOR_DELIVERY` state
+- Rider has opened the order detail and tracking is live (customer sees real coordinates)
+
+**Steps:**
+1. Rider is on the order detail screen — customer live-tracking map shows real lat/lng
+2. Rider navigates away (e.g., switches tab, presses back, opens another screen)
+3. Rider returns to the order detail screen
+4. Customer observes the live-tracking response
+
+**Expected result:** Rider location continues to update normally with no gap; customer never sees `{lat:0,lng:0}` on return.
+
+**Actual result (before fix):** After navigating away and back:
+- Component remounts with `isLoading=true` and `order=undefined`
+- The previous single useEffect skipped `startTracking` (no order data yet)
+- A 1–3 second gap occurred before the order loaded and tracking restarted
+- If the service singleton was also reset (app restart / Fast Refresh), the gap extended to 3–6 seconds
+- During the gap the customer's 5-second poll returned `{lat:0,lng:0}` from Redis
+
+**Root causes (multiple):**
+1. **Primary**: `startTracking` was gated on `order?.deliveryStatus` — required order API to respond before GPS watch started. Gap = order-load time + GPS fix time (typically 1–5 s).
+2. **Secondary**: `gcTime` on `useRiderOrderDetail` defaulted to 5 min. Cache eviction after 5 min navigation caused `isLoading=true` on return, making gap worse.
+3. **Tertiary**: `delivery/active.tsx` tracking effect also gated on `activeDelivery.state === 'picked_up'`, creating the same gap pattern.
+4. **Debug visibility**: `stopTracking()` had no call-site logging so it was impossible to distinguish intentional vs unexpected stops.
+5. **Log noise**: Every 400 response (ASSIGNED status) emitted a warning, making logs unreadable.
+
+**Fixes applied:**
+1. **`rider/orders/[id].tsx`**: Replaced the single combined effect with two effects:
+   - **Effect 1 (mount-time)**: calls `riderLocationService.startTracking(id)` immediately when `id` and `role=rider` are known, BEFORE order data loads. Backend validates order status; 400 for ASSIGNED is caught gracefully.
+   - **Effect 2 (stop-only)**: watches `order?.deliveryStatus` and calls `stopTracking()` only when `DELIVERED`.
+2. **`delivery/active.tsx`**: Applied the same two-effect pattern (immediate start + stop-only).
+3. **`rider-orders.hooks.ts`**: Added `gcTime: 10 * 60 * 1000` — cache survives 10 min between navigations, preventing `isLoading=true` on normal return visits.
+4. **`rider-location.service.ts`**: Added `consecutiveErrors` counter — only logs on first failure and every 5th after (eliminates 400 log spam for ASSIGNED orders). Added `new Error().stack` trace to `stopTracking()` to identify unexpected callers.
+
+**Regression test:** Manual — rider opens PICKED_UP order detail, navigates away 3+ times, confirms customer map never shows 0,0 after return.
+**Status:** Fixed ✅
+**Date:** 2026-04-05
