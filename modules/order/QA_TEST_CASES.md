@@ -2124,3 +2124,64 @@ node -e "const p=require('./node_modules/react-native-maps/package.json'); conso
 **Regression test:** Manual — run `npx expo run:ios`, navigate to live tracking, confirm map renders.
 **Status:** Fixed ✅
 **Date:** 2026-04-05
+
+---
+
+### TC-ORDER-TRACK011: Rider pin never appears on customer live tracking (Android rider on delivery/active screen)
+
+**Type:** Bug Regression
+**Feature area:** Live Tracking — rider GPS posting; customer tracking map pin
+**Priority:** P0
+
+**Preconditions:**
+- Rider is on Android physical device
+- Order is in `PICKED_UP` or `OUT_FOR_DELIVERY` state
+- Rider's active screen is `delivery/active.tsx` (the normal delivery flow)
+- Customer opens Orders → active order → Track Live
+
+**Steps:**
+1. Rider accepts order and marks it as Picked Up → lands on `delivery/active` screen
+2. Customer opens the live tracking screen for the same order
+3. Watch the customer map for the rider pin over 30–60 seconds
+
+**Expected result:** Rider pin appears and moves in real time on the customer map.
+**Actual result (before fix):** Customer log shows `📍 Live location: {"lat": 0, "lng": 0}`. Rider pin never appears. Backend logs show heartbeat POSTs but no `POST /v1/rider/location`.
+
+**Root cause:**
+`delivery/active.tsx` called `Location.watchPositionAsync` to update its own local map display
+but **never called `riderLocationService.startTracking()`**. So `POST /v1/rider/location` was
+never sent from the delivery screen. Redis key `rider_location:{orderId}` remained empty →
+`GET /v1/orders/:id/live-location` returned `{lat:null,lng:null}` → `Number(null) === 0` →
+customer received `{lat:0,lng:0}` → `hasLocation` guard suppressed the rider pin.
+
+The feature worked when tested from `rider/orders/[id].tsx` (iOS emulator) because that screen
+correctly calls `riderLocationService.startTracking()`. On Android, riders use `delivery/active.tsx`
+after PICKED_UP, so the tracking call was never reached.
+
+The heartbeat (`POST /rider-profile/heartbeat`) was correctly posting GPS to `rider_profiles.currentLat/Lng`
+(assignment eligibility only), which confused diagnosis — logs showed GPS working but live tracking was empty.
+
+**Fix applied:**
+1. `apps/chefooz-app/src/app/delivery/active.tsx`: Added import of `riderLocationService` singleton
+   and a `useEffect` that calls `startTracking(activeDelivery.orderId)` when state is `picked_up`
+   or `en_route`, and `stopTracking()` on `delivered`. The singleton is idempotent — safe to call
+   from both this screen and `rider/orders/[id].tsx`.
+2. `libs/types/src/lib/rider-location.types.ts`: Changed `lat/lng: number` → `number | null` to match
+   actual backend behaviour (backend returns `null` when no location is stored yet, not `0`).
+
+**How to verify fix:**
+- App logs: `🔍 [LocationTrack] useEffect: deliveryStatus= PICKED_UP | willTrack= true` appears as order loads
+- App logs: `[🔍 RiderLocation] startTracking called: orderId= ...` appears immediately after
+- App logs: `[🔍 RiderLocation] POSTing location: {orderId, lat, lng}` appears within 2s
+- Backend logs: `POST /api/v1/rider/location` appears every ~6s in NestJS output
+- Redis: `docker exec valkey redis-cli GET "rider_location:{orderId}"` should return real coords
+- Customer map: rider pin should appear and move
+
+**Secondary fixes (follow-up 2026-04-04):**
+1. Watchdog dead zone: `lastPostAt === 0` guard prevented watchdog from ever triggering when GPS watch silently dies before any post. Fixed by adding `trackingStartedAt` field and using it as baseline in the watchdog when `lastPostAt === 0`.
+2. Misleading 400 error: rate-limit and wrong-order-status 400s were both logged as "Rate limit reached". Fixed to show actual backend error message.
+3. Diagnostic `🔍` logs added at the top of `startTracking` and `sendLocationUpdate`.
+
+**Regression test:** Manual — rider on Android screen in PICKED_UP state, customer on any platform, confirm rider pin appears and moves.
+**Status:** Fixed ✅
+**Date:** 2026-04-04
