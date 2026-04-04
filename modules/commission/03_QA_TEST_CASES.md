@@ -1596,3 +1596,40 @@ it('TC-COM-050: should process all pending commissions', async () => {
 **Fix applied:** Removed `attributionKey` deletion from `invalidateCache()`. Attribution is now only cleared in `clearCart()` (full cart reset) and in `checkoutCart()` after order is created.  
 **Files changed:** `apps/chefooz-apis/src/modules/cart/cart.service.ts`  
 **Status:** Fixed ✅
+
+### TC-40: Rate-rider tip screen shows 0 coin balance for commission earners
+
+**Type:** Bug Regression  
+**Feature area:** `apps/chefooz-apis/src/modules/tips/tips.service.ts` → `getMyWallet`, `tipRider`; `apps/chefooz-apis/src/modules/commission/commission.service.ts` → `creditCommission`, `reverseCommission`  
+**Priority:** P0
+
+**Preconditions:**
+- User has earned coins via the commission system (e.g. 401 coins shown on commissions page)
+- User navigates to the rate-rider screen after a completed delivery
+
+**Steps:**
+1. User completes an order; delivery partner delivers it
+2. User opens order details and taps "Rate Rider"
+3. Rate-rider screen loads; user views the tip section
+4. Observe the coin balance shown
+
+**Expected result:** Rate-rider tip section shows the user's actual coin balance (e.g. 401 coins)
+
+**Actual result (before fix):** Rate-rider tip section showed 0 coins even though the commissions page correctly showed 401 coins.
+
+**Root cause:** Two separate coin systems existed:
+- `User.coins` — written by `CommissionService.creditCommission()`, never reflected in `Wallet`
+- `Wallet.balanceCoins` — a tip-specific ledger that was never seeded from `User.coins`
+
+`getMyWallet()` read `Wallet.balanceCoins` (always 0 for commission earners); commissions page read `User.coins` (401). They were never synced.
+
+**Fix applied:**
+1. DB migration `1778000000000` seeds `Wallet.balanceCoins` from `User.coins` for all existing users.
+2. `CommissionService.creditCommission()` and `reverseCommission()` now call `syncWalletBalance()` after updating `User.coins`.
+3. `UserService.awardCoinsWithReputation()` and `AdminDebugService.grantCoins()` now upsert `Wallet.balanceCoins` after saving `User.coins`.
+4. `TipsService.tipRider()` now locks `Wallet` (source of truth) for balance check and debit, mirroring to `User.coins` for auth-store consistency.
+5. `TipsService.getMyWallet()` now returns `wallet.balanceCoins` directly.
+6. Commissions page now reads `walletData?.data?.balanceCoins` (with `authUser?.coins` fallback).
+
+**Regression test:** `apps/chefooz-apis/src/modules/tips/tips.service.spec.ts` (balance check uses Wallet)  
+**Status:** Fixed ✅ (April 2026)

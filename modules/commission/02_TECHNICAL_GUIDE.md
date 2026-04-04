@@ -1875,6 +1875,55 @@ Without this, reordered orders have `NULL attribution` and no commission fires.
 
 ---
 
+## Coin Architecture: Wallet as Source of Truth (April 2026)
+
+### Problem (resolved)
+
+Two parallel coin systems existed:
+
+| System | Written by | Read by |
+|---|---|---|
+| `User.coins` | `CommissionService.creditCommission()`, `awardCoinsWithReputation()`, `grantCoins()` | Commissions page (`authUser?.coins`), profile/settings screens |
+| `Wallet.balanceCoins` | `TipsService.tipRider()` receiver-side only | Rate-rider tip screen via `getMyWallet()` API |
+
+`Wallet.balanceCoins` was never seeded from `User.coins`, so customers who
+earned 401 coins via commissions saw 0 on the rate-rider tip screen.
+
+### Fix applied
+
+1. **Migration `1778000000000-SeedWalletFromUserCoins`**: one-time idempotent
+   seed that creates or corrects every user's `Wallet` row from `User.coins`.
+
+2. **Write paths updated** — every place that writes `User.coins` now also
+   writes `Wallet.balanceCoins` via an atomic `INSERT … ON CONFLICT DO UPDATE`:
+   - `CommissionService.syncWalletBalance()` — called from `creditCommission()`
+     and `reverseCommission()`
+   - `UserService.awardCoinsWithReputation()` — inline `dataSource.query` after save
+   - `AdminDebugService.grantCoins()` — inline `dataSource.query` after save
+
+3. **`TipsService` rewritten**:
+   - `tipRider` now locks `Wallet` (not `User`) for the balance check and debit.
+     It mirrors the deduction to `User.coins` via a raw `UPDATE … GREATEST(0, coins - N)`
+     so auth-store reads in other app screens remain consistent.
+   - `getMyWallet` now returns `wallet.balanceCoins` directly; user entity
+     lookup is only used as a lazy-create fallback during the migration window.
+
+4. **Commissions page** (`apps/chefooz-app/src/app/commissions/index.tsx`):
+   switched from `authUser?.coins` to `walletData?.data?.balanceCoins` with
+   `authUser?.coins` as the fallback, so the display stays correct even when
+   the wallet API is slow.
+
+### Invariants
+
+- `Wallet.balanceCoins` ≥ 0 (enforced by `GREATEST(0, …)` in all debit paths)
+- `User.coins` mirrors `Wallet.balanceCoins` — kept in sync so all auth-store
+  reads (profile, settings, monetisation screens) remain accurate
+- The atomic upsert is idempotent: running twice on the same delta cannot
+  double-count because deduplication is handled at the service level
+  (`creditCommission` guards on `ledger.status !== PENDING`)
+
+---
+
 **[SLICE_COMPLETE ✅]**
 
 **Commission Module - Week 8, Module 2**  
