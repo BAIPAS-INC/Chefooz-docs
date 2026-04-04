@@ -1999,3 +1999,31 @@ tracking proceeds with foreground-only GPS (works while app is open).
 **Regression test:** n/a (integration-level)
 **Status:** Fixed ✅
 **Date:** 2026-03-30
+
+---
+
+### TC-DELIVERY-55: Delivery map shows "Unimplemented component: RNMapsMapView" on iOS (Expo Go)
+
+**Type:** Bug Regression
+**Feature area:** Delivery Home screen map; Active Delivery screen map
+**Priority:** P0
+
+**Preconditions:**
+- iOS device running the app via Expo Go (not a dev/production build)
+
+**Steps:**
+1. Open Expo Go on iOS, scan QR code from `npx expo start`
+2. Navigate to Delivery Mode (home screen or active delivery screen)
+3. Observe the map area
+
+**Expected result:** Map renders showing rider position, markers, and polylines.
+**Actual result (before fix):** "Unimplemented component: RNMapsMapView" displayed — identical to the order tracking bug.
+
+**Root cause:** Same as TC-ORDER-TRACK010 — `react-native-maps` is not bundled in Expo Go (SDK 47+).
+
+**Fix applied:**
+`delivery/home.tsx` and `delivery/active.tsx` now detect Expo Go via `Constants.executionEnvironment === 'storeClient'` and show a descriptive fallback message instead of rendering `MapView`.
+
+**Regression test:** Manual
+**Status:** Fixed ✅
+**Date:** 2026-04-04

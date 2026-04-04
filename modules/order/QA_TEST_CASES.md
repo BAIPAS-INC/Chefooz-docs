@@ -2042,3 +2042,85 @@ Before deploying Order module to production:
 **Actual result (before fix):** Hardcoded "★ 4.8" and "0 delivered" were shown regardless of real data.
 **Fix applied:** Backend `getOrderLiveStatus()` now queries `rider_profiles` via `riderProfileRepo.findOne({ userId })` and returns `rating` + `totalDeliveries` in the `courier` object. Frontend renders conditionally only when values are non-null.
 **Status:** Fixed ✅
+
+---
+
+### TC-ORDER-TRACK010: Map shows "Unimplemented component: RNMapsMapView" on iOS
+
+**Type:** Bug Regression
+**Feature area:** Live Tracking Screen — Map section; Location Picker; Delivery screens
+**Priority:** P0
+
+**Preconditions:**
+- iOS device (iPhone 16e or any iPhone)
+- App launched via `npx expo run:ios` (native build)
+- New Architecture enabled (`newArchEnabled: true`)
+- Order is in ASSIGNED / PICKED_UP / OUT_FOR_DELIVERY state
+
+**Steps:**
+1. Run `npx expo run:ios` on a physical iPhone
+2. Navigate to Orders → tap an active order → tap "Track Live"
+3. Observe the map section
+
+**Expected result:** Map renders correctly showing chef pin, rider pin, destination pin, and polyline.
+**Actual result (before fix):** Pink/salmon overlay area with text "Unimplemented component: RNMapsMapView" — map section completely broken on iOS.
+
+**Root cause (confirmed):**
+The local `node_modules/react-native-maps/package.json` was missing `codegenConfig` entirely.
+With New Architecture (Fabric), React Native's `generate-artifacts-executor.js` reads `codegenConfig.ios.componentProvider`
+from each dependency's `package.json` to populate `ios/build/generated/ios/RCTThirdPartyComponentsProvider.mm`.
+Without `codegenConfig`, `RNMapsMapView` is never registered as a Fabric component → "Unimplemented component".
+
+The `react-native-maps` podspec `Generated` subspec explicitly EXCLUDES its own `RCTThirdPartyComponentsProvider.mm`
+from compilation (`exclude_files`), intentionally delegating registration to the app's codegen. The npm-published
+`react-native-maps@1.26.20` DOES have the complete `codegenConfig` (verified via integrity hash). The local copy
+was stripped — likely because the original Android patch was generated against an older build that pre-dated
+`codegenConfig` being added to the published tarball.
+
+Android works because it uses CMake/JNI registration independent of `codegenConfig`.
+`newArchEnabled` was always correct as `true` — this fix does NOT disable New Architecture.
+
+**Fix applied:**
+1. Restored the complete `codegenConfig` to `node_modules/react-native-maps/package.json` matching the
+   npm-published `1.26.20` tarball (integrity: `sha512-kWibDz6w...`):
+   ```json
+   "codegenConfig": {
+     "name": "RNMapsSpecs",
+     "type": "all",
+     "jsSrcsDir": "./src/specs",
+     "outputDir": {"ios": "ios/generated", "android": "android/src/main"},
+     "includesGeneratedCode": true,
+     "android": {"javaPackageName": "com.rnmaps.fabric"},
+     "ios": {
+       "componentProvider": {
+         "RNMapsGoogleMapView": "RNMapsGoogleMapView",
+         "RNMapsGooglePolygon": "RNMapsGooglePolygonView",
+         "RNMapsMapView": "RNMapsMapView",
+         "RNMapsMarker": "RNMapsMarkerView"
+       }
+     }
+   }
+   ```
+2. Deleted stale `ios/build/generated/ios/RCTThirdPartyComponentsProvider.{mm,h}`
+3. Ran `cd ios && pod install` — regenerated `RCTThirdPartyComponentsProvider.mm` now includes all 4 maps entries
+4. On next `npx expo run:ios` the Xcode build will compile the correct registry
+
+**Note:** The `patches/react-native-maps+1.26.20.patch` does NOT need to patch `package.json` because a fresh
+`npm install` will install the correct npm-published tarball which already has `codegenConfig`. The fix
+is only needed if the local `node_modules` is corrupt or was installed from an older cached version.
+
+**How to verify fix:**
+```bash
+grep "RNMaps" ios/build/generated/ios/RCTThirdPartyComponentsProvider.mm
+# Should output 4 lines: RNMapsMapView, RNMapsMarker, RNMapsGoogleMapView, RNMapsGooglePolygon
+```
+
+**How to recover if it regresses after npm install:**
+```bash
+node -e "const p=require('./node_modules/react-native-maps/package.json'); console.log('has codegenConfig:', !!p.codegenConfig)"
+# If false, the tarball installed from an old cache. Run: npm install react-native-maps@1.26.20 --force
+```
+
+**Regression test:** Manual — run `npx expo run:ios`, navigate to live tracking, confirm map renders.
+**Status:** Fixed ✅
+**Date:** 2026-04-05
