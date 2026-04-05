@@ -2232,38 +2232,45 @@ const { status } = await Location.requestForegroundPermissionsAsync();
 
 ---
 
-### TC-ORDER-TRACK013: delivery/active.tsx tracking code was dead code — riders never reach that screen
+### TC-ORDER-TRACK013: Entire delivery/ module was dead code — fully removed, rider/ is the single source of truth
 
-**Type:** Architecture Finding / Code Hygiene
-**Feature area:** `delivery/active.tsx`, `rider/orders/[id].tsx`
-**Priority:** P1 (wasted code + watchdog side-effect)
+**Type:** Architecture Cleanup / Code Hygiene
+**Feature area:** `delivery/`, `rider/`, `libs/api-client`
+**Priority:** P1 (dead code with crashing hooks + orphaned components)
 
 **Background:**
-During over-session debugging of the lat=0,lng=0 issue, location tracking code was added to `delivery/active.tsx` under the assumption that riders used that screen. Investigation revealed they do not.
+During debugging of the lat=0,lng=0 issue, investigation revealed the entire `delivery/` module was unreachable dead code. The active rider flow uses the `rider/` module exclusively. The decision was made to delete the delivery module entirely to establish a single source of truth for rider GPS tracking.
 
-**Finding:**
-The Chefooz app contains two entirely separate delivery systems:
+**Architecture finding:**
+The app contained two separate delivery systems that grew apart:
 
-| System | Path | Status |
+| System | Path | Fate |
 |---|---|---|
-| **Rider Orders** (active) | `rider/orders/index.tsx` → `rider/orders/[id].tsx` | ✅ Used by real riders |
-| **Delivery Module** (legacy/unused) | `delivery/home.tsx` → `delivery/active.tsx` | ❌ Riders never reach this |
+| **Rider module** (active) | `rider/orders/index.tsx` → `rider/orders/[id].tsx` | ✅ Kept — the only real rider flow |
+| **Delivery module** (legacy) | `delivery/home.tsx` → `delivery/active.tsx` | 🗑️ Deleted entirely |
 
-The rider flow is: Profile → Rider Hub → `/rider/home` → "Active Deliveries" button → `/rider/orders?filter=active` → `/rider/orders/[id]`.
+The rider flow: Profile → Rider Hub → `/rider/home` → `/rider/orders` → `/rider/orders/[id]`.  
+The delivery module had no entry point from the rider flow, and `delivery/home.tsx` crashed on mount due to deprecated throwing hooks.
 
-`delivery/home.tsx` also calls `useActiveDelivery()` which is a **deprecated stub** that throws on every render, meaning `delivery/home.tsx` itself crashes on mount — making the auto-redirect to `delivery/active.tsx` impossible.
+**Files deleted:**
+- `apps/chefooz-app/src/app/delivery/active.tsx`
+- `apps/chefooz-app/src/app/delivery/home.tsx`
+- `apps/chefooz-app/src/app/delivery/wallet.tsx`
+- `apps/chefooz-app/src/components/delivery/DeliveryTimeline.tsx` (orphaned — never imported)
+- `libs/api-client/src/lib/hooks/useDelivery.ts` (all 10 hooks were deprecated stubs that threw)
+- `libs/api-client/src/lib/clients/delivery.client.ts` (unused by any screen)
 
-**Code removed from `delivery/active.tsx`:**
-- `import { riderLocationService }` — now removed
-- `import { useAuthStore }` — now removed
-- Two tracking useEffects (Effect 1: immediate startTracking, Effect 2: stopTracking on DELIVERED) — now removed
+**Files edited:**
+- `libs/api-client/src/index.ts`: removed `export * from './lib/clients/delivery.client'` and the commented-out `useDelivery` block
+- `apps/chefooz-app/src/test-exports.ts`: removed stale `useUpdateDeliveryStatus` console.log
+
+**What was NOT deleted (still live):**
+- `DeliverySuccessModal` component — used by the customer order tracking screen
+- `libs/types` delivery types — shared with backend, kept
+- `useDeliveryAnalytics` hook — separate file used by admin module, not part of dead delivery flow
 
 **Additional bug fixed (watchdog loop):**
-When `startTracking` was called for an ASSIGNED order (before rider picks up), the backend returns 400 and `lastPostAt` stays 0. The watchdog used `trackingStartedAt` as baseline, but `restartWatch` never updated `trackingStartedAt`. This caused the watchdog to fire → restart → fire → restart every 30 seconds indefinitely. Fixed by resetting `trackingStartedAt = Date.now()` at the top of `restartWatch`.
-
-**Files changed:**
-- `delivery/active.tsx`: removed dead tracking imports + effects
-- `rider-location.service.ts` (`restartWatch`): added `trackingStartedAt = Date.now()` reset
+`restartWatch` never reset `trackingStartedAt` → watchdog fired every 30s indefinitely. Fixed by resetting `trackingStartedAt = Date.now()` at top of `restartWatch`.
 
 **Status:** Fixed ✅
 **Date:** 2026-04-05
