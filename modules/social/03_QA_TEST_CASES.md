@@ -2173,4 +2173,69 @@ const testConfig = {
 
 ---
 
+### TC-SOCIAL-BUG-002: Follow Button Shows No "Requested" State for Private Accounts
+
+**Type:** Bug Regression
+**Feature area:** Social - Follow Button (Followers list, Following list, Search screen, Profile page)
+**Priority:** P1
+
+**Preconditions:**
+- User A is authenticated
+- User B has a private account (`isPrivate = true`)
+- User A is NOT currently following User B
+
+**Steps:**
+1. Navigate to any screen showing User B in a user list (Followers, Following, or Search)
+2. Tap the "Follow" button next to User B
+3. Observe the button state immediately after tap (no network delay)
+
+**Expected result:** Button immediately changes to "Requested" (greyed, disabled) to indicate a pending follow request was sent
+**Actual result (before fix):** Button remained in "Follow" state until the screen was re-queried from the server; tapping multiple times could send duplicate requests
+**Fix applied:** Added `requestedIds: Set<string>` local state to each list screen (`social/followers.tsx`, `social/following.tsx`, `profile/[username]/followers.tsx`, `profile/[username]/following.tsx`). When `useFollow()` returns `status === 'pending'`, the target user's ID is added to `requestedIds`. Button renders as disabled with "Requested" label when `requestedIds.has(userId) || item.isRequested`. Search screen uses the same pattern via `item.isPending`.
+**Regression test:**
+1. Find a private account user you are not following
+2. Tap Follow in any list
+3. Confirm button turns to "Requested" immediately
+4. Navigate away and back — button should remain "Requested" (server-side `isPending/isRequested` flag)
+5. For public accounts: confirm button turns to "Following" (accepted) immediately instead
+**Status:** Fixed ✅
+
+---
+
+### TC-SOCIAL-BUG-003: Own Profile Shows Follow Button in Friends' Followers/Following/Search Lists
+
+**Type:** Bug Regression
+**Feature area:** Social - Self-profile detection in user lists
+**Priority:** P1
+
+**Preconditions:**
+- User A is authenticated
+- User A appears in someone else's followers or following list (or in search results)
+
+**Steps:**
+1. Navigate to any other user's followers list (e.g. `/profile/[username]/followers`)
+2. Scroll to find your own profile entry in the list
+3. Observe whether a follow/unfollow button is displayed next to your own entry
+
+**Expected result:** No follow button is shown for the authenticated user's own profile entry in any list
+**Actual result (before fix):** A "Follow" button appeared next to the current user's own profile in follower/following/search lists, allowing a nonsensical self-follow action
+**Fix applied:** All list screens now call `useMyProfile()` to obtain `myProfile.userId`. Before rendering a follow button, each `renderItem` checks `isSelf = myProfile?.userId === item.userId` (or `item.id` for search). When `isSelf` is true, no follow button is rendered. `useMyProfile()` is cached with `staleTime: 5s` so it adds negligible overhead.
+
+Affected screens:
+- `apps/chefooz-app/src/app/social/followers.tsx`
+- `apps/chefooz-app/src/app/social/following.tsx`
+- `apps/chefooz-app/src/app/profile/[username]/followers.tsx`
+- `apps/chefooz-app/src/app/profile/[username]/following.tsx`
+- `apps/chefooz-app/src/app/search/index.tsx`
+
+**Regression test:**
+1. Log in as User A
+2. Navigate to any user's followers list where User A appears
+3. Confirm User A's entry has no follow button
+4. Verify other users in the list still show their correct follow button
+5. Repeat on Search tab — search for own username, confirm no follow button
+**Status:** Fixed ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**

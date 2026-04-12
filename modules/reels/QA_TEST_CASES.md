@@ -1923,3 +1923,70 @@ Full WYSIWYG approach in `apps/chefooz-app/src/app/reels/upload-v2/edit.tsx`:
 
 ---
 
+## 🐛 Bug Regression Test Cases (March 2026 QA Round — Verified Purchase Badge)
+
+### TC-REELS-BUG-COMMENT-001: "Verified Purchase" Badge Appears in Reel Comments
+
+**Type:** Feature / Regression Guard
+**Feature area:** Reels — Comment Sheet (feed & home-feed)
+**Priority:** P1
+
+**Preconditions:**
+- A reel is linked to at least one menu item via `linkedMenu.menuItemIds`
+- User A has a delivered order (`status = 'delivered'`) that contains that menu item
+- User B has NOT ordered the same dish
+
+**Steps:**
+1. Open the reel in the feed or home-feed
+2. Open the comment sheet
+3. Scroll to a comment by User A (who has a delivered order for the same dish)
+4. Observe the area next to User A's username
+5. Also observe a comment by User B (no order)
+
+**Expected result:**
+- User A's comment displays a green "Verified Purchase" pill badge (`✓ Verified Purchase`) next to the username
+- User B's comment shows no badge
+
+**Actual result (before feature):** No badge was shown for any commenter regardless of purchase history
+
+**Root cause (final):**
+For `USER_REVIEW` reels, `reel.userId` is the **reviewer/customer** who posted the review, NOT the chef. The original query used `reel.userId` as the chef ID for all reel types, so it compared commenter orders against the wrong user (the reviewer), yielding zero matches. Chef must be resolved via `reel.linkedOrderId → order.chefId`.
+
+**Fix applied:**
+`comments.service.ts` — before the order batch query, check `reel.reelPurpose`:
+- `USER_REVIEW`: resolve chef via `reel.linkedOrderId → orders.chefId` (one extra Postgres lookup)
+- `MENU_SHOWCASE` / `PROMOTIONAL`: use `reel.userId` directly (the chef who posted)
+
+**Regression test:**
+1. Create a test reel with `linkedMenu.menuItemIds = ['item-uuid-1']`
+2. Place a delivered order as User A that includes `item-uuid-1`
+3. User A posts a comment on that reel
+4. User B (no order) posts a comment
+5. Fetch comments via `GET /api/v1/comments/reel/:reelId` — confirm User A's comment has `hasPurchasedDish: true`, User B has `false` or `undefined`
+6. In the app, open the comment sheet for that reel — confirm green badge appears only for User A
+7. For a reel with NO `linkedMenu` — confirm no badge for any commenter and no errors
+
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-BUG-COMMENT-002: Verified Purchase Badge — Reel with No Linked Menu
+
+**Type:** Edge Case / Regression Guard
+**Feature area:** Reels — Comment Sheet
+**Priority:** P2
+
+**Preconditions:**
+- A reel has `linkedMenu = null` or `linkedMenu.menuItemIds = []`
+- Any users have posted comments
+
+**Steps:**
+1. Open the reel's comment sheet
+
+**Expected result:** Comments load normally; no "Verified Purchase" badge appears; no errors
+**Actual result (before fix):** N/A (this is the defensive path test)
+**Fix applied:** `listComments` wraps the purchase check in `try/catch`; if no linked menu items are found or the query fails, `hasPurchasedDish` defaults to `false` for all comments
+**Status:** Fixed ✅
+
+---
+

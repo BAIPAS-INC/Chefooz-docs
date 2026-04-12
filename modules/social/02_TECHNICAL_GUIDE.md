@@ -2529,4 +2529,90 @@ const nextPageResponse = await axios.get(
 
 ---
 
+## Frontend: Follow Button "Requested" State & Self-Profile Detection
+
+### Overview
+
+Three UX enhancements were shipped together (March 2026 QA round) across all screens that render user list rows with a follow/unfollow action:
+
+1. **Immediate "Requested" feedback** — when a user taps Follow on a private account, the button instantly disables and shows "Requested" text without waiting for a server re-fetch.
+2. **Self-profile hiding** — the follow/unfollow button is not rendered when the list entry belongs to the currently authenticated user.
+
+### Affected Screens
+
+| Screen file | Change |
+|---|---|
+| `apps/chefooz-app/src/app/social/followers.tsx` | Requested state + self-profile hide |
+| `apps/chefooz-app/src/app/social/following.tsx` | Self-profile hide (unfollow button) |
+| `apps/chefooz-app/src/app/profile/[username]/followers.tsx` | Requested state + self-profile hide |
+| `apps/chefooz-app/src/app/profile/[username]/following.tsx` | Self-profile hide |
+| `apps/chefooz-app/src/app/search/index.tsx` | Per-item processing + requested state + self-profile hide |
+
+### "Requested" State Implementation Pattern
+
+```ts
+// Local state to track pending follow requests for this render session
+const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
+
+const handleFollowToggle = async (item: SocialListUser) => {
+  try {
+    const response = await followMutation.mutateAsync(item.userId);
+    if (response.status === 'pending') {
+      // Private account → request pending, show "Requested"
+      setRequestedIds(prev => new Set(prev).add(item.userId));
+    }
+  } catch { /* errors handled by toast */ }
+};
+
+// In renderItem:
+const isRequested = requestedIds.has(item.userId) || !!item.isRequested;
+// Show disabled grey "Requested" button when isRequested === true
+```
+
+Key constraints:
+- `requestedIds` is **session-local** (cleared on unmount). The server-side `isRequested` field on `SocialListUser` carries the state across navigations.
+- `useFollow()` mutation returns `FollowActionResponse { status: 'accepted' | 'pending' }` — the `status` value determines which state to enter.
+- When the user unfollows/cancels the request, their ID is removed from `requestedIds`.
+
+### Self-Profile Detection Pattern
+
+```ts
+const { data: myProfile } = useMyProfile();
+
+// In renderItem:
+const isSelf = myProfile?.userId === item.userId; // SocialListUser
+// const isSelf = myProfile?.userId === item.id;  // SocialProfile (search)
+if (isSelf) return null; // or omit the button JSX
+```
+
+`useMyProfile()` resolves from React Query cache (staleTime: 5 s) — negligible overhead per rendered row.
+
+### Search Screen Enhancements
+
+The search screen additionally replaced the **global** `followMutation.isPending` guard (which disabled ALL follow buttons while any one was in flight) with a **per-item** `followProcessingIds: Set<string>` state:
+
+```ts
+const [followProcessingIds, setFollowProcessingIds] = useState<Set<string>>(new Set());
+
+const handleFollow = async (item: SocialProfile) => {
+  if (followProcessingIds.has(item.id)) return; // prevent double-tap
+  setFollowProcessingIds(prev => new Set(prev).add(item.id));
+  try {
+    const response = await followMutation.mutateAsync(item.id);
+    if (response.status === 'pending') {
+      setRequestedIds(prev => new Set(prev).add(item.id));
+    }
+  } finally {
+    setFollowProcessingIds(prev => { const s = new Set(prev); s.delete(item.id); return s; });
+  }
+};
+```
+
+### Type Changes
+
+- `libs/types/src/lib/social.types.ts`: `SocialListUser.isRequested?: boolean` (optional, backward-compatible)
+- `apps/chefooz-app/src/constants/labels/social.labels.ts`: `actions.requested = 'Requested'`
+
+---
+
 **[SLICE_COMPLETE ✅]**

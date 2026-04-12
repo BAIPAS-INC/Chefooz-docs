@@ -1991,6 +1991,102 @@ After the S3 upload completes, the `UploadS3SuccessSheet` offers two paths:
 
 ---
 
-**Document Version**: 1.2
-**Last Updated**: 2026-03-18
-**Next Review**: 2026-03-28
+## Verified Purchase Badge in Comments (March 2026)
+
+### Overview
+
+When a reel is linked to one or more menu items, commenters who have a **delivered order** containing any of those dishes receive a green "Verified Purchase" badge next to their username in the comment sheet.
+
+### Data Flow
+
+```
+Reel (MongoDB)
+  └── linkedMenu.menuItemIds: string[]   ← dish IDs linked during upload
+
+Order (PostgreSQL)
+  ├── userId: string
+  ├── status: OrderStatus ('delivered')
+  └── items: OrderItemSnapshot[]         ← JSONB, each has menuItemId: string
+```
+
+### Backend Implementation (`comments.service.ts`)
+
+In `listComments`, after comments and their user profiles are fetched:
+
+1. Extract unique `userIds` from the comment list.
+2. Fetch the reel's `reelPurpose`, `userId`, and `linkedOrderId`.
+3. Resolve the **chef ID** based on reel purpose:
+
+| `reelPurpose` | Who is `reel.userId`? | Chef resolution |
+|---|---|---|
+| `MENU_SHOWCASE` | The chef who posted | Use `reel.userId` directly |
+| `PROMOTIONAL` | The chef who posted | Use `reel.userId` directly |
+| `USER_REVIEW` | The **reviewer/customer** | Fetch `linkedOrderId → order.chefId` via Postgres |
+
+4. Run a single batch query: find any commenter with a delivered order from that chef:
+
+```ts
+const reel = await this.reelModel
+  .findById(dto.mediaId)
+  .select('userId reelPurpose linkedOrderId')
+  .lean()
+  .exec();
+
+let reelChefId: string | undefined;
+if (reel?.reelPurpose === 'USER_REVIEW' && reel.linkedOrderId) {
+  const linkedOrder = await this.orderRepository.findOne({
+    where: { id: reel.linkedOrderId },
+    select: ['chefId'],
+  });
+  reelChefId = linkedOrder?.chefId;
+} else {
+  reelChefId = reel?.userId;
+}
+
+const rows = await this.orderRepository
+  .createQueryBuilder('o')
+  .select('o.userId')
+  .where('o.userId IN (:...userIds)', { userIds })
+  .andWhere('o.chefId = :chefId', { chefId: reelChefId })
+  .andWhere('o.status = :status', { status: OrderStatus.DELIVERED })
+  .getRawMany();
+```
+
+5. Map `hasPurchasedDish: true` onto comments where the user is in the purchased set.
+6. The entire block is wrapped in `try/catch` — failures are logged but do not break comment loading.
+
+**Module change**: `Order` entity added to `TypeOrmModule.forFeature` in `comments.module.ts`.
+
+### Frontend Implementation (`CommentItem.tsx`)
+
+```tsx
+{comment.hasPurchasedDish && (
+  <View style={styles.verifiedPurchaseBadge}>
+    <Ionicons name="checkmark-circle" size={normalize(11)} color="#fff" />
+    <Text style={styles.verifiedPurchaseText}>Verified Purchase</Text>
+  </View>
+)}
+```
+
+Badge styles use `normalize()` / `normalizeFontSize()` — no hardcoded pixel values.
+Badge colour: `#22c55e` (Tailwind green-500).
+
+### Type Changes
+
+- `libs/types/src/lib/comment.types.ts`: `Comment.hasPurchasedDish?: boolean`
+
+### Edge Cases
+
+| Scenario | Behaviour |
+|---|---|
+| Reel has no linked menu (PROMOTIONAL/USER_REVIEW) | Badge still works — matched by chefId |
+| Reel has no `userId` (unexpected) | No badge for anyone; no error |
+| Order query throws | Logged; comments still returned without badge |
+| Same user has multiple delivered orders from chef | Badge shown once (Set deduplication) |
+| Comment is a reply | Badge applied to replies too if `hasPurchasedDish = true` |
+
+---
+
+**Document Version**: 1.3
+**Last Updated**: 2026-03-28
+**Next Review**: 2026-04-10
