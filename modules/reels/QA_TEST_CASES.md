@@ -1990,3 +1990,99 @@ For `USER_REVIEW` reels, `reel.userId` is the **reviewer/customer** who posted t
 
 ---
 
+### TC-REELS-BUG-004: Hashtags stay readable on colorful reel backgrounds
+
+**Type:** Bug Regression / Manual
+**Feature area:** Reel caption overlay (`ReelCaption.tsx`)
+**Priority:** P1
+
+**Preconditions:**
+- Feed contains a reel with saturated or high-contrast background colors behind the caption area
+
+**Steps:**
+1. Open a reel with visible hashtags over a colorful frame
+2. Focus on the hashtag line in both collapsed and expanded caption states
+
+**Expected result:** Hashtags remain readable with strong contrast and a visible shadow on bright or mixed-color video frames.
+**Actual result (before fix):** Hashtags used a light grey color with a shallow shadow, so the text blended into colorful video backgrounds and became difficult to read.
+**Fix applied:** `ReelCaption.tsx` now uses white hashtag text with a stronger shadow radius, higher shadow opacity, and a more visible offset.
+**Regression test:** Manual visual QA on bright, warm, and multicolor reel backgrounds.
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-BUG-005: Upload edit screen exposes play/pause control for selected video
+
+**Type:** Bug Regression / Manual
+**Feature area:** Upload V2 edit screen (`reels/upload-v2/edit.tsx`)
+**Priority:** P1
+
+**Preconditions:**
+- User has selected or recorded a video in Upload V2
+
+**Steps:**
+1. Open the edit screen for a selected video
+2. Inspect the bottom-center primary control
+3. Tap the control twice
+
+**Expected result:** The edit preview shows a play/pause button, pauses the preview on first tap, and resumes playback on second tap.
+**Actual result (before fix):** The video preview had `nativeControls={false}` and no replacement play/pause affordance, leaving the user unable to pause or resume the preview.
+**Fix applied:** Added `isPreviewPlaying` state and a dedicated play/pause floating action button for video media on the edit screen.
+**Regression test:** Manual — verify play, pause, and resume on a newly selected video and an existing draft.
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-BUG-006: Trim overlay shows live playback cursor inside the selected range
+
+**Type:** Bug Regression / Manual
+**Feature area:** Trim overlay (`components/upload/TrimOverlay.tsx`)
+**Priority:** P2
+
+**Preconditions:**
+- User opens the trim overlay for a video with a valid duration
+
+**Steps:**
+1. Open trim mode for any video
+2. Tap play inside the trim overlay
+3. Observe the scrubber while playback advances between the trim handles
+4. Let playback reach the trim end position
+
+**Expected result:** A visible playback cursor moves across the selected range and loops back to the trim start when playback reaches the end handle.
+**Actual result (before fix):** The trim overlay had no visual playback progress, so users could not see where playback was inside the selected trim window.
+**Fix applied:** Added an animated playback cursor driven by polled player time and constrained looping within `startSec` and `endSec`.
+**Regression test:** Manual — confirm cursor movement and loop behavior on short and long clips.
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-BUG-007: Large video trim entry does not crash iOS while player is still preparing
+
+**Type:** Bug Regression / Manual
+**Feature area:** Upload trim flow (`edit.tsx`, `TrimOverlay.tsx`)
+**Priority:** P0
+
+**Preconditions:**
+- User selects a large local video file (for example, 200MB+)
+- Device is running the iOS staging build
+
+**Steps:**
+1. Select the large video in Upload V2
+2. Open the edit screen immediately after selection
+3. Tap the trim action as soon as it becomes available
+4. Play, pause, and drag trim handles inside the overlay
+
+**Expected result:** The trim overlay opens safely, blocks entry until duration metadata exists, and does not crash when the underlying player is still loading.
+**Actual result (before fix):** Large videos could hit native `play()`, `pause()`, or `currentTime` mutations before the `AVPlayer` was ready, leading to an iOS `SIGABRT` crash from the TurboModule bridge.
+**Fix applied:** Wrapped player mutations in `safePlayerCall`, delayed auto-play on open, guarded zero/invalid durations before trim entry, and rejected invalid thumbnail timestamps.
+**Regression test:** Manual — repeat trim open/play/handle drag on large local videos and confirm no crash.
+**Status:** Fixed ✅
+
+---
+
+**Document Version**: 1.0  
+**Last Updated**: 2026-04-16  
+**Next Review**: 2026-04-30
+
+---
+

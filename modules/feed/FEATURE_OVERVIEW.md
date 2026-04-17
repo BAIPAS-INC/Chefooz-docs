@@ -1,7 +1,7 @@
 # Feed Module - Feature Overview
 
 **Version:** 1.0  
-**Last Updated:** March 18, 2026  
+**Last Updated:** April 16, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Domain Logic:** `libs/domain/src/feed/`  
 **Purpose:** Home feed with advanced ranking algorithm, CRS reputation boost, engagement tracking, and abuse prevention
@@ -38,6 +38,10 @@ The **Feed module** provides a personalized, ranked content stream for the Chefo
 6. **Visibility Control**: Progressive enforcement with state-based multipliers
 7. **Following Filter**: Show content only from followed creators using the authenticated viewer context
 8. **Feature Flags**: Control menu reel visibility
+
+### April 2026 Home Feed Fix
+
+- Home-feed reel cards now stay visually consistent with engagement changes made on other reel surfaces. When React Query updates a reel's `stats.isLiked`, both `FeedReelCard` and `FeedCinemaCard` immediately reflect the new liked state instead of keeping a stale outlined heart.
 
 ### Business Value
 

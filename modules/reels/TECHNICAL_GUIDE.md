@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Tech Stack**: NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis (Valkey)  
 **Version**: 1.0  
-**Last Updated**: 2026-02-28
+**Last Updated**: 2026-04-16
 
 ---
 
@@ -48,6 +48,13 @@
 ### Rollback
 
 - Re-enable by restoring the removed `actionRailItems` entries and the filter chip block in `edit.tsx`.
+
+## Recent QA Fixes
+
+- 2026-04-16: `ReelCaption.tsx` caption and hashtag overlays were strengthened for colorful content backgrounds. Hashtags now use white text with a stronger shadow radius and opacity so they remain readable over bright frames.
+- 2026-04-16: Upload V2 edit preview now exposes a JS-only play/pause floating action button for selected videos. This keeps the fix OTA-safe while `VideoView` continues to run with `nativeControls={false}`.
+- 2026-04-16: `TrimOverlay.tsx` now renders a live playback cursor and loops playback within the selected trim window, improving visual trimming feedback without changing native video dependencies.
+- 2026-04-16: Large-video trim entry is hardened against transient unready player state. Defensive `safePlayerCall` wrapping, delayed auto-play, invalid-duration guards, and timestamp validation prevent JS from sending invalid `play()`, `pause()`, or `currentTime` mutations across the TurboModule bridge while `AVPlayer` is still preparing.
 
 ---
 

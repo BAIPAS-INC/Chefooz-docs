@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Purpose**: Short-form video content management and retrieval  
 **Version**: 1.0  
-**Last Updated**: 2026-02-28
+**Last Updated**: 2026-04-16
 
 ---
 
@@ -17,6 +17,12 @@ The Reels module manages short-form video content on the Chefooz platform, handl
 - The filter indicator chip is also hidden to avoid exposing the filter editing entry point.
 - Existing backend/storage support for `textOverlays` and `filter` remains unchanged.
 - This is a UX gating change only; no API contract or reel schema behavior changes.
+
+### April 2026 Staging OTA Fixes
+
+- Reel caption overlays now keep hashtags readable on colorful content backgrounds.
+- Upload edit preview now includes a play/pause control for selected videos.
+- Trim mode shows a live playback cursor and is hardened against large-video player readiness crashes on iOS.
 
 ### Key Business Value
 

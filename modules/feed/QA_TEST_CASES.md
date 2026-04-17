@@ -3046,5 +3046,30 @@ Race between `expo-video` status (`readyToPlay`) and the FlatList viewability ca
 
 ---
 
-**Last Updated**: March 2026 (updated March 27 2026)
+### TC-FEED-BUG-009: Home feed reel cards keep stale like state after returning from another screen
+
+**Type:** Bug Regression  
+**Feature area:** Home feed reel cards (`FeedReelCard.tsx`, `FeedCinemaCard.tsx`)  
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- The same reel is visible in the home feed and can also be opened in another reel surface
+
+**Steps:**
+1. Open the home feed and note a reel with an unfilled heart icon
+2. Open that reel in another screen and like it there
+3. Return to the home feed without killing the app
+4. Observe the same reel card in the home feed
+
+**Expected result:** The home feed card re-renders with the filled heart state and the updated like count.
+
+**Actual result (before fix):** `FeedReelCard` and `FeedCinemaCard` initialised `isLiked` from props once via `useState`, but never mirrored later `reel.stats.isLiked` cache updates, so the card could still show an outlined heart after the reel was liked elsewhere.
+
+**Fix applied:** Added a prop-syncing `useEffect` to both home-feed reel card variants so local UI state follows `reel.stats.isLiked` updates from React Query.
+
+**Regression test:** `apps/chefooz-app/src/components/home-feed/FeedLikeSync.spec.tsx`
+**Status:** Fixed ✅
+
+**Last Updated**: April 2026 (updated April 16 2026)
 
