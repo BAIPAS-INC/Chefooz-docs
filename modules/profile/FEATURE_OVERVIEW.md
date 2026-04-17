@@ -2,7 +2,7 @@
 
 **Document Type:** Business & Product Requirements  
 **Module:** Profile Management  
-**Last Updated:** February 14, 2026  
+**Last Updated:** April 17, 2026  
 **Status:** Production (First Release – Feb 2026)
 
 ---
@@ -23,6 +23,12 @@
 ---
 
 ## 1. Executive Summary
+
+### 1.4 Recent QA Stabilisation Updates
+
+- The tagged-user sheet now routes the signed-in user back to the profile tab instead of opening a duplicate public-profile stack entry.
+- The reputation screen no longer exposes the leaderboard CTA during the current release window.
+- The edit-profile visibility selector now shows a stronger active state so users can confirm whether the account is public or private before saving.
 
 ### 1.1 Purpose
 

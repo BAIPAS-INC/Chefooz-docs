@@ -2,7 +2,7 @@
 
 **Document Type:** Developer Reference  
 **Module:** Profile Management  
-**Last Updated:** March 2026  
+**Last Updated:** May 2026  
 **Audience:** Backend Engineers, Mobile Developers, DevOps
 
 ---
@@ -25,6 +25,13 @@
 ---
 
 ## 1. Architecture Overview
+
+### 1.3 Recent QA Fixes
+
+- `apps/chefooz-app/src/components/TaggedUsersBottomSheet.tsx` now compares the tapped `userId` with `useMyProfile().data.userId` and routes to `/(tabs)/profile` for self-navigation. This avoids stacking `/profile/:username` on top of the existing profile tab for the current user.
+- `apps/chefooz-app/src/app/profile/edit.tsx` keeps the existing public/private toggle logic but now renders an active checkmark and primary text color for the selected visibility option. No API contract changed.
+- `apps/chefooz-app/src/app/profile/reputation.tsx` intentionally hides the leaderboard CTA. The screen still exposes the explanatory modal and weekly digest toggle, but the leaderboard route is not part of the release path.
+- **Tagged Reels Tab (May 2026):** Added `GET /v1/profile/:username/tagged` endpoint and matching "Tagged" tab on the own-profile screen. Query uses MongoDB `$or: [{ taggedUserIds: userId }, { 'positionedTags.userId': userId }]` with cursor pagination (createdAt DESC). Privacy guard mirrors `getUserReels`. Frontend hook `useTaggedReels(username, enabled, limit)` accepts an `enabled` flag so the query is deferred until the user taps the tab. `TabType` union updated to include `'tagged'`.
 
 ### 1.1 Module Structure
 

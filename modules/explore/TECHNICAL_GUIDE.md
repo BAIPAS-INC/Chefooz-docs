@@ -1,7 +1,7 @@
 # Explore Module - Technical Guide
 
 **Version:** 1.1  
-**Last Updated:** March 2026  
+**Last Updated:** April 17, 2026  
 **Module:** `apps/chefooz-apis/src/modules/explore/`  
 **Domain Logic:** `libs/domain/src/lib/explore-*.ts`  
 **Tech Stack:** NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis/Valkey
@@ -22,6 +22,10 @@
 10. [Testing Approach](#testing-approach)
 
 ---
+
+## Recent Fixes
+
+- 2026-04-17: `apps/chefooz-app/src/app/(tabs)/explore.tsx` now applies safe-area-aware bottom padding through `getTabBarHeight(insets.bottom) + normalize(20)` so the final explore modules are scrollable above the absolute tab bar.
 
 ## Architecture Overview
 

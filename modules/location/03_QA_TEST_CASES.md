@@ -2,7 +2,7 @@
 
 **Module**: `location` + `rider-location`  
 **Type**: Location Services & Address Management  
-**Last Updated**: February 22, 2026
+**Last Updated**: April 17, 2026
 
 ---
 
@@ -74,6 +74,28 @@ jest.mock('@cache/cache.service', () => ({
 ---
 
 ## 🏠 Address Management Tests
+
+### TC-ADDR-016: Profile address add flow does not bounce back to location search
+
+**Type:** Bug Regression / Manual
+**Feature area:** Profile address add flow
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in.
+- Profile addresses list is reachable.
+
+**Steps:**
+1. Open Profile > Addresses.
+2. Tap add address and pick a location in location search.
+3. Complete the address form and save.
+4. Tap the back button from the addresses list.
+
+**Expected result:** After save, the user lands on the addresses list and back navigation leaves the flow instead of reopening location search.
+**Actual result (before fix):** The stack still contained location search, so back navigation bounced the user into a stale intermediate step.
+**Fix applied:** Replaced the location-search route with address-form for address flows and collapsed the post-save profile path back to the previous screen.
+**Regression test:** Manual verification
+**Status:** Fixed ✅
 
 ### TC-ADDR-001: Create Address Successfully
 

@@ -1,7 +1,7 @@
 # Feed Module - QA Test Cases
 
 **Version:** 1.0  
-**Last Updated:** March 18, 2026  
+**Last Updated:** April 17, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Test Environment:** Staging (staging.chefooz.app)  
 **Total Test Cases:** 90
@@ -108,6 +108,27 @@ DELETE FROM engagements WHERE user_id LIKE 'test_%'
 ---
 
 ## Feed Retrieval Tests
+
+### TC-FEED-091: Final reel clears the tab bar on small devices
+
+**Priority**: HIGH  
+**Type**: Bug Regression  
+**Prerequisites**: Feed contains at least two reels on a device with a persistent bottom tab bar.
+
+**Test Steps**:
+1. Open the feed tab on a 320px to 414px wide device.
+2. Scroll to the last reel in the current page.
+3. Confirm the last reel can snap fully into view.
+
+**Expected Results**:
+- ✅ The last reel is fully visible above the tab bar.
+- ✅ No content is clipped behind the absolute tab bar.
+- ✅ Snap pagination still uses the same reel height.
+
+**Actual result (before fix):** The final reel could end under the tab bar because the list had no trailing inset.
+**Fix applied:** Added a safe-area-aware trailing inset to the feed FlatList content container.
+**Regression test:** Manual verification
+**Status:** ✅ Passed
 
 ### TC-FEED-001: Guest User Fetches First Page (Default Ranking)
 

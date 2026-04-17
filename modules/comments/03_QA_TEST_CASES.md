@@ -1,9 +1,72 @@
 # Comments Module - QA Test Cases
 
-**Version:** 1.0  
-**Last Updated:** February 14, 2026  
+**Version:** 1.1  
+**Last Updated:** May 2026  
 **Module:** Comments  
 **Test Coverage**: API, Business Logic, Security, Performance
+
+---
+
+## Bug Regression Test Cases (May 2026)
+
+### TC-COM-AVATAR-001: avatarUrl populated in comment responses
+
+**Type:** Bug Regression  
+**Feature area:** `GET /v1/reels/:reelId/comments` — all comment/reply endpoints  
+**Priority:** P1
+
+**Root cause:** `comments.service.ts` queried `User` with `select: ['id', 'username', 'fullName']` across all 11 sites. The `avatarUrl` column was never included so the mapper always returned `null`.
+
+**Preconditions:**
+- At least one user with a non-null `avatarUrl` has posted a comment or reply
+
+**Steps:**
+1. `GET /v1/reels/{reelId}/comments`
+2. Inspect `data.comments[0].user.avatarUrl`
+
+**Expected result:** `avatarUrl` is a valid CDN URL string (not `null`)  
+**Actual result (before fix):** `avatarUrl: null` for all comments  
+**Fix applied:** Added `'avatarUrl'` to all 11 `select` arrays in `comments.service.ts`; `mapCommentToResponse` now reads `user?.avatarUrl ?? null`  
+**Regression test:** `apps/chefooz-apis/src/modules/comments/comments.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
+### TC-COM-INPUT-001: Comment input uses theme colors (dark mode)
+
+**Type:** Bug Regression / UI  
+**Feature area:** `CommentInput.tsx`, `ReplyInput.tsx`  
+**Priority:** P1
+
+**Root cause:** Both comment input components had hardcoded hex values (`#007AFF`, `#CCC`, `#F8F8F8`, etc.) that bypassed the theme token system, causing broken appearance in dark mode.
+
+**Steps:**
+1. Switch app to dark mode
+2. Open any reel detail view
+3. Observe the comment input and reply input areas
+
+**Expected result:** inputs render with correct dark-mode background, border, and button colors  
+**Actual result (before fix):** Light grey backgrounds (`#F8F8F8`) visible in dark mode; send button `#007AFF` not mapped to theme  
+**Fix applied:**  
+- `CommentInput.tsx`: replaced `#007AFF`/`#CCC` with `colors.primary`/`colors.textMuted`  
+- `ReplyInput.tsx`: full rewrite using `makeStyles(colors)` factory pattern  
+**Status:** Fixed ✅
+
+---
+
+### TC-COM-LABEL-001: Comment inputs use label system strings
+
+**Type:** UI / Labels compliance  
+**Feature area:** `CommentInput.tsx`, `ReplyInput.tsx`  
+**Priority:** P2
+
+**Steps:**
+1. In a future i18n pass, update `reels.labels.ts` `comments.input.*` values
+2. Verify both components reflect updated strings without code changes
+
+**Expected result:** Placeholder and char-count text update automatically from label constants  
+**Fix applied:** Added `LABELS.reels.comments.input.*` keys; both components import and use them  
+**Status:** Fixed ✅
 
 ---
 
@@ -309,6 +372,27 @@ RESPONSE=$(curl -s \
 ---
 
 ## Reply System Tests
+
+### TC-REP-000: Reply card follows dark mode tokens
+
+**Type:** Bug Regression / Manual
+**Feature area:** Comment sheet reply rows
+**Priority:** P2
+
+**Preconditions:**
+- App theme is set to dark mode.
+- A reel has at least one comment with replies.
+
+**Steps:**
+1. Open the comments sheet.
+2. Expand a thread with replies.
+3. Inspect the reply background, avatar container, and text contrast.
+
+**Expected result:** Reply rows use dark-mode surfaces and remain readable without light-mode halos.
+**Actual result (before fix):** Reply rows inherited a light-only presentation and looked visually off in dark mode.
+**Fix applied:** ReplyItem now derives its background and avatar treatment from the theme token set.
+**Regression test:** Manual verification
+**Status:** Fixed ✅
 
 ### TC-REP-001: Create Valid Reply
 

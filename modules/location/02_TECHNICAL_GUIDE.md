@@ -2,7 +2,7 @@
 
 **Module**: `location` + `rider-location`  
 **Type**: Location Services & Address Management  
-**Last Updated**: February 22, 2026
+**Last Updated**: April 17, 2026
 
 ---
 
@@ -22,6 +22,11 @@
 ---
 
 ## 🏗️ Module Architecture
+
+### Recent Fixes
+
+- 2026-04-17: The profile address flow now uses `router.replace('/address-form')` from `location-search` for address-related sources. This removes the transient search route from the stack.
+- 2026-04-17: `apps/chefooz-app/src/app/address-form.tsx` now prefers `router.back()` after a successful profile address save when a prior screen exists, falling back to `/profile/addresses` only when needed. This prevents the stale location-search loop on back navigation.
 
 ### High-Level Architecture
 

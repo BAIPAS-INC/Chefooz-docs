@@ -1,7 +1,7 @@
 # Feed Module - Technical Guide
 
 **Version:** 1.0  
-**Last Updated:** April 16, 2026  
+**Last Updated:** April 17, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Domain Logic:** `libs/domain/src/feed/`  
 **Tech Stack:** NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis/Valkey
@@ -29,6 +29,7 @@
 
 ## Recent Fixes
 
+- 2026-04-17: The full-screen feed FlatList now adds a trailing bottom inset derived from the safe-area bottom padding so the final reel is not obscured by the absolute tab bar on smaller devices.
 - 2026-04-16: Home feed `FeedReelCard` and `FeedCinemaCard` now mirror `reel.stats.isLiked` prop changes with `useEffect`, preventing stale outlined-heart UI after the same reel is liked on another screen and React Query updates the cached reel object.
 - 2026-03-03: Client engagement cache merge now preserves `isLiked`/`isSaved` flags and aliases `savedCount` to `saves`, preventing like counts from resetting after refetches/tab switches.
 - 2026-03-03: Feed UI seeds `visibleItemIds` with the first reel when focused so autoplay starts without requiring an initial scroll.

@@ -2,7 +2,7 @@
 
 **Document Type:** Quality Assurance Reference  
 **Module:** Profile Management  
-**Last Updated:** February 14, 2026  
+**Last Updated:** May 2026  
 **Test Environment:** Staging + Production  
 **Test Data:** Sanitized staging data + synthetic users
 
@@ -148,6 +148,164 @@ JWT_TOKEN_CHEF_1=<staging-jwt-token>
 ---
 
 ## 3. Functional Test Cases
+
+### TC-profile-082: Tagged tab visible on own profile
+
+**Type:** Manual / Automated  
+**Feature area:** Profile screen — Tagged tab  
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- At least one reel exists where the user is tagged (via `positionedTags` or `taggedUserIds`)
+
+**Steps:**
+1. Navigate to own profile (bottom-tab Profile)
+2. Observe the tab strip below the stats row
+
+**Expected result:** A "Tagged" tab is visible alongside Reels, Reviews, Saved (and Menu for chefs)  
+**Status:** Fixed ✅
+
+---
+
+### TC-profile-083: Tagged tab loads tagged reels with infinite scroll
+
+**Type:** Manual  
+**Feature area:** Profile screen — Tagged tab  
+**Priority:** P1
+
+**Preconditions:**
+- User is tagged in 25+ reels (staged data)
+
+**Steps:**
+1. Open own profile → tap "Tagged" tab
+2. Scroll to bottom of grid
+3. Verify more reels load (next page)
+
+**Expected result:** Grid loads first 12 tagged reels; scrolling to bottom triggers next-page load; `nextCursor` advances  
+**Status:** Fixed ✅
+
+---
+
+### TC-profile-084: Tagged tab empty state
+
+**Type:** Manual  
+**Feature area:** Profile screen — Tagged tab  
+**Priority:** P2
+
+**Preconditions:**
+- User has never been tagged in any reel
+
+**Steps:**
+1. Open own profile → tap "Tagged" tab
+
+**Expected result:** Empty state message: "No tagged reels yet. You'll appear here when someone tags you in a reel."  
+**Status:** Fixed ✅
+
+---
+
+### TC-profile-085: Tagged tab respects private account
+
+**Type:** Manual / Automated  
+**Feature area:** `GET /v1/profile/:username/tagged` endpoint  
+**Priority:** P0
+
+**Preconditions:**
+- Target user is private
+- Requesting user does NOT follow them
+
+**Steps:**
+1. Call `GET /v1/profile/{username}/tagged` as non-follower
+
+**Expected result:** `400` with `errorCode: PROFILE_PRIVATE`  
+**Actual result (before fix):** N/A — endpoint did not exist  
+**Fix applied:** `getTaggedReels()` in `profile.service.ts` includes the same `getSocialState` privacy guard used by `getUserReels`  
+**Status:** Fixed ✅
+
+---
+
+### TC-profile-086: Tagged query covers both taggedUserIds and positionedTags
+
+**Type:** Automated / Unit  
+**Feature area:** `profile.service.ts` — `getTaggedReels()`  
+**Priority:** P1
+
+**Preconditions:**
+- Reel A: user present in `taggedUserIds` array only
+- Reel B: user present in `positionedTags[].userId` only
+- Reel C: user present in both
+
+**Steps:**
+1. Call `GET /v1/profile/{username}/tagged`
+
+**Expected result:** All three reels (A, B, C) appear in the response  
+**Fix applied:** MongoDB `$or` query: `{ $or: [{ taggedUserIds: userId }, { 'positionedTags.userId': userId }] }`  
+**Status:** Fixed ✅
+
+---
+
+### TC-profile-079: Tagged users sheet opens the correct profile route
+
+**Type:** Bug Regression / Automated  
+**Feature area:** Tagged users bottom sheet  
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in.
+- A reel contains the signed-in user and at least one different tagged user.
+
+**Steps:**
+1. Open a reel with tagged users.
+2. Open the tagged users sheet.
+3. Tap the signed-in user.
+4. Re-open the sheet and tap another tagged user.
+
+**Expected result:** Tapping the signed-in user opens the existing profile tab. Tapping another tagged user opens `/profile/:username`.
+**Actual result (before fix):** Every tap pushed `/profile/:username`, including the signed-in user, which created an unnecessary duplicate profile stack.
+**Fix applied:** Added self-profile route branching in `TaggedUsersBottomSheet`.
+**Regression test:** `apps/chefooz-app/src/components/TaggedUsersBottomSheet.spec.tsx`
+**Status:** Fixed ✅
+
+### TC-profile-080: Edit profile shows current visibility without user interaction
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Edit profile visibility selector  
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in.
+- Profile visibility is set to either public or private.
+
+**Steps:**
+1. Open Edit Profile.
+2. Observe the visibility selector before tapping anything.
+3. Toggle to the opposite value.
+4. Reopen the screen.
+
+**Expected result:** The active option is visually distinct immediately on load and remains distinct after toggling and reopening.
+**Actual result (before fix):** The selected state was easy to miss because both options looked nearly identical until the user interacted.
+**Fix applied:** Added active text treatment and a checkmark icon to the selected visibility option.
+**Regression test:** Manual verification
+**Status:** Fixed ✅
+
+### TC-profile-081: Reputation screen does not show leaderboard CTA
+
+**Type:** Bug Regression / Manual  
+**Feature area:** Reputation screen  
+**Priority:** P2
+
+**Preconditions:**
+- User is logged in and can open the reputation screen.
+
+**Steps:**
+1. Open Profile > Reputation.
+2. Scroll through the screen actions.
+
+**Expected result:** Only the reputation explanation action is shown.
+**Actual result (before fix):** A leaderboard CTA was exposed even though that flow is not part of the current release path.
+**Fix applied:** Removed the leaderboard button from the reputation actions section and updated the reputation notice copy.
+**Regression test:** Manual verification
+**Status:** Fixed ✅
 
 ### 3.1 Profile Management
 

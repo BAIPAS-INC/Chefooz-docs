@@ -1,7 +1,7 @@
 # Comments Module - Technical Guide
 
 **Version:** 1.0  
-**Last Updated:** February 14, 2026  
+**Last Updated:** April 17, 2026  
 **Module:** `apps/chefooz-apis/src/modules/comments/`  
 **Tech Stack:** NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM)
 
@@ -20,6 +20,10 @@
 9. [Testing](#testing)
 
 ---
+
+## Recent Fixes
+
+- 2026-04-17: `apps/chefooz-app/src/components/comments/ReplyItem.tsx` now renders reply rows with theme-aware background and spacing tokens so dark mode uses `surfaceElevated` and `interactiveSubtle` instead of a light-only presentation.
 
 ## Architecture Overview
 

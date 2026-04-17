@@ -1,7 +1,7 @@
 # Explore Module - QA Test Cases
 
 **Version:** 1.0  
-**Last Updated:** February 14, 2026  
+**Last Updated:** April 17, 2026  
 **Module:** `apps/chefooz-apis/src/modules/explore/`  
 **Test Environment:** Staging (staging.chefooz.app)  
 **Total Test Cases:** 45
@@ -45,6 +45,28 @@
 ---
 
 ## Section Retrieval Tests
+
+### TC-SEC-006: Final explore module clears the tab bar
+
+**Priority**: High  
+**Endpoint**: Mobile explore surface
+
+**Prerequisites**:
+- Explore has enough sections to require scrolling.
+
+**Test Steps**:
+1. Open Explore on a 320px to 414px wide device.
+2. Scroll to the bottom of the page.
+3. Inspect the final module and the last empty-state action if shown.
+
+**Expected Results**:
+- The final module remains fully visible above the bottom tab bar.
+- The refresh CTA in the empty state is tappable without being clipped.
+
+**Actual result (before fix):** The page ended too close to the tab bar, making the final section feel partially hidden.
+**Fix applied:** Added safe-area-aware bottom padding to the explore ScrollView content container.
+**Regression test:** Manual verification
+**Status:** ✅ Passed
 
 ### TC-SEC-001: Get Consolidated Sections
 
