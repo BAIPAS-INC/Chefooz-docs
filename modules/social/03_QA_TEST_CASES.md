@@ -2239,3 +2239,75 @@ Affected screens:
 ---
 
 **[SLICE_COMPLETE ✅]**
+
+---
+
+### TC-SOCIAL-BUG-004: Direct reel share sends no push notification to target user
+
+**Type:** Bug Regression  
+**Feature area:** `ReelsShareService::recordShare` (direct share path)  
+**Priority:** P1
+
+**Preconditions:**
+- User A is logged in and has push notifications enabled
+- User B has push notifications enabled
+- A reel exists that User B can share
+
+**Steps:**
+1. User B opens a reel and taps Share → Direct Share
+2. User B selects User A from the list
+3. Observe User A's device
+
+**Expected result:** User A receives a push notification: "{{username}} shared a reel with you 🍳"  
+**Actual result (before fix):** No notification sent. `ReelsShareService` only logged a TODO comment. `NotificationDispatcher` was not injected.  
+**Fix applied:** Injected `NotificationDispatcher` into `ReelsShareService`; replaced TODO block with `notificationDispatcher.send(targetUserId, 'reel.shared_direct', { username, reelId })`. Added `'reel.shared_direct'` template to `notification.templates.ts`.  
+**Regression test:** Manual — share a reel directly to a user, confirm target receives push.  
+**Status:** Fixed ✅
+
+---
+
+### TC-SOCIAL-BUG-005: WhatsApp share contains non-clickable deep link scheme
+
+**Type:** Bug Regression  
+**Feature area:** `ShareSheet.tsx::handleWhatsAppShare`  
+**Priority:** P1
+
+**Preconditions:**
+- User is on the feed, viewing a reel
+- WhatsApp is installed (or accessible via wa.me)
+
+**Steps:**
+1. Tap the share icon on a reel
+2. Tap "Share on WhatsApp"
+3. WhatsApp opens with the share message
+4. Recipient receives the message and tries to tap the link
+
+**Expected result:** The link appears as a tappable hyperlink in WhatsApp chat. Tapping opens the reel.  
+**Actual result (before fix):** Message contained `chefooz://reel/<id>` — a custom URL scheme that WhatsApp does not render as a hyperlink. Link was plain text and unclickable.  
+**Fix applied:** `ShareSheet.tsx` — `handleWhatsAppShare` now calls `recordShareMutation.mutateAsync()` first to get `deepLink.universal` (HTTPS URL). Message uses this URL. WhatsApp URL changed from `whatsapp://send?text=` to `https://wa.me/?text=` (universal, works without app installed).  
+**Regression test:** Manual — share to WhatsApp, confirm link is clickable in chat.  
+**Status:** Fixed ✅
+
+---
+
+### TC-SOCIAL-BUG-006: Instagram share does not copy link to user's clipboard
+
+**Type:** Bug Regression  
+**Feature area:** `ShareSheet.tsx::handleInstagramShare`  
+**Priority:** P1
+
+**Preconditions:**
+- User is on the feed, viewing a reel
+- Instagram is installed
+
+**Steps:**
+1. Tap the share icon on a reel
+2. Tap "Share on Instagram"
+3. Instagram opens to the camera screen
+4. User tries to create a story and paste the link
+
+**Expected result:** An HTTPS link to the reel is in the device clipboard before Instagram opens. User can paste it in their story.  
+**Actual result (before fix):** Alert said "Copy the link from clipboard and paste it" but clipboard was empty — `Clipboard.setString()` was never called in `handleInstagramShare`.  
+**Fix applied:** `ShareSheet.tsx` — `handleInstagramShare` now calls `recordShareMutation.mutateAsync()` first to get `deepLink.universal`, then calls `Clipboard.setString(universalLink)` before `Linking.openURL('instagram://camera')`. Alert updated to "Link copied! Paste it in your Instagram story."  
+**Regression test:** Manual — tap Instagram share, confirm clipboard contains HTTPS URL before Instagram opens.  
+**Status:** Fixed ✅

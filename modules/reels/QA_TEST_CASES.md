@@ -2178,3 +2178,28 @@ For `USER_REVIEW` reels, `reel.userId` is the **reviewer/customer** who posted t
 **Fix applied:** `order.service.ts::handleOrderDelivered` — added `notificationDispatcher.send(reelOwnerId, 'reel.commission_earned', { orderId, coins: commission.coins })` after successful commission creation. Added template `reel.commission_earned` to `notification.templates.ts`.
 **Regression test:** Manual — deliver a reel-attributed order, confirm creator receives coins notification.
 **Status:** Fixed ✅
+---
+
+### TC-REELS-BUG-005: Comment count badge on feed card does not update after posting a comment
+
+**Type:** Bug Regression
+**Feature area:** `libs/api-client/src/lib/hooks/useComments.ts::useCreateComment` and `useDeleteComment`
+**Priority:** P1
+
+**Preconditions:**
+- User is on the home feed scrolling reels
+- At least one reel is visible with a comment count badge
+
+**Steps:**
+1. Note the comment count on a reel card (e.g. "2")
+2. Tap the comment icon to open the sheet
+3. Type and submit a new comment
+4. Close the comment sheet
+5. Observe the comment count badge on the same reel card
+
+**Expected result:** Count badge increments immediately (e.g. "2" → "3") without requiring a scroll.
+**Actual result (before fix):** Count stays at old value (e.g. still "2"). User sees "3 comments" inside the sheet but "2" on the card. Count only updates after scrolling past the reel and back.
+**Root cause:** `useCreateComment.onMutate` updated `["reel-detail", mediaId]` and `["comments", mediaId]` caches but never touched the `["feed"]` infinite query cache. Feed cards read `reel.stats.comments` directly from the feed list cache.
+**Fix applied:** `libs/api-client/src/lib/hooks/useComments.ts` — In both `useCreateComment` and `useDeleteComment`, `onMutate` now snapshots all active `["feed"]` queries and walks their pages to find and update the matching reel's `stats.comments`. The snapshot is used in `onError` to roll back if the server call fails.
+**Regression test:** Manual — post a comment on a feed reel, close the sheet, confirm count increments immediately.
+**Status:** Fixed ✅

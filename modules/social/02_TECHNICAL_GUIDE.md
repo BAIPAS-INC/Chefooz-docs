@@ -1791,10 +1791,13 @@ async recordShare(
   this.trackShareAnalytics(userId, reelId, type, targetUserId);
 
   // 7. Send notification (for direct shares)
+  // BUG FIX (BUG-06): NotificationDispatcher is now injected; push is sent here.
   if (type === ShareType.DIRECT && targetUserId) {
-    this.logger.log(
-      `🔔 TODO: Send REEL_SHARED_DIRECT notification to ${targetUserId}`,
-    );
+    const sender = await this.userRepository.findOne({ where: { id: userId }, select: ['username', 'fullName'] });
+    await this.notificationDispatcher.send(targetUserId, 'reel.shared_direct', {
+      username: sender?.username || sender?.fullName || 'Someone',
+      reelId,
+    });
   }
 
   return {
@@ -1804,6 +1807,8 @@ async recordShare(
   };
 }
 ```
+
+> **Edge case (BUG-06):** `NotificationDispatcher` was previously NOT injected into `ReelsShareService`. The direct-share notification block only logged a TODO. Fixed March 2026: `NotificationDispatcher` injected and `reel.shared_direct` template added to `notification.templates.ts`.
 
 ---
 
