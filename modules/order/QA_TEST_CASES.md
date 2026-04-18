@@ -1788,7 +1788,78 @@ Before deploying Order module to production:
 
 ---
 
-## 🌑 Dark Mode Regression Test Cases
+## 🐛 Bug Regression Tests — QA Batch April 2026
+
+### TC-ORDER-BUG-001: Chef marks READY → correct "Order Ready" push sent to customer
+
+**Type:** Bug Regression  
+**Feature area:** `chef-orders.service.ts::updateOrderStatus`  
+**Priority:** P1
+
+**Preconditions:**
+- An order is in PREPARING status
+- Customer has push notifications enabled
+
+**Steps:**
+1. Chef taps "Mark Ready" in chef order management screen
+2. Order status transitions from PREPARING → READY
+3. Observe customer device for push notification
+
+**Expected result:** Customer receives — "Order Ready! 🍽️ — Your order #{{orderId}} is ready for pickup or delivery."
+**Actual result (before fix):** Customer received "Order Preparing 👨‍🍳 — Chef is now preparing your order" (template `order.cooking`) which is semantically wrong for the READY state.
+**Fix applied:** `chef-orders.service.ts` — changed dispatch from `'order.cooking'` to `'order.ready'` in the `ChefOrderStatus.READY` branch. Wrapped in try-catch for resilience.
+**Regression test:** Manual — mark order as READY and verify the customer notification says "Order Ready" not "Preparing".
+**Status:** Fixed ✅
+
+---
+
+### TC-ORDER-BUG-002: Chef marks PREPARING → customer push sent
+
+**Type:** Bug Regression  
+**Feature area:** `chef-orders.service.ts::updateOrderStatus`  
+**Priority:** P1
+
+**Preconditions:**
+- An order is in ACCEPTED status
+- Customer has push notifications enabled
+
+**Steps:**
+1. Chef taps "Start Preparing" in chef order management
+2. Order transitions ACCEPTED → PREPARING
+3. Observe customer device
+
+**Expected result:** Customer receives — "Order Preparing 👨‍🍳 — Chef is now preparing your order #{{orderId}}. It will be ready soon!"
+**Actual result (before fix):** No notification was sent when status changed to PREPARING. The PREPARING branch had no dispatch call.
+**Fix applied:** `chef-orders.service.ts` — added `notificationDispatcher.send(order.userId, 'order.cooking', { orderId })` in the `ChefOrderStatus.PREPARING` branch.
+**Regression test:** Manual — accept and start preparing an order, confirm customer gets "preparing" notification.
+**Status:** Fixed ✅
+
+---
+
+### TC-ORDER-BUG-003: Chef marks READY → rider receives pickup notification
+
+**Type:** Bug Regression  
+**Feature area:** `chef-orders.service.ts::updateOrderStatus`  
+**Priority:** P1
+
+**Preconditions:**
+- Order has an assigned rider (`deliveryPartnerId` is set)
+- Chef marks order READY
+
+**Steps:**
+1. Rider is auto-assigned to an order
+2. Chef marks order as READY
+3. Observe rider device for push notification
+
+**Expected result:** Rider receives — "Order Ready for Pickup 🏍️ — Order #{{orderId}} is ready at the chef's location. Head over to collect it!"
+**Actual result (before fix):** No notification was sent to the rider. Rider had no signal to go pick up the order except by manually polling.
+**Fix applied:** `chef-orders.service.ts` — added `notificationDispatcher.send(order.deliveryPartnerId, 'delivery.order_ready_for_pickup', { orderId })` after the customer notification in the READY branch. Added template `delivery.order_ready_for_pickup` to `notification.templates.ts`.
+**Regression test:** Manual — assign a rider before marking READY, confirm rider gets the pickup notification.
+**Status:** Fixed ✅
+
+---
+
+**Last Updated**: 2026-04-18
 
 ### TC-ORD-DM-001: OrderCard Component — White Background in Dark Mode
 

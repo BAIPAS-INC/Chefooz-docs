@@ -2081,8 +2081,100 @@ For `USER_REVIEW` reels, `reel.userId` is the **reviewer/customer** who posted t
 ---
 
 **Document Version**: 1.0  
-**Last Updated**: 2026-04-16  
+**Last Updated**: 2026-04-18  
 **Next Review**: 2026-04-30
 
 ---
 
+## 🐛 Bug Regression Tests — QA Batch April 2026
+
+### TC-REELS-BUG-001: Comment sheet — profile images displayed
+
+**Type:** Bug Regression  
+**Feature area:** `components/comments/CommentItem.tsx`  
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- At least one commenter has a non-null `avatarUrl` on their account
+
+**Steps:**
+1. Open any reel in the feed
+2. Tap the comment button to open the comment sheet
+3. Observe the avatar area for each comment
+
+**Expected result:** Users with a profile photo show their actual photo in the comment avatar circle. Users without a photo show the initial-letter fallback.
+**Actual result (before fix):** Every comment showed an initial-letter placeholder regardless of whether the user had a profile photo. `avatarUrl` from the backend was completely ignored.
+**Fix applied:** `CommentItem.tsx` — conditional `<Image source={{ uri: comment.avatarUrl }}>` rendered when `avatarUrl` is non-null; initial-letter fallback retained for null/undefined.
+**Regression test:** Manual — upload a profile photo, post a comment, reopen the comment sheet and confirm photo appears.
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-BUG-002: Save reel — toast feedback shown after save
+
+**Type:** Bug Regression  
+**Feature area:** `components/collections/CollectionSheet.tsx`, `hooks/collections/useToggleSave`  
+**Priority:** P2
+
+**Preconditions:**
+- User is logged in
+- User has at least one collection (or creates one in the sheet)
+
+**Steps:**
+1. Open a reel in the feed
+2. Tap the bookmark icon to open the CollectionSheet
+3. Select a collection to add the reel to it
+4. Close the sheet
+
+**Expected result:** A "Reel saved" toast appears immediately when the reel is saved to the first collection. The reel is visible in the Profile → Saved tab.
+**Actual result (before fix):** No toast was shown. Save appeared to work silently (optimistic UI toggled the icon) but no feedback was given.
+**Fix applied:** `CollectionSheet.tsx` — added `onSuccess` callback to `toggleSave` mutate call that invokes `toast.show(L.collections.toasts.reelSaved, 'success')`. Added `toasts` key to `collections.labels.ts`.
+**Regression test:** Manual — save a reel, confirm toast appears and reel is visible in Saved tab.
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-BUG-003: Reel creator receives push when order placed via their reel
+
+**Type:** Bug Regression  
+**Feature area:** `order.service.ts::confirmRazorpayPayment`, `order.service.ts::handlePaymentConfirmed`  
+**Priority:** P2
+
+**Preconditions:**
+- Chef has posted a USER_REVIEW reel linked to a menu item
+- Another user places an order by tapping the CTA on that reel
+
+**Steps:**
+1. User A taps the order CTA on User B's reel
+2. User A completes checkout (UPI or Razorpay)
+3. Observe User B's device for a push notification
+
+**Expected result:** User B receives a push — "New Order from Your Reel! 🎉 — Someone just placed an order after watching your reel. You'll earn coins when it's delivered!"
+**Actual result (before fix):** No notification was sent to the reel creator. `order.attribution.creatorUserId` was populated via `enrichAttribution()` but no dispatch logic existed.
+**Fix applied:** `order.service.ts` — Added `notificationDispatcher.send(order.attribution.creatorUserId, 'reel.order_placed', ...)` after payment confirmation in both `handlePaymentConfirmed` and `confirmRazorpayPayment`. Added template `reel.order_placed` to `notification.templates.ts`.
+**Regression test:** Manual — place an order via a reel and confirm the reel creator receives a push.
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-BUG-004: Reel creator receives push when commission (coins) earned
+
+**Type:** Bug Regression  
+**Feature area:** `order.service.ts::handleOrderDelivered`  
+**Priority:** P2
+
+**Preconditions:**
+- A reel-attributed order exists (USER_REVIEW reel)
+- The order is delivered
+
+**Steps:**
+1. Rider marks order as delivered (or simulator triggers delivery)
+2. `handleOrderDelivered` runs and creates a `CommissionLedger` record
+3. Observe the reel creator's device for a push notification
+
+**Expected result:** Reel creator receives — "You Earned Coins! 🪙 — You earned {{coins}} coins from a reel order. Keep sharing your food!"
+**Actual result (before fix):** Commission record was created in the DB but no push was sent. Creator had no in-app awareness of their earnings.
+**Fix applied:** `order.service.ts::handleOrderDelivered` — added `notificationDispatcher.send(reelOwnerId, 'reel.commission_earned', { orderId, coins: commission.coins })` after successful commission creation. Added template `reel.commission_earned` to `notification.templates.ts`.
+**Regression test:** Manual — deliver a reel-attributed order, confirm creator receives coins notification.
+**Status:** Fixed ✅
