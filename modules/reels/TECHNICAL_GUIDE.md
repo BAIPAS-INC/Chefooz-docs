@@ -2097,3 +2097,76 @@ Badge colour: `#22c55e` (Tailwind green-500).
 **Document Version**: 1.3
 **Last Updated**: 2026-03-28
 **Next Review**: 2026-04-10
+
+---
+
+## Likes List (Who Liked a Reel) — April 2026
+
+### Overview
+
+Users can tap the **like count number** (below the heart icon) on any reel to see a bottom sheet listing every user who liked it — similar to Instagram's "Reactions and views" sheet.
+
+### Interaction Split on Like Button
+
+`ReelActions.tsx` now has two separate touchables for the like button:
+- **Heart icon tap** → `onLike()` — toggles like/unlike
+- **Count text tap** → `onLikesCountPress()` — opens `LikesBottomSheet`
+- Guard: `onLikesCountPress` only fires when `localLikesCount > 0`
+
+### Backend: `GET /api/v1/reels/:reelId/likers`
+
+| Property | Detail |
+|---|---|
+| Auth | Required (`JwtAuthGuard`) |
+| Pagination | Cursor-based on `_id` (descending), default 20, max 50/page |
+| Data source | MongoDB `engagements` collection: `{ reelId, type: 'like', active: true }` |
+| Profile lookup | Postgres `users` table (batch `In(userIds)`) |
+| Module change | `reels.module.ts` now registers `Engagement` schema |
+
+### Frontend: `LikesBottomSheet`
+
+`apps/chefooz-app/src/components/reels/LikesBottomSheet.tsx`
+
+- Same `Modal + animationType="slide"` pattern as `CommentsBottomSheet`
+- Sheet height: 72% of screen
+- **Stats row** renders `❤️ {likes}  👁 {views}` from passed props — no extra API call
+- **Local search** filters by `username` / `fullName` in-memory (no server round-trip)
+- **Infinite scroll** uses `useReelLikers` (cursor paginated `useInfiniteQuery`)
+- Tapping a user row navigates to `/profile/:username` and closes the sheet
+- All labels from `LABELS.reels.likesSheet`
+
+### Shared Type Changes
+
+`libs/types/src/lib/reel.types.ts`:
+```ts
+interface ReelLiker { userId, username, fullName?, avatarUrl? }
+interface ReelLikersPage { items: ReelLiker[], nextCursor: string|null, total: number }
+```
+
+### React Query Key
+
+```ts
+['reels', 'likers', reelId]   // staleTime: 30s, gcTime: 2min
+```
+
+---
+
+## Notification → Reel Navigation Fix — April 2026
+
+**Root cause:** `PushTokenProvider.tsx` and `notifications/index.tsx` both used `router.push('/(tabs)/feed?highlightReel=${reelId}')`. This scrolls the infinite feed to the reel — but fails silently when the reel isn't in the currently loaded pages (common for older reels).
+
+**Fix:** Navigate directly to `/(tabs)/reels/[reelId]`, which fetches the reel by ID via `useReelDetail` and always works regardless of feed state.
+
+```ts
+router.push({
+  pathname: '/(tabs)/reels/[reelId]',
+  params: { reelId, source: '/notifications' },
+});
+```
+
+The `source` param tells the reel viewer to go back to `/notifications` on back press.
+
+---
+
+**Document Version**: 1.4
+**Last Updated**: 2026-04-20

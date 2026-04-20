@@ -2203,3 +2203,499 @@ For `USER_REVIEW` reels, `reel.userId` is the **reviewer/customer** who posted t
 **Fix applied:** `libs/api-client/src/lib/hooks/useComments.ts` — In both `useCreateComment` and `useDeleteComment`, `onMutate` now snapshots all active `["feed"]` queries and walks their pages to find and update the matching reel's `stats.comments`. The snapshot is used in `onError` to roll back if the server call fails.
 **Regression test:** Manual — post a comment on a feed reel, close the sheet, confirm count increments immediately.
 **Status:** Fixed ✅
+
+---
+
+## 🧪 Likes List Bottom Sheet (v1.4)
+
+### TC-REELS-501: Open likes sheet by tapping like count
+
+**Type:** Manual  
+**Feature area:** ReelCard / LikesBottomSheet  
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- A reel with at least 1 like is visible in the feed
+
+**Steps:**
+1. Scroll to a reel that has a non-zero like count
+2. Tap the like count number (not the heart icon)
+
+**Expected result:** A bottom sheet slides up titled "Liked by" showing ❤️ total likes and 👁 total views in a stats row, followed by a list of users who liked the reel.
+**Actual result (before fix):** No likes list existed — tapping count had no effect or toggled like.
+**Fix applied:** `ReelActions.tsx` — split like button into separate icon touchable (toggle) and count touchable (open sheet). `ReelCard.tsx` — added `LikesBottomSheet` mount and state. `LikesBottomSheet.tsx` — new component.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-502: Heart icon still toggles like (not open sheet)
+
+**Type:** Manual  
+**Feature area:** ReelCard / ReelActions  
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- A reel is visible in the feed
+
+**Steps:**
+1. Tap the heart icon directly (not the count number below it)
+
+**Expected result:** Like is toggled (icon animates, count +1 or -1). The likes sheet does NOT open.
+**Actual result (before fix):** N/A — new feature split.
+**Fix applied:** `ReelActions.tsx` — heart icon `TouchableOpacity` calls `onLike` only; count `TouchableOpacity` calls `onLikesCountPress`.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-503: Tapping like count when count is 0 does nothing
+
+**Type:** Manual  
+**Feature area:** ReelCard / LikesBottomSheet  
+**Priority:** P2
+
+**Preconditions:**
+- User is logged in
+- A reel with 0 likes is visible
+
+**Steps:**
+1. Observe a reel with like count showing "0"
+2. Tap the count number
+
+**Expected result:** Nothing happens — the likes sheet does NOT open.
+**Actual result (before fix):** N/A — new guard.
+**Fix applied:** `ReelCard.tsx` — `handleLikesCountPress` guards with `if (localLikesCount > 0)` before setting `showLikesSheet(true)`.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-504: Likes sheet — search filters list in real time
+
+**Type:** Manual  
+**Feature area:** LikesBottomSheet  
+**Priority:** P2
+
+**Preconditions:**
+- Likes sheet is open with multiple likers visible
+
+**Steps:**
+1. Type a partial username or full name in the search bar
+2. Observe the list
+
+**Expected result:** List is filtered instantly to only show users whose `username` or `fullName` matches the search term (case-insensitive). No API call is made — filtering is in-memory.
+**Actual result (before fix):** N/A — new feature.
+**Fix applied:** `LikesBottomSheet.tsx` — `filteredData` derived from `searchQuery` state, applied to local `allItems` array.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-505: Likes sheet — infinite scroll loads more likers
+
+**Type:** Manual  
+**Feature area:** LikesBottomSheet / useReelLikers  
+**Priority:** P2
+
+**Preconditions:**
+- A reel with more than 20 likes exists
+- Likes sheet is open
+
+**Steps:**
+1. Scroll to the bottom of the likers list
+2. Observe the list
+
+**Expected result:** Next page of likers loads automatically via `fetchNextPage`. A loading spinner appears while fetching.
+**Actual result (before fix):** N/A — new feature.
+**Fix applied:** `useReelLikers` hook — `useInfiniteQuery` with cursor pagination. `LikesBottomSheet.tsx` — `FlatList.onEndReached` calls `fetchNextPage`.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-506: Likes sheet — empty state when nobody has liked
+
+**Type:** Manual  
+**Feature area:** LikesBottomSheet  
+**Priority:** P2
+
+**Preconditions:**
+- A reel exists with exactly 0 likes (edge case: like count shown as 0 but sheet opened e.g. via a race condition)
+
+**Steps:**
+1. Open likes sheet (if somehow guard is bypassed)
+2. Observe
+
+**Expected result:** Empty state message "No likes yet" is shown.
+**Actual result (before fix):** N/A — new feature.
+**Fix applied:** `LikesBottomSheet.tsx` — `FlatList.ListEmptyComponent` renders label `LABELS.reels.likesSheet.empty`.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-507: Likes sheet — user row tap navigates to profile
+
+**Type:** Manual  
+**Feature area:** LikesBottomSheet  
+**Priority:** P2
+
+**Preconditions:**
+- Likes sheet is open with at least one liker visible
+
+**Steps:**
+1. Tap on any user row in the likers list
+2. Observe navigation
+
+**Expected result:** Likes sheet closes and app navigates to `/profile/:username` for the tapped user.
+**Actual result (before fix):** N/A — new feature.
+**Fix applied:** `LikesBottomSheet.tsx` — row `TouchableOpacity` calls `onClose()` then `router.push('/profile/${item.username}')`.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-508: Video pauses when likes sheet opens, resumes on close
+
+**Type:** Manual  
+**Feature area:** ReelCard / LikesBottomSheet  
+**Priority:** P2
+
+**Preconditions:**
+- A reel is actively playing
+
+**Steps:**
+1. Tap the like count to open the likes sheet
+2. Observe video playback
+3. Close the likes sheet
+4. Observe video playback
+
+**Expected result:** Video pauses when the sheet opens. Video resumes playing after the sheet is closed.
+**Actual result (before fix):** N/A — new feature.
+**Fix applied:** `ReelCard.tsx` — `handleLikesCountPress` sets `setIsPaused(true)`. Sheet `onClose` sets `setIsPaused(false)`.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+## 🧪 Notification → Reel Navigation Fix (v1.4)
+
+### TC-REELS-601: Push notification for REEL_LIKED navigates to reel viewer
+
+**Type:** Bug Regression  
+**Feature area:** PushTokenProvider / Reel Viewer  
+**Priority:** P0
+
+**Preconditions:**
+- User A has posted a reel
+- User B liked User A's reel (triggers push notification to User A)
+- User A has the app installed with push notifications enabled
+
+**Steps:**
+1. User A receives a push notification: "[username] liked your reel"
+2. User A taps the notification while the app is in background or closed
+3. Observe navigation destination
+
+**Expected result:** App opens and navigates directly to the reel viewer screen (`/(tabs)/reels/[reelId]`) showing the specific reel that was liked.
+**Actual result (before fix):** App navigated to the feed screen (`/(tabs)/feed?highlightReel=<id>`). If the reel was not in the current page of the feed cache, nothing was highlighted. User was confused about which reel caused the notification.
+**Root cause:** `PushTokenProvider.tsx` `engagement` case routed to `feed?highlightReel` which requires the reel to be in the paginated feed cache. For older reels or cross-session launches, the reel was never highlighted.
+**Fix applied:** `apps/chefooz-app/src/providers/PushTokenProvider.tsx` — `engagement` case now routes to `/(tabs)/reels/[reelId]` with `params: { reelId, source: '/notifications' }`.
+**Regression test:** Manual — trigger REEL_LIKED push notification, tap it, confirm reel viewer opens with the correct reel.
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-602: In-app notification for REEL_LIKED navigates to reel viewer
+
+**Type:** Bug Regression  
+**Feature area:** notifications/index.tsx / Reel Viewer  
+**Priority:** P0
+
+**Preconditions:**
+- User is inside the app and receives a REEL_LIKED in-app notification
+- The notifications inbox is accessible from the tab bar
+
+**Steps:**
+1. Navigate to the Notifications screen
+2. Tap a "liked your reel" notification row
+3. Observe navigation
+
+**Expected result:** App navigates directly to `/(tabs)/reels/[reelId]` for the specific reel, with `source: '/notifications'` in params.
+**Actual result (before fix):** App navigated to `/(tabs)/feed?highlightReel=<id>`. Reel was frequently not visible in feed (older reels, not in current cache page).
+**Root cause:** `notifications/index.tsx` `REEL_LIKED` and `REEL_COMMENTED` cases used `feed?highlightReel` route.
+**Fix applied:** `apps/chefooz-app/src/app/notifications/index.tsx` — `REEL_LIKED` and `REEL_COMMENTED` cases now route to `/(tabs)/reels/[reelId]` with params.
+**Regression test:** Manual — tap a REEL_LIKED notification in the inbox, confirm reel viewer opens.
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-603: Back navigation from reel (opened via notification) returns to notifications
+
+**Type:** Manual  
+**Feature area:** Reel Viewer / Expo Router  
+**Priority:** P1
+
+**Preconditions:**
+- User has arrived at the reel viewer by tapping a notification (push or in-app)
+
+**Steps:**
+1. User taps a notification and lands on reel viewer
+2. User taps the back/close button on the reel viewer
+
+**Expected result:** App navigates back to the notifications screen (because `source: '/notifications'` was passed in params when opening the reel).
+**Actual result (before fix):** Back would go to feed or be undefined, as the reel was opened via a route that wasn't tracked.
+**Fix applied:** Both `PushTokenProvider.tsx` and `notifications/index.tsx` now pass `source: '/notifications'` as a route param. The reel viewer's back handler reads `source` and routes accordingly.
+**Regression test:** Manual — open reel via notification, tap back, confirm notifications screen is shown.
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-604: REEL_COMMENTED push notification also navigates to reel viewer
+
+**Type:** Manual  
+**Feature area:** PushTokenProvider  
+**Priority:** P1
+
+**Preconditions:**
+- User A posted a reel
+- User B commented on User A's reel (triggers push notification)
+
+**Steps:**
+1. User A taps the push notification for a new comment
+2. Observe navigation
+
+**Expected result:** Reel viewer opens for the specific reel. (The `engagement` case in `PushTokenProvider` handles both REEL_LIKED and REEL_COMMENTED notification types via `metadata.reelId`.)
+**Actual result (before fix):** Same as TC-REELS-601 — navigated to feed instead.
+**Fix applied:** Same fix as TC-REELS-601 — `PushTokenProvider.tsx` `engagement` case covers all engagement notification types.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-REELS-605: Notification for follower activity (no reelId) navigates to profile
+
+**Type:** Manual  
+**Feature area:** PushTokenProvider  
+**Priority:** P2
+
+**Preconditions:**
+- User A followed User B (triggers engagement-type push notification with `userId` but no `reelId`)
+
+**Steps:**
+1. User B receives a push notification "[username] followed you"
+2. User B taps the notification
+
+**Expected result:** App navigates to the follower's profile: `/profile/:username` (or `/profile/:userId` if username is not in metadata).
+**Actual result (before fix):** No explicit handler for follower engagement type — would fall through.
+**Fix applied:** `PushTokenProvider.tsx` — `engagement` case checks `else if (metadata.userId)` branch when `reelId` is absent, routes to profile.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+## 🧪 Notification Routing Hardening (v1.5)
+
+### TC-NOTIF-701: All push notification types navigate correctly (root-cause fix)
+
+**Type:** Bug Regression
+**Feature area:** PushTokenProvider / NotificationDispatcher
+**Priority:** P0
+
+**Preconditions:**
+- User has push notifications enabled
+
+**Root cause (pre-fix):** `NotificationDispatcher.sendPush()` never included the notification `type` field in the Expo push payload. The mobile handler read `data.type` which was always `undefined`, so every notification tap fell to the `default` case and landed on `/notifications` regardless of content. Additionally, the handler read metadata from `data.metadata` (a nested object that never existed — the Expo push payload is flat) instead of reading fields directly from `data`.
+
+**Steps:**
+1. Trigger any push notification (like, comment, follow, order update, payout)
+2. Tap the notification
+
+**Expected result:** App navigates to the contextually correct screen for that notification type (reel viewer / profile / order detail / chef order / chef earnings / messages).
+**Actual result (before fix):** Every notification tap landed on `/notifications` regardless of type.
+**Fix applied:**
+- `apps/chefooz-apis/src/modules/notification/notification.dispatcher.ts` — `sendPush` call now passes `{ ...data, type }` so `data.type` is populated in the push payload.
+- `apps/chefooz-app/src/providers/PushTokenProvider.tsx` — handler now reads metadata from `data` directly (flat structure). Added `resolveDeepLink()` parser used as primary routing method. Type-based switch retained as fallback.
+**Regression test:** Manual — trigger each notification type and verify destination.
+**Status:** Fixed ✅
+
+---
+
+### TC-NOTIF-702: Deep-link routing covers all notification types
+
+**Type:** Manual
+**Feature area:** PushTokenProvider / DeepLinkGenerator
+**Priority:** P1
+
+**Preconditions:**
+- Backend sends push notification with `deepLink` field in payload
+
+**Steps (for each type):**
+
+| Notification event | Expected deep link | Expected screen |
+|---|---|---|
+| REEL_LIKED | `chefooz://reel/:id` | Reel viewer |
+| REEL_COMMENTED | `chefooz://reel/:id?comments=true` | Reel viewer |
+| FOLLOWED | `chefooz://profile/:username` | User profile |
+| ORDER_ACCEPTED | `chefooz://orders/:id` | Customer order detail |
+| NEW_ORDER_RECEIVED | `chefooz://chef/orders/:id` | Chef order detail |
+| PAYOUT_COMPLETED | `chefooz://chef/earnings?payoutId=...` | Chef earnings screen |
+| DELIVERY_ASSIGNED | `chefooz://rider/browse-requests` | Rider assignment list |
+| MESSAGE_RECEIVED | `chefooz://messages/:conversationId` | Message thread |
+
+**Expected result:** Each notification opens the screen matching the table above.
+**Fix applied:** `deeplink.generator.ts` — Added `DELIVERY_REQUEST_RECEIVED` and `DELIVERY_ASSIGNED` cases routing to `chefooz://rider/browse-requests` instead of the customer order screen.
+**Regression test:** Manual
+**Status:** Fixed ✅
+
+---
+
+### TC-NOTIF-703: In-app notification inbox — all taps navigate correctly
+
+**Type:** Bug Regression
+**Feature area:** notifications/index.tsx
+**Priority:** P0
+
+**Root cause (pre-fix):** `handleNotificationPress` checked legacy event-key strings (`'REEL_LIKED'`, `'FOLLOWED'`, `'PAYOUT_COMPLETED'`) but `AppNotification.type` is always the coarse DB type (`'engagement'`, `'order'`, `'chef'`, `'system'`, `'message'`). No check ever matched — all notification taps were silent (mark-read only, no navigation).
+
+**Steps:**
+1. Open the Notifications screen
+2. Tap a notification of each type
+
+**Expected result:**
+
+| Notification type | Expected navigation |
+|---|---|
+| `engagement` + reelId | Reel viewer |
+| `engagement` + no reelId (follow) | Actor's profile |
+| `order` | Customer order detail |
+| `chef` | Chef order detail |
+| `message` | Message thread |
+| `system` + payoutId/amount | Chef earnings screen |
+| `system` (other) | Notifications inbox |
+
+**Fix applied:**
+- `notifications/index.tsx` — `handleNotificationPress` rewritten to use actual DB type values.
+- `GroupedNotification` interface extended with optional `metadata` field, populated in `groupNotifications()`, used for message/payout routing.
+- `isGroupableType()` fixed to return `true` for `'engagement'` (the actual DB type) — grouping was silently disabled for all notifications before.
+- `getIconConfig()` rewritten to use DB types + message body keywords instead of legacy uppercase strings.
+- Payout navigation: replaced `console.log('Navigate to earnings/payouts')` with `router.push('/chef/earnings')`.
+**Regression test:** Manual — tap each notification type in inbox, verify correct screen opens.
+**Status:** Fixed ✅
+
+---
+
+## 🧪 Likes List — 100K Scale Performance (v1.5)
+
+### TC-PERF-801: Likers API cursor pagination does not re-count on page 2+
+
+**Type:** Performance
+**Feature area:** reels.service.ts / getReelLikers
+**Priority:** P1
+
+**Context:** For viral reels with 100K+ likes, calling `countDocuments` on every page request is wasteful. The client already shows the like count from `reel.stats.likes`.
+
+**Expected behaviour:** `total` field is populated (real count) only on the first page (`cursor = null/undefined`). Subsequent pages return `total: 0`. No `countDocuments` query is executed on pages 2+.
+**Fix applied:** `reels.service.ts` — `Promise.all` now uses `cursor ? Promise.resolve(0) : engagementModel.countDocuments(...)`.
+**Regression test:** Manual — inspect server logs for `countDocuments` calls while paginating a large likers list.
+**Status:** Fixed ✅
+
+---
+
+### TC-PERF-802: Likers pages are cached for 30 seconds
+
+**Type:** Performance
+**Feature area:** reels.service.ts / CacheService
+**Priority:** P1
+
+**Context:** Viral reels can have many concurrent users opening the likes sheet simultaneously — without caching, every user triggers the same MongoDB + Postgres query.
+
+**Expected behaviour:** `getReelLikers(reelId, cursor, pageSize)` returns a cached response (Redis) within the 30-second TTL window. Cache key format: `likers:{reelId}:{cursor|'first'}:{pageSize}`.
+**Fix applied:** `reels.service.ts` — entire method body wrapped in `cacheService.getOrSet(cacheKey, 30, fn)`.
+**Regression test:** Manual — use Redis monitor or server logs to verify cache hits on repeated requests.
+**Status:** Fixed ✅
+
+---
+
+### TC-PERF-803: MongoDB cursor-sort index covers filter + sort in one scan
+
+**Type:** Performance
+**Feature area:** engagement.schema.ts
+**Priority:** P2
+
+**Context:** Cursor pagination query is `find({ reelId, type: 'like', active: true, _id: { $lt: cursor } }).sort({ _id: -1 })`. The previous compound index `{ reelId, type, active }` covered the filter but not the sort, forcing an in-memory sort pass on all matching documents.
+
+**Expected behaviour:** The new index `{ reelId: 1, type: 1, active: 1, _id: -1 }` allows MongoDB to satisfy both the filter and the sort direction with a single index scan. Query explain plan should show `IXSCAN` with no `SORT` stage.
+**Fix applied:** `engagement.schema.ts` — added `EngagementSchema.index({ reelId: 1, type: 1, active: 1, _id: -1 })`.
+**Regression test:** Manual — run `db.engagements.explain('executionStats').find(...)` on staging and confirm no `SORT` stage in the plan.
+**Status:** Fixed ✅
+
+---
+
+### TC-PERF-804: FlatList in LikesBottomSheet uses getItemLayout and removeClippedSubviews
+
+**Type:** Performance
+**Feature area:** LikesBottomSheet.tsx
+**Priority:** P2
+
+**Context:** Without `getItemLayout`, React Native measures every row height on every scroll event. For lists with 100+ visible items within the sheet, this causes jank.
+
+**Expected behaviour:**
+- `getItemLayout` returns `{ length: normalize(64), offset: normalize(64) * index, index }` — all rows have identical fixed height.
+- `removeClippedSubviews={true}` on Android — off-screen cells are unmounted from the native view hierarchy.
+- `maxToRenderPerBatch={10}` and `windowSize={5}` — limits concurrent render work.
+- `keyboardShouldPersistTaps="handled"` — tapping a list item while the search keyboard is open works correctly.
+**Fix applied:** `LikesBottomSheet.tsx` — props added to `FlatList`.
+**Regression test:** Manual — open a reel with 100+ likes and scroll the sheet; no visible frame drops.
+**Status:** Fixed ✅
+
+---
+
+### TC-LBS-001: Tapping own username in LikesBottomSheet navigates to profile tab
+
+**Type:** Bug Regression / UX
+**Feature area:** `LikesBottomSheet.tsx`, `ReelCard.tsx`
+**Priority:** P1
+
+**Preconditions:**
+- Logged-in user has liked their own reel (e.g. while testing, this is possible)
+- OR: any reel that's been liked by the logged-in user
+
+**Steps:**
+1. Open any reel in the feed or reel viewer
+2. Tap the like count to open the LikesBottomSheet
+3. Find the row for **your own account** in the likers list
+4. Tap your own avatar or username row
+
+**Expected result:** App navigates to the `/(tabs)/profile` tab (own profile, tab bar visible, no back button issue).
+**Actual result (before fix):** App navigated to `/profile/[username]` — the public profile view — which for the logged-in user shows a blank "other user" layout and may trap the user (no tab bar).
+**Fix applied:** `LikesBottomSheet.tsx` — `handleUserPress` now receives the full `ReelLiker` item; if `item.userId === currentUserId` (passed from `ReelCard.tsx` as `currentUser?.id`), routes to `/(tabs)/profile` instead.
+**Regression test:** Manual — tap your own row in the sheet; confirm you land on the profile tab with the tab bar visible.
+**Status:** Fixed ✅
+
+---
+
+### TC-LBS-002: LikesBottomSheet in home feed does not show views stat
+
+**Type:** UX Verification
+**Feature area:** `LikesBottomSheet.tsx`, `ReelCard.tsx`, `feed.tsx`
+**Priority:** P2
+
+**Preconditions:**
+- User is on the home feed tab (not reel viewer or chef profile)
+
+**Steps:**
+1. Open the home feed
+2. Tap the like count on any reel card
+3. Observe the stats row at the top of the LikesBottomSheet
+
+**Expected result:** Stats row shows only ❤️ likes count — no 👁 views column / divider.
+**Actual result (before fix):** Stats row showed both likes AND views. Views are not surfaced in the home feed UI so showing them in the sheet is inconsistent.
+**Fix applied:**
+- `LikesBottomSheet.tsx` — added `showViews?: boolean` prop (default `true`). When `false`, the views stat item and its divider are not rendered.
+- `ReelCard.tsx` — added `showLikesViews?: boolean` prop (default `true`), passed as `showViews` to `LikesBottomSheet`.
+- `feed.tsx` — passes `showLikesViews={false}` to `<ReelCard>` so the feed context always hides views.
+**Regression test:** Manual — open the likes sheet from the home feed; views stat must be absent. Open via reel viewer / chef profile; views must still appear.
+**Status:** Fixed ✅
