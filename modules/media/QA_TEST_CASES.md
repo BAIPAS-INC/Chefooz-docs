@@ -1763,6 +1763,35 @@ const completedOrdersCount = await this.orderRepository.count({ ... });
 
 ---
 
+---
+
+### TC-MEDIA-BUG-008: Crop modal shows blank preview when uploading images from gallery
+
+**Type:** Bug Regression
+**Feature area:** `PostCropModal.tsx`, `useVideoPicker.ts`
+**Priority:** P1
+
+**Preconditions:**
+- User is on the Upload tab, content type is POST
+- User taps the gallery button to select multiple images
+
+**Steps:**
+1. Tap the gallery button on the Upload/Edit screen
+2. Select 1–10 images from the photo library
+3. The crop modal opens
+4. Observe the main crop frame preview and thumbnails at the bottom
+
+**Expected result:** Selected image(s) are displayed in the crop frame and thumbnail strip. User can pan and pinch to adjust crop.
+**Actual result (before fix):** The crop frame showed a solid dark (#111) background with no image visible. Thumbnails were also blank. User could not see anything to crop.
+**Root cause:** `pickMultipleImages` used `quality: 0.8` in `launchImageLibraryAsync`. Combining a quality setting with `allowsMultipleSelection: true` triggers expo-image-picker's pre-compression step. On some Android devices and iOS versions with limited photo library permissions, this produces empty or partially-written temporary files. The resulting URIs appeared structurally valid but the underlying file data was absent, causing React Native's `Image` component to render blank. PostCropModal already applies 0.85 quality compression via `expo-image-manipulator` on Done, making the pre-compression step redundant and harmful.
+**Fix applied:**
+- `useVideoPicker.ts` — removed `quality: 0.8` from `pickMultipleImages` `launchImageLibraryAsync` options; added `exif: false`. PostCropModal's `ImageManipulator` handles final compression at Done.
+- `PostCropModal.tsx` — added `imageLoadError` state. The crop frame `Image` now has an `onError` callback that sets `imageLoadError = true` to surface failures. When `imageLoadError` is true, a visible error placeholder is shown instead of a silent blank frame. State resets to `false` when the modal opens and when switching between images in `switchToImage`.
+**Regression test:** Manual — select multiple images from the gallery; confirm crop preview shows immediately. Test on Android 13+ and iOS with limited photo access.
+**Status:** Fixed ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**  
-*Media Module QA Test Cases - Updated March 2026 (64 test cases)*
+*Media Module QA Test Cases - Updated March 2026 (65 test cases)*
 
