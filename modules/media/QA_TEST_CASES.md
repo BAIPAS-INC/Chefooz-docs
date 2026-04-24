@@ -1860,14 +1860,112 @@ const completedOrdersCount = await this.orderRepository.count({ ... });
 2. Tap the Upload FAB (bottom + button)
 
 **Expected result:** Upload flow or camera opens without crash  
-**Actual result (before fix):** App immediately crashes with `AbstractMethodError: LoadControl.getAllocator(PlayerId)`  
+**Actual result (before fix):** App immediately crashed with `AbstractMethodError: LoadControl.getAllocator(PlayerId)`  
 **Root cause:** CameraX 1.7.0-alpha01 → `media3-muxer:1.9.0` → BOM forces all Media3 to 1.9.0 → `expo-video` compiled against 1.8.0's `LoadControl` interface is missing a new abstract method added in 1.9.0  
-**Fix applied:** Force all `androidx.media3:*` to `1.8.0` via `resolutionStrategy.eachDependency` in `android/build.gradle` (inside `allprojects { configurations.all { } }`)  
-**Regression test:** Manual — tap upload FAB on Android; verify no crash  
+**Fix applied:** Force all `androidx.media3:*` to `1.8.0` via `resolutionStrategy.eachDependency` in `android/build.gradle` — with `media3-muxer` and `media3-container` **exempt** (see TC-MEDIA-068)  
+**Regression test:** Manual — tap upload FAB on Android; verify no crash, camera opens  
+**Status:** Fixed ✅
+
+---
+
+### TC-MEDIA-068: Video recording crashes on Android (MediaMuxerCompat not found)
+
+**Type:** Bug Regression  
+**Feature area:** Camera / Video Recording (CameraX + media3-muxer)  
+**Priority:** P0
+
+**Preconditions:**
+- Android device (tested on Samsung SM-A505F, Android 11 / API 30)
+- App built after TC-MEDIA-067 fix (all media3 forced to 1.8.0)
+- Camera opened successfully
+
+**Steps:**
+1. Open the app on Android
+2. Tap the Upload FAB to open the camera
+3. Switch to video mode (if not default)
+4. Press and hold the record button to start recording
+
+**Expected result:** Video records without crash  
+**Actual result (before fix):** App crashed immediately on recording start with:
+```
+FATAL EXCEPTION: CameraX-camerax_io_1
+java.lang.NoClassDefFoundError: Failed resolution of: Landroidx/media3/muxer/MediaMuxerCompat;
+  at androidx.camera.video.internal.muxer.Media3MuxerImpl.setOutput
+```  
+**Root cause:** `MediaMuxerCompat` was introduced in `media3-muxer:1.9.0`. CameraX 1.7.0-alpha01's `Media3MuxerImpl` uses it for video muxing. The TC-MEDIA-067 fix blanket-pinned all `androidx.media3:*` to `1.8.0`, including `media3-muxer`, removing the class from the APK's DEX.  
+**Fix applied:** Intermediate fix — exempted `media3-muxer` and `media3-container` from the 1.8.0 pin. Superseded by TC-MEDIA-069 final fix.  
+**Status:** Fixed ✅ (via TC-MEDIA-069 final strategy)
+
+---
+
+### TC-MEDIA-069: Video recording crashes on Android (NoSuchMethodError in MediaFormatUtil)
+
+**Type:** Bug Regression  
+**Feature area:** Camera / Video Recording (CameraX + media3-muxer + media3-common)  
+**Priority:** P0
+
+**Preconditions:**
+- Android device (tested on Samsung SM-A505F, Android 11 / API 30)
+- App built after TC-MEDIA-068 intermediate fix (media3-muxer/container exempt, media3-common still at 1.8.0)
+- Camera opened successfully
+
+**Steps:**
+1. Open the app on Android
+2. Tap the Upload FAB to open the camera
+3. Press record button to start recording a video
+
+**Expected result:** Video records without crash  
+**Actual result (before fix):**
+```
+FATAL EXCEPTION: CameraX-camerax_io_1
+java.lang.NoSuchMethodError: No static method getFloatFromIntOrFloat(...)
+  in Landroidx/media3/common/util/MediaFormatUtil;
+  at MediaMuxerCompat.addTrack (media3-muxer:1.9.0)
+```  
+**Root cause:** `media3-muxer:1.9.0` was compiled against `media3-common:1.9.0` and calls `MediaFormatUtil.getFloatFromIntOrFloat()` added in 1.9.0. The exclusion-list approach (exempt only muxer+container) still left `media3-common` at 1.8.0. Any new Media3 muxer version calling new common APIs will continue to break with this approach — it is inherently fragile.  
+**Fix applied:** Replaced the exclusion-list strategy with an **explicit pin-list** strategy. Only artifacts that expo-video directly compiled against 1.8.0 are pinned (`media3-exoplayer`, `media3-exoplayer-dash`, `media3-exoplayer-hls`, `media3-session`, `media3-ui`, `media3-datasource-okhttp`). Everything else (`media3-common`, `media3-muxer`, `media3-container`, `media3-extractor`) floats to 1.9.0.  
+**Regression test:** Manual — open camera, record a short video, verify no crash, verify media saves correctly  
+**Status:** Fixed ✅
+
+---
+
+### TC-MEDIA-070: Video recording crashes on iOS (invalidAVFileType)
+
+**Type:** Bug Regression  
+**Feature area:** Camera / Video Recording (iOS VisionCamera v5)  
+**Priority:** P0
+
+**Preconditions:**
+- iOS device (any — reproducible on all devices running VisionCamera v5.0.6)
+- Camera screen opened, camera permission granted
+
+**Steps:**
+1. Open the app on iOS
+2. Tap the Upload FAB to open the camera
+3. Press and hold the record button to start recording a video
+
+**Expected result:** Video recording starts without error  
+**Actual result (before fix):**
+```
+LOG  📹 Recording started
+ERROR  ❌ VisionCamera createRecorder failed: [Error: invalidAVFileType]
+WARN  ⚠️ Recording failed — resetting recording state
+```  
+**Root cause:** VisionCamera v5.0.6 `URL+createTempURL.swift` has a type mismatch bug:
+```swift
+// Bug: AVFileType.rawValue is a UTI ("com.apple.quicktime-movie"), NOT a MIME type
+let mimeType = fileType.rawValue
+guard let utFileType = UTType(mimeType: mimeType) else {
+  throw TemporaryFileError.invalidAVFileType  // <-- thrown every time for .mov (the default)
+}
+```
+`AVFileType.rawValue` returns a UTI identifier string. `UTType(mimeType:)` strictly requires MIME type strings (e.g. `"video/quicktime"`). The default `fileType` is `.mov` (`"com.apple.quicktime-movie"` UTI) → `UTType(mimeType:)` returns `nil` → `invalidAVFileType` is always thrown.  
+**Fix applied:** Patched `node_modules/react-native-vision-camera/ios/Extensions/URL+createTempURL.swift` to use `UTType(fileType.rawValue)` (non-failable UTI identifier initializer) instead of `UTType(mimeType:)`. Fix persisted via `scripts/postinstall.js` to survive `yarn install`.  
+**Regression test:** Manual — open camera on iOS, hold record button, verify recording starts and video saves without error  
 **Status:** Fixed ✅
 
 ---
 
 **[SLICE_COMPLETE ✅]**  
-*Media Module QA Test Cases - Updated April 2026 (67 test cases)*
+*Media Module QA Test Cases - Updated April 2026 (70 test cases)*
 

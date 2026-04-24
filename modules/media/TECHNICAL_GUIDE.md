@@ -1631,30 +1631,136 @@ Upgraded from `5.0.4` → `5.0.6` which fixes additional Kotlin 2.0 compatibilit
 
 ---
 
-## Android Runtime Fix — Media3 Version Conflict (Upload FAB Crash, April 2026)
+## Android Runtime Fix — Media3 Version Conflicts (Video Recording Crashes, April 2026)
 
-**Symptom**: App crashed immediately when the upload FAB was tapped. Logcat showed:
+Three cascading crashes were resolved via an **explicit pin-list strategy** for Media3 artifacts.
+
+### Crash 1 — Upload FAB: AbstractMethodError on video playback
+
+**Symptom**:
 ```
 FATAL EXCEPTION: ExoPlayer:Playback
 java.lang.AbstractMethodError: abstract method
   "Allocator LoadControl.getAllocator(PlayerId)"
+  at ExoPlayerImplInternal.createMediaPeriodHolder
 ```
 
-**Root cause**: CameraX `1.7.0-alpha01` (from `react-native-vision-camera` v5) transitively depends on `media3-muxer:1.9.0`. Media3 uses BOM (Bill of Materials) constraints — once `1.9.0` enters the dependency graph, Gradle upgrades **all** `androidx.media3:*` artifacts to `1.9.0`. `expo-video` compiled its `LoadControl` implementation against Media3 `1.8.0`. Media3 `1.9.0` added a new abstract method to the `LoadControl` interface that that compiled binary doesn't implement → `AbstractMethodError` on the ExoPlayer playback thread.
+**Root cause**: CameraX `1.7.0-alpha01` (via VisionCamera v5) transitively depends on `media3-muxer:1.9.0`. Media3's BOM constraints promoted all `androidx.media3:*` to `1.9.0`. `expo-video` v3.0.14 compiled its `LoadControl` implementation against `1.8.0`. Media3 `1.9.0` added `LoadControl.getAllocator(PlayerId)` as a new abstract method — expo-video's compiled binary doesn't implement it → `AbstractMethodError`.
 
-**Fix**: Force all `androidx.media3:*` to `1.8.0` in `apps/chefooz-app/android/build.gradle`:
+### Crash 2 — Video recording: NoClassDefFoundError for MediaMuxerCompat
+
+**Symptom** (after blanket-pinning all media3 to 1.8.0):
+```
+FATAL EXCEPTION: CameraX-camerax_io_1
+java.lang.NoClassDefFoundError: Failed resolution of: Landroidx/media3/muxer/MediaMuxerCompat;
+  at androidx.camera.video.internal.muxer.Media3MuxerImpl.setOutput
+```
+
+**Root cause**: `MediaMuxerCompat` was introduced in `media3-muxer:1.9.0`. Blanket-pinning all `media3-*` to `1.8.0` removes it from the APK's DEX.
+
+### Crash 3 — Video recording: NoSuchMethodError in MediaFormatUtil
+
+**Symptom** (after exempting only media3-muxer and media3-container):
+```
+FATAL EXCEPTION: CameraX-camerax_io_1
+java.lang.NoSuchMethodError: No static method getFloatFromIntOrFloat(...)
+  in Landroidx/media3/common/util/MediaFormatUtil;
+  at MediaMuxerCompat.addTrack (media3-muxer:1.9.0)
+```
+
+**Root cause**: `media3-muxer:1.9.0` was compiled against `media3-common:1.9.0` and calls `MediaFormatUtil.getFloatFromIntOrFloat()` — a static method added in `media3-common:1.9.0`. Keeping `media3-common` pinned at `1.8.0` makes this call fail. Each new version of `media3-muxer` may call new APIs on `media3-common`, making the exclusion-list approach inherently fragile.
+
+### Final Fix — Explicit pin list (not exclusion list)
+
+Rather than naming what to *exclude* from the pin (fragile — any new `media3-muxer` API call on a newer common artifact will break), we **only pin the ExoPlayer playback artifacts** that expo-video compiled against `1.8.0`. Everything else floats to whatever version Gradle resolves (1.9.0 from CameraX).
+
+**Why this is safe**: `media3-exoplayer:1.8.0` was compiled against `media3-common:1.8.0`. At runtime with `media3-common:1.9.0`, it only calls APIs it knows about (1.8.0 era), which are all still present (backward-compatible additions only). The `AbstractMethodError` is fixed because *ExoPlayer itself* (the caller of `LoadControl.getAllocator`) stays at `1.8.0` where that method doesn't exist in the interface.
 
 ```groovy
+// apps/chefooz-app/android/build.gradle
 allprojects {
   configurations.all {
     resolutionStrategy.eachDependency { DependencyResolveDetails details ->
       if (details.requested.group == 'androidx.media3') {
-        details.useVersion '1.8.0'
-        details.because 'expo-video compiled against 1.8.0 — Media3 1.9.0 breaks LoadControl.getAllocator(PlayerId)'
+        // Only pin the ExoPlayer playback artifacts that expo-video compiled against 1.8.0.
+        // media3-common, media3-muxer, media3-container, media3-extractor etc. float to 1.9.0.
+        def pinTo180 = [
+          'media3-exoplayer',
+          'media3-exoplayer-dash',
+          'media3-exoplayer-hls',
+          'media3-session',
+          'media3-ui',
+          'media3-datasource-okhttp',
+        ]
+        if (pinTo180.contains(details.requested.name)) {
+          details.useVersion '1.8.0'
+          details.because 'expo-video compiled against 1.8.0; media3 1.9.0 adds abstract LoadControl.getAllocator(PlayerId) breaking expo-video binary'
+        }
       }
     }
   }
 }
 ```
 
-**Result**: `media3-exoplayer: 1.4.0 -> 1.8.0` (was `-> 1.9.0`). CameraX `media3-muxer` also pinned at `1.8.0`, which remains compatible with recording.
+**Verified dependency resolutions**:
+| Artifact | Resolved | Reason |
+|---|---|---|
+| `media3-exoplayer` | **`1.8.0`** (pinned) | expo-video LoadControl compiled against 1.8.0 |
+| `media3-exoplayer-dash` | **`1.8.0`** (pinned) | expo-video dep at 1.8.0 |
+| `media3-exoplayer-hls` | **`1.8.0`** (pinned) | expo-video dep at 1.8.0 |
+| `media3-session` | **`1.8.0`** (pinned) | expo-video dep at 1.8.0 |
+| `media3-ui` | **`1.8.0`** (pinned) | expo-video dep at 1.8.0 |
+| `media3-datasource-okhttp` | **`1.8.0`** (pinned) | expo-video dep at 1.8.0 |
+| `media3-muxer` | **`1.9.0`** (floats) | CameraX needs MediaMuxerCompat (1.9.0+) |
+| `media3-container` | **`1.9.0`** (floats) | muxer transitive dep |
+| `media3-common` | **`1.9.0`** (floats) | muxer 1.9.0 calls getFloatFromIntOrFloat (1.9.0+) |
+| `media3-extractor` | **`1.9.0`** (floats) | CameraX transitive dep |
+
+**Note**: If `expo-video` is updated to a version compiled against Media3 `1.9.0`+, the entire `pinTo180` list can be removed.
+
+---
+
+## iOS Runtime Fix — VisionCamera v5 `invalidAVFileType` on Recording (April 2026)
+
+**Symptom**: On iOS, attempting to record video fails immediately:
+```
+ERROR  VisionCamera createRecorder failed: [Error: invalidAVFileType]
+```
+
+**Root cause**: `URL+createTempURL.swift` in VisionCamera v5.0.6 has a type mismatch bug:
+
+```swift
+// BUGGY in VisionCamera v5.0.6:
+let mimeType = fileType.rawValue  // "com.apple.quicktime-movie" — a UTI, NOT a MIME type
+guard let utFileType = UTType(mimeType: mimeType) else {
+  throw TemporaryFileError.invalidAVFileType  // throws every time
+}
+```
+
+`AVFileType.rawValue` is a UTI identifier string:
+- `.mov` → `"com.apple.quicktime-movie"` (UTI)
+- `.mp4` → `"public.mpeg-4"` (UTI)
+
+`UTType(mimeType:)` is a **failable** initializer that only accepts true MIME-type strings (e.g. `"video/quicktime"`, `"video/mp4"`). UTI strings always return `nil` → the error is thrown before any recording begins. The default `fileType` on iOS is `.mov`, so every recording fails.
+
+**Why `fileType: 'mp4'` does NOT help**: `AVFileType.mp4.rawValue = "public.mpeg-4"` (also a UTI) → same failure.
+
+**Fix**: Use `UTType(_ identifier: String)` — the UTI identifier initializer. Note: this initializer is also failable (`UTType?`), so `guard let` is required:
+
+```swift
+// FIXED:
+guard let utFileType = UTType(fileType.rawValue) else {
+  throw TemporaryFileError.invalidAVFileType
+}
+return try createTempURL(fileType: utFileType)
+// "com.apple.quicktime-movie" → UTType.quickTimeMovie → extension "mov"
+// "public.mpeg-4"             → UTType.mpeg4Movie     → extension "mp4"
+```
+
+**Where applied**:
+1. `node_modules/react-native-vision-camera/ios/Extensions/URL+createTempURL.swift` — direct source patch
+2. `scripts/postinstall.js` — string-replace block re-applies the fix on every `yarn install`
+
+After applying: `cd ios && pod install` is required for CocoaPods to pick up the patched source.
+
+**Upgrade note**: Check if this bug is still present when upgrading VisionCamera beyond v5.0.6. If the upstream fix is merged, remove the postinstall patch block.
