@@ -2,8 +2,72 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Tech Stack**: NestJS, MongoDB (Media/Reel schemas), PostgreSQL (Orders/Users), AWS S3, Bull Queue, FFmpeg  
-> **Last Updated**: March 14, 2026  
+> **Last Updated**: April 23, 2026  
 > **Maintainer**: Backend Team
+
+---
+
+## April 23, 2026 — LiveCameraView migrated to React Native Vision Camera v5
+
+### Motivation
+
+`expo-camera` is a thin wrapper around AVFoundation / Camera2 with no Frame Processor API.
+For a UGC platform competing with TikTok/Instagram, it is insufficient once real-time filters,
+multi-camera streaming, or per-capture flash control are required.
+
+### Changes
+
+| Area | Before | After |
+|---|---|---|
+| Camera library | `expo-camera ~16.1.11` | `react-native-vision-camera ^5.0.4` |
+| Camera component | `<CameraView>` | `<Camera>` (from rnvc) |
+| Permission hooks | `useCameraPermissions()` / `useMicrophonePermissions()` (plural) | `useCameraPermission()` / `useMicrophonePermission()` (singular) |
+| Device selection | `facing` prop | `useCameraDevice('back'\|'front')` hook, both loaded; selected by prop |
+| Photo capture | `takePictureAsync()` → `{ uri }` | `takePhoto()` → `PhotoFile { path }`, normalised to `file://` URI |
+| Video recording | `recordAsync()` (Promise, race condition prone) | `startRecording({ onRecordingFinished, onRecordingError })` + `stopRecording()` — callback-based |
+| Zoom | `0–1` passed directly to expo-camera | `device.neutralZoom + (norm * clamp(maxZoom, 8))` — true device range |
+| Torch | `enableTorch` prop | `torch='on'\|'off'` prop on Camera |
+| Frame Processors | ❌ not available | ✅ architecture ready via `react-native-worklets-core ^1.6.3` |
+
+### File changed
+
+`apps/chefooz-app/src/components/upload/LiveCameraView.tsx`
+
+### app.json plugin added
+
+```json
+["react-native-vision-camera", {
+  "cameraPermissionText": "Allow $(PRODUCT_NAME) to access your camera for recording reels.",
+  "microphonePermissionText": "Allow $(PRODUCT_NAME) to use your microphone for recording audio.",
+  "enableMicrophonePermission": true
+}]
+```
+
+### URI normalisation constraint
+
+VisionCamera `PhotoFile.path` and `VideoFile.path` may or may not carry a `file://` prefix depending
+on platform and device. Both are normalised in `LiveCameraView.tsx` before any URI is passed to callbacks:
+
+```ts
+const uri = path.startsWith('file://') ? path : `file://${path}`;
+```
+
+All callers in `edit.tsx` continue to receive `string` URIs — no change to parent code.
+
+### Zoom range constraint
+
+The `MAX_ZOOM_MULTIPLIER = 8` cap prevents exposing extreme digital zoom (some devices report
+`device.maxZoom = 128`). Gesture input `0–1` is linearly mapped to `neutralZoom → min(8, maxZoom)`.
+`neutralZoom` is the 1× focal length, so gesture `0` always equals no zoom, not wide-angle.
+
+### Frame Processor readiness
+
+`react-native-worklets-core ^1.6.3` is already in `apps/chefooz-app/package.json`.
+To add a real-time filter:
+1. Import `useFrameProcessor` from `react-native-vision-camera`
+2. Implement your worklet with the `'worklet'` directive
+3. Pass it as the `frameProcessor` prop on `<Camera />`
+4. Add `react-native-skia` for canvas-based drawing (Snapchat-style stickers/masks)
 
 ---
 

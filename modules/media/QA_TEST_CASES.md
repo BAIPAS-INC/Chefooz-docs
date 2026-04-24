@@ -1792,6 +1792,59 @@ const completedOrdersCount = await this.orderRepository.count({ ... });
 
 ---
 
+### TC-MEDIA-BUG-009: LiveCameraView migrated from expo-camera to react-native-vision-camera v5
+
+**Type:** Architecture Enhancement  
+**Feature area:** `apps/chefooz-app/src/components/upload/LiveCameraView.tsx`  
+**Priority:** P0
+
+**Preconditions:**
+- Fresh EAS build after the VisionCamera plugin is added to app.json (requires new native binary)
+- Camera and microphone permissions granted on device
+
+**Steps:**
+
+**Photo capture:**
+1. Open Upload tab — camera preview should appear immediately
+2. Tap the shutter button once
+3. Confirm a photo is taken and preview appears in edit.tsx
+4. Test with flash = off / on / auto modes
+
+**Video recording:**
+1. Long-press the shutter button
+2. Confirm recording indicator (red dot + timer) appears
+3. Release after 5–10 seconds
+4. Confirm video preview loads in edit.tsx
+5. Confirm duration is passed correctly to the parent
+
+**Camera flip:**
+1. Tap the flip button
+2. Confirm front/back switching works without crash
+
+**Zoom:**
+1. Slide finger up on the camera preview
+2. Confirm zoom increases
+3. Confirm zoom releases back to 0 when gesture ends
+
+**Permission denied — camera:**
+1. Revoke camera permission in device settings
+2. Open the Upload tab
+3. Confirm "Camera permission required" + tappable "Allow Camera" button
+
+**Permission denied — microphone:**
+1. Grant camera permission but deny microphone
+2. Open the Upload tab — camera preview should show
+3. Long-press to record
+4. Confirm alert appears with "Microphone Permission Required" + "Open Settings"
+
+**Expected result:** All flows above pass without crash, lag, or missing URI errors.
+**Actual result (before fix):** expo-camera had no Frame Processor API, Promise-based recording race conditions on Android stopRecording(), and no real device zoom range.
+**Fix applied:** Full rewrite of `LiveCameraView.tsx` using VisionCamera v5; VisionCamera plugin added to `app.json`; `CameraType` import from expo-camera removed in `edit.tsx`. Public ref API (`startRecording`, `stopRecording`, `takePhoto`) is unchanged — no changes required in parent screens.
+**Regression test:** Manual — full camera flow on both iOS and Android staging builds.
+**Status:** Fixed ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**  
-*Media Module QA Test Cases - Updated March 2026 (65 test cases)*
+*Media Module QA Test Cases - Updated April 2026 (66 test cases)*
 
