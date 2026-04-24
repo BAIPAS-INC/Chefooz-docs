@@ -1572,3 +1572,89 @@ feed.service.ts
 
 **[SLICE_COMPLETE ✅]**  
 *Media Module Technical Guide - Comprehensive developer documentation complete*
+
+---
+
+## Android Build Fix — VisionCamera v5 + Kotlin 2.0 + CameraX Compatibility
+
+> **Date**: April 24, 2026  
+> **Type**: Build infrastructure fix (no user-facing changes)
+
+### Root Causes
+
+The Android build was failing with two separate issues after migrating to `react-native-vision-camera@5`:
+
+#### Issue 1: CameraX alpha dependency requires AGP 8.9.1 + compileSdk 36
+
+VisionCamera v5 hardcodes `androidx.camera:*:1.7.0-alpha01` in its `android/build.gradle`. This version:
+- Requires `compileSdk >= 36`
+- Requires Android Gradle Plugin `>= 8.9.1`
+
+The app was using `compileSdk 35` and AGP `8.8.2` (via React Native's `libs.versions.toml`).
+
+#### Issue 2: Kotlin 2.0 compiler rejects `protected const val` in companion objects
+
+VisionCamera's Nitrogen-generated `*Spec.kt` files contain companion objects with `protected const val TAG = "..."`. Kotlin 2.0 (in use via React Native 0.79+'s toolchain) treats accessing these from subclasses without `@JvmStatic` as a compilation error. `@JvmStatic` cannot be applied to `const val`, so the fix is to remove the `protected` modifier.
+
+### Fixes Applied
+
+#### `apps/chefooz-app/android/build.gradle`
+
+1. **AGP version**: Pinned `classpath('com.android.tools.build:gradle:8.9.1')` explicitly, overriding the RN version catalog's `8.8.2`
+2. **compileSdk**: Added `ext { compileSdkVersion = 36; targetSdkVersion = 35; buildToolsVersion = "35.0.0" }` before `apply plugin: "expo-root-project"` — Expo's `ExpoRootProjectPlugin` uses `extra.setIfNotExist(...)` so this override is respected
+
+#### `scripts/postinstall.js` 
+
+Added a post-install step that removes `protected` from `const val TAG` in all `nitrogen/generated/android/kotlin/**/*Spec.kt` files. This runs on every `npm install` to survive VisionCamera upgrades.
+
+#### `react-native-vision-camera` version
+
+Upgraded from `5.0.4` → `5.0.6` which fixes additional Kotlin 2.0 compatibility issues (nullable invocations, generated view manager type incompatibilities).
+
+### Configuration Summary
+
+| Setting | Before | After |
+|---|---|---|
+| Android Gradle Plugin | `8.8.2` (from RN libs.versions.toml) | `8.9.1` (pinned in build.gradle) |
+| `compileSdk` | `35` (Expo default) | `36` (ext override) |
+| `targetSdk` | `35` | `35` (unchanged) |
+| `buildTools` | `35.0.0` | `35.0.0` (unchanged) |
+| VisionCamera version | `5.0.4` | `5.0.6` |
+| Gradle wrapper | `8.13` | `8.13` (unchanged — already compatible with AGP 8.9.1) |
+
+### Constraints / Edge Cases
+
+- The `ext { compileSdkVersion = 36 }` block must be placed **before** `apply plugin: "expo-root-project"` to take effect
+- `targetSdk` is kept at 35 intentionally — bumping `targetSdk` to 36 requires testing all Android behavior changes for API 36
+- The Kotlin companion `protected const val TAG` fix uses a regex that matches exactly 4 spaces indent — if VisionCamera changes its code style, update the regex in `postinstall.js`
+- Gradle 8.13 is already compatible with AGP 8.9.1 (requires Gradle 8.11.1+)
+
+---
+
+## Android Runtime Fix — Media3 Version Conflict (Upload FAB Crash, April 2026)
+
+**Symptom**: App crashed immediately when the upload FAB was tapped. Logcat showed:
+```
+FATAL EXCEPTION: ExoPlayer:Playback
+java.lang.AbstractMethodError: abstract method
+  "Allocator LoadControl.getAllocator(PlayerId)"
+```
+
+**Root cause**: CameraX `1.7.0-alpha01` (from `react-native-vision-camera` v5) transitively depends on `media3-muxer:1.9.0`. Media3 uses BOM (Bill of Materials) constraints — once `1.9.0` enters the dependency graph, Gradle upgrades **all** `androidx.media3:*` artifacts to `1.9.0`. `expo-video` compiled its `LoadControl` implementation against Media3 `1.8.0`. Media3 `1.9.0` added a new abstract method to the `LoadControl` interface that that compiled binary doesn't implement → `AbstractMethodError` on the ExoPlayer playback thread.
+
+**Fix**: Force all `androidx.media3:*` to `1.8.0` in `apps/chefooz-app/android/build.gradle`:
+
+```groovy
+allprojects {
+  configurations.all {
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+      if (details.requested.group == 'androidx.media3') {
+        details.useVersion '1.8.0'
+        details.because 'expo-video compiled against 1.8.0 — Media3 1.9.0 breaks LoadControl.getAllocator(PlayerId)'
+      }
+    }
+  }
+}
+```
+
+**Result**: `media3-exoplayer: 1.4.0 -> 1.8.0` (was `-> 1.9.0`). CameraX `media3-muxer` also pinned at `1.8.0`, which remains compatible with recording.

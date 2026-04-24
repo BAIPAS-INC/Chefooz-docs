@@ -1845,6 +1845,29 @@ const completedOrdersCount = await this.orderRepository.count({ ... });
 
 ---
 
+### TC-MEDIA-067: Upload FAB tap crashes app on Android (Media3 version conflict)
+
+**Type:** Bug Regression  
+**Feature area:** Upload FAB / Video playback (ExoPlayer)  
+**Priority:** P0
+
+**Preconditions:**
+- Android device/emulator
+- User is logged in and on the feed screen
+
+**Steps:**
+1. Open the app on Android
+2. Tap the Upload FAB (bottom + button)
+
+**Expected result:** Upload flow or camera opens without crash  
+**Actual result (before fix):** App immediately crashes with `AbstractMethodError: LoadControl.getAllocator(PlayerId)`  
+**Root cause:** CameraX 1.7.0-alpha01 → `media3-muxer:1.9.0` → BOM forces all Media3 to 1.9.0 → `expo-video` compiled against 1.8.0's `LoadControl` interface is missing a new abstract method added in 1.9.0  
+**Fix applied:** Force all `androidx.media3:*` to `1.8.0` via `resolutionStrategy.eachDependency` in `android/build.gradle` (inside `allprojects { configurations.all { } }`)  
+**Regression test:** Manual — tap upload FAB on Android; verify no crash  
+**Status:** Fixed ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**  
-*Media Module QA Test Cases - Updated April 2026 (66 test cases)*
+*Media Module QA Test Cases - Updated April 2026 (67 test cases)*
 
