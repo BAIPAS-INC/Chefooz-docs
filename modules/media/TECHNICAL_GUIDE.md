@@ -69,6 +69,20 @@ To add a real-time filter:
 3. Pass it as the `frameProcessor` prop on `<Camera />`
 4. Add `react-native-skia` for canvas-based drawing (Snapchat-style stickers/masks)
 
+### Camera performance constraints (April 2026)
+
+Three VisionCamera v5-native performance tweaks applied to `LiveCameraView.tsx` to achieve native-like smoothness:
+
+| Optimisation | API | Rationale |
+|---|---|---|
+| Single-lens back camera | `useCameraDevice('back', { physicalDevices: ['wide-angle'] })` | Preference scoring that steers toward a single-lens device instead of the triple-camera system, reducing session startup time. Soft filter — won't fail if only a multi-lens device is available. |
+| YUV pixel format | `constraints: [{ pixelFormat: 'yuv-420-8-bit-video' }]` | Camera's native format. Prevents a YUV→RGB conversion stage that adds CPU/memory overhead, especially relevant when a frame processor is added later. |
+| SDR dynamic range | `constraints: [{ videoDynamicRange: CommonDynamicRanges.ANY_SDR }]` | Explicitly opts out of 10-bit HDR (Dolby Vision / HLG) which newer iPhones may auto-select. SDR is lighter to encode and sufficient for 1080p UGC reels. |
+
+**Why `enableBufferCompression` / `videoHdr` are not used**: Those are VisionCamera v4 props. In v5 the equivalent control is the `constraints` array on `<Camera>`. There is no `enableBufferCompression` in v5.
+
+**Note on `physicalDevices` filter**: The string in v5 is `'wide-angle'` (not `'wide-angle-camera'` which was the v4 string). Using the wrong string silently falls back to default device selection.
+
 ---
 
 ## March 14, 2026 — PostCropModal portrait ratio changed to 4:5
