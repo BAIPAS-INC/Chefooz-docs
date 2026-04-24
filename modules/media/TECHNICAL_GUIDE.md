@@ -2,8 +2,70 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Tech Stack**: NestJS, MongoDB (Media/Reel schemas), PostgreSQL (Orders/Users), AWS S3, Bull Queue, FFmpeg  
-> **Last Updated**: April 23, 2026  
+> **Last Updated**: April 25, 2026  
 > **Maintainer**: Backend Team
+
+---
+
+## April 25, 2026 — Camera Filters & Live Preview (Food-Optimised Presets)
+
+### What was implemented
+
+A full filter pipeline for the upload flow — from live camera preview to server-side baking.
+
+| Layer | Component / File | What it does |
+|---|---|---|
+| Preset definitions | `libs/types/src/lib/reel.types.ts` | `VideoFilter` interface + `VIDEO_FILTER_PRESETS` — 9 presets total |
+| Live camera overlay | `LiveCameraView.tsx` — `activeFilter` prop | Applies `renderFilterOverlays()` View-tinting on top of the camera feed in real time |
+| Camera strip UI | `CameraFilterSelector.tsx` (new) | Horizontal scroll strip at bottom of camera view — picks filter BEFORE recording |
+| Post-media picker | `FilterPickerSheet.tsx` | Full bottom sheet with Presets + Custom sliders — triggered by the Filter rail button |
+| Post-media preview | `VideoFilterPreview.tsx` | Same View-tinting approach applied over the recorded video/image preview |
+| Upload store | `upload-v2.store.ts` | `filter?: VideoFilter` + `setFilter()` — carries selected filter to the share screen |
+| Edit screen wiring | `edit.tsx` | `selectedCameraFilter` state, `CameraFilterSelector` in camera view, Filter button in action rail, pre-populate store on recording end |
+
+### Filter presets (9 total, food-centric order)
+
+| Key | Display name | Best for |
+|---|---|---|
+| `original` | Original | No filter |
+| `vibrant` | Vibrant | Curries, salads, colourful dishes — +saturation +contrast |
+| `warm` | Warm | Home cooking, cosy plating — warm orange tones |
+| `golden` | Golden | Baked goods, chai, Indian sweets — deep gold warmth +brightness |
+| `vintage` | Vintage | Artisan bakery, nostalgic food photography — warm +vignette |
+| `cool` | Cool | Seafood, sushi, clean-eating plates — slight blue shift |
+| `fresh` | Fresh | Salads, smoothies, healthy bowls — crisp green boost |
+| `dramatic` | Dramatic | Fine-dining, dark plating — high contrast +vignette |
+| `bw` | B&W | Editorial / artisan mono — full desaturation |
+
+### Preview approach (no Skia dependency)
+
+Filters are previewed as a stack of semi-transparent `View` overlays placed above the camera/video using `StyleSheet.absoluteFill`. Each `VideoFilter` field maps to a colour tint:
+
+| Field | Overlay colour | Opacity scaling |
+|---|---|---|
+| `brightness > 0` | `#FFFFFF` (white) | `abs(brightness) * 0.28` |
+| `brightness < 0` | `#000000` (black) | `abs(brightness) * 0.28` |
+| `saturation < 0` | `#808080` (grey) | `abs(saturation) * 0.38` |
+| `warmth > 0` | `#FFA726` (orange) | `abs(warmth) * 0.20` |
+| `warmth < 0` | `#42A5F5` (blue) | `abs(warmth) * 0.20` |
+| `contrast > 0` | `#000000` (darken) | `abs(contrast) * 0.10` |
+| `vignette > 0` | `#000000` (darken) | `vignette * 0.22` |
+
+This is a visual approximation. Actual LUT-grade colour transforms happen server-side in FFMPEG (see MediaConvert LUT section below when implemented).
+
+**Why not Skia?** `@shopify/react-native-skia` is not installed. The View-tinting approach is zero-dependency and has near-zero performance overhead (no extra GPU passes). It is sufficient for a "preview" that communicates the filter mood to the user before uploading.
+
+### Camera filter UX flow
+
+1. **Camera mode** (no media selected): `CameraFilterSelector` strip is visible at the bottom of the camera view. User swipes through 9 filter thumbnails. Selected filter is shown as a View overlay on the live preview via `LiveCameraView.activeFilter`.
+2. **Recording**: `CameraFilterSelector` is hidden while recording is in progress (`!isRecording` guard). The overlay remains active.
+3. **Recording ends**: `handleRecordingEnd` pre-populates `setFilter(VIDEO_FILTER_PRESETS[selectedCameraFilter])` into the store so the filter is already selected on the share screen.
+4. **Video/image editing**: A **Filter** button (palette icon) in the right action rail opens `FilterPickerSheet` for full control — 9 presets + custom adjustment sliders (brightness, contrast, saturation, warmth, vignette).
+5. **Share**: The `filter` field in the store is sent to the backend as part of the reel creation DTO.
+
+### Server-side filter baking (pending — backend sprint)
+
+The `filter` field (`{ name, preset, brightness, contrast, saturation, warmth, vignette }`) is passed to the media service with the upload request. FFMPEG filter baking implementation (LUT `.cube` files per preset, `MediaConvert LUTSettings`) is a separate backend sprint.
 
 ---
 

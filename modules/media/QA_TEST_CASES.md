@@ -2,7 +2,7 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Test Coverage Target**: 85%+ (Unit + Integration + E2E)  
-> **Last Updated**: March 14, 2026  
+> **Last Updated**: April 25, 2026  
 > **Test Environment**: UAT (chefooz-media-uat S3 bucket)
 
 ---
@@ -1966,6 +1966,159 @@ guard let utFileType = UTType(mimeType: mimeType) else {
 
 ---
 
+## Camera Filter Test Cases (April 2026)
+
+### TC-MEDIA-FILTER-01: Camera filter strip visible in live camera mode
+
+**Type:** Manual  
+**Feature area:** Edit screen — live camera view  
+**Priority:** P1
+
+**Preconditions:**
+- App is open, user navigated to the upload edit screen with no media selected
+
+**Steps:**
+1. Open the upload edit screen (camera-first mode)
+2. Observe the bottom of the camera preview area
+
+**Expected result:** A horizontal filter strip is visible at the bottom of the camera view with 9 filter thumbnails (Original → Vibrant → Warm → Golden → Vintage → Cool → Fresh → Dramatic → B&W)  
+**Status:** Implemented ✅
+
+---
+
+### TC-MEDIA-FILTER-02: Live filter overlay updates in real time
+
+**Type:** Manual  
+**Feature area:** LiveCameraView — filter preview overlay  
+**Priority:** P1
+
+**Preconditions:**
+- Edit screen open, no media selected (camera active)
+
+**Steps:**
+1. In the camera filter strip, tap "Warm"
+2. Observe the camera preview
+3. Tap "Golden"
+4. Observe again
+5. Tap "Original"
+
+**Expected result:**
+- "Warm" applies an orange colour tint overlay to the camera feed
+- "Golden" applies a deeper warm gold tint
+- "Original" removes all tinting
+- Transitions are instant (no animation delay)  
+**Status:** Implemented ✅
+
+---
+
+### TC-MEDIA-FILTER-03: Filter strip hidden while recording
+
+**Type:** Manual  
+**Feature area:** CameraFilterSelector — recording guard  
+**Priority:** P1
+
+**Preconditions:**
+- Edit screen open, no media selected (camera active)
+
+**Steps:**
+1. Select any filter from the strip (e.g. Vivid)
+2. Long-press the shutter button to begin recording
+
+**Expected result:** The filter strip disappears as soon as recording starts; the filter colour overlay remains visible during recording  
+**Status:** Implemented ✅
+
+---
+
+### TC-MEDIA-FILTER-04: Camera filter pre-populates to edit stage after recording
+
+**Type:** Manual  
+**Feature area:** handleRecordingEnd → setFilter  
+**Priority:** P1
+
+**Preconditions:**
+- Edit screen, camera mode
+
+**Steps:**
+1. Select "Golden" filter from the strip
+2. Record a short video (~3 seconds)
+3. Observe the edit preview (after recording, media is set)
+4. Tap the Filter button in the right action rail
+
+**Expected result:** The `FilterPickerSheet` opens with "Golden" already highlighted as the current filter  
+**Status:** Implemented ✅
+
+---
+
+### TC-MEDIA-FILTER-05: Filter button in action rail opens SelectoSheet for image and video
+
+**Type:** Manual  
+**Feature area:** edit.tsx — Filter action rail button  
+**Priority:** P1
+
+**Preconditions:**
+- Media selected (either video or image)
+
+**Steps:**
+1. Select any image or video from gallery
+2. Tap the Filter (palette) icon in the right action rail
+
+**Expected result:** `FilterPickerSheet` opens (previously this button did not exist — was a known gap)  
+**Status:** Implemented ✅
+
+---
+
+### TC-MEDIA-FILTER-06: Filter persists to share screen
+
+**Type:** Manual  
+**Feature area:** upload-v2.store — filter state  
+**Priority:** P1
+
+**Preconditions:**
+- Media selected, filter applied via FilterPickerSheet
+
+**Steps:**
+1. Select "Vintage" from the filter sheet, tap Done
+2. Tap Next → proceed to the share screen
+
+**Expected result:** The selected filter (preset: 'vintage') is present in the upload store and included in the reel creation API request  
+**Status:** Implemented ✅
+
+---
+
+### TC-MEDIA-FILTER-07: Golden filter renders correctly on food content
+
+**Type:** Manual / Visual  
+**Feature area:** Camera overlay — Golden preset  
+**Priority:** P2
+
+**Preconditions:**
+- Camera pointing at food (e.g. baked goods, chai)
+
+**Steps:**
+1. Select "Golden" from the filter strip
+
+**Expected result:** Preview shows a warm gold tint; whites appear slightly warm, shadows remain visible  
+**Status:** Implemented ✅
+
+---
+
+### TC-MEDIA-FILTER-08: Fresh filter renders correctly on green/salad content
+
+**Type:** Manual / Visual  
+**Feature area:** Camera overlay — Fresh preset  
+**Priority:** P2
+
+**Preconditions:**
+- Camera pointing at salad, smoothie, or herbs
+
+**Steps:**
+1. Select "Fresh" from the filter strip
+
+**Expected result:** Preview shows a cool, slightly green-tinted overlay; food looks crisp and fresh  
+**Status:** Implemented ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**  
-*Media Module QA Test Cases - Updated April 2026 (70 test cases)*
+*Media Module QA Test Cases - Updated April 25, 2026 (78 test cases)*
 
