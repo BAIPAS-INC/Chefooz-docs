@@ -1,6 +1,6 @@
 # User API Reference
 
-**Last Updated**: 2026-03-XX  
+**Last Updated**: 2026-04-25  
 **Base path**: `/api/v1`
 
 ---
@@ -75,5 +75,36 @@ List all platform users (customers, chefs, riders) with pagination, search, and 
 | `DELETE` | `/api/v1/user/addresses/:id` | Delete a delivery address |
 | `GET` | `/api/v1/user/username/check` | Check username availability |
 | `PUT` | `/api/v1/user/username` | Set or update username |
+| `GET` | `/api/v1/users/username-suggestions` | Search username suggestions for mentions; empty `q` returns a default list |
 
 > Full request/response details for customer endpoints are documented in the [User Technical Guide](../modules/user/TECHNICAL_GUIDE.md).
+
+### `GET /api/v1/users/username-suggestions`
+
+Used by comment, reply, and caption mention inputs.
+
+#### Query Parameters
+
+| Param | Type | Required | Description |
+|---|---|---|---|
+| `q` | string | No | Username prefix. Empty string returns the default top 10 suggestions. |
+| `userId` | string | No | Current user ID for future blocked-user filtering. |
+
+#### Response
+
+```json
+{
+  "success": true,
+  "message": "Username suggestions retrieved",
+  "data": {
+    "suggestions": [
+      {
+        "userId": "uuid",
+        "username": "alex",
+        "fullName": "Alex Doe",
+        "avatarUrl": null
+      }
+    ]
+  }
+}
+```

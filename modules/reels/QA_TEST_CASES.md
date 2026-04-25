@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Test Coverage**: Functional, Security, Performance, Integration  
 **Version**: 1.0  
-**Last Updated**: 2026-04-22
+**Last Updated**: 2026-04-25
 
 ---
 
@@ -39,6 +39,71 @@
 ---
 
 ## 🧪 Functional Test Cases
+
+### TC-reels-092: Comment and share mention suggestions render inline again
+
+**Type:** Bug Regression / Manual
+**Feature area:** Upload caption + comments mention input
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- At least one searchable public user exists whose username matches the typed prefix
+
+**Steps:**
+1. Open the comments sheet for a reel
+2. Type `@` followed by a matching username prefix
+3. Confirm suggestions appear inline beneath the input
+4. Repeat the same flow in the upload caption sheet
+
+**Expected result:** Matching username suggestions render and can be tapped in both places.
+**Actual result (before fix):** API calls completed but no suggestion list was rendered after the shared mention input refactor.
+**Fix applied:** Restored cursor-aware mention detection and inline suggestion rendering in the shared `MentionInput` component.
+**Regression test:** Runtime/manual only
+**Status:** Fixed ✅
+
+### TC-reels-093: Comments, report, and share sheets swipe down to close
+
+**Type:** Bug Regression / Manual
+**Feature area:** Reel modal sheets
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- A reel is available in feed/detail view
+
+**Steps:**
+1. Open the comments sheet and drag downward from the header/handle
+2. Open the share sheet and drag downward from the header/handle
+3. Open the report sheet and drag downward from the header/handle
+
+**Expected result:** Each sheet follows the finger and dismisses when the drag threshold is crossed.
+**Actual result (before fix):** Drag gestures were intercepted by nested pressable wrappers, so the sheets stayed fixed in place.
+**Fix applied:** Removed inner pressable wrappers and strengthened `useSwipeToClose` responder capture logic.
+**Regression test:** Runtime/manual only
+**Status:** Fixed ✅
+
+### TC-reels-094: REEL mode tap starts recording without immediate recorder failure
+
+**Type:** Bug Regression / Manual
+**Feature area:** Upload V2 camera shutter
+**Priority:** P0
+
+**Preconditions:**
+- Camera and microphone permissions are granted
+- Upload edit screen is open in `Flip`/REEL mode
+
+**Steps:**
+1. Tap the shutter once
+2. Wait for recording to start
+3. Tap the shutter again to stop
+4. Repeat using press-and-hold to verify hold-to-record still works
+
+**Expected result:** Tap starts recording, second tap stops it, and hold-to-record still completes without AVFoundation errors.
+**Actual result (before fix):** A quick tap started recording on press-down and attempted to stop on the same release, causing a recorder race and `Cannot Record` errors on iOS.
+**Fix applied:** Changed REEL mode shutter handling so quick taps start recording and long presses remain hold-to-record.
+**Regression test:** Runtime/manual only
+**Status:** Fixed ✅
 
 ### Category 0: Upload V2 UI Gating (Temporary)
 

@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Tech Stack**: NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis (Valkey)  
 **Version**: 1.0  
-**Last Updated**: 2026-04-16
+**Last Updated**: 2026-04-25
 
 ---
 
@@ -51,6 +51,9 @@
 
 ## Recent QA Fixes
 
+- 2026-04-25: Upload V2 shutter handling now separates tap-to-start from hold-to-record in `apps/chefooz-app/src/app/reels/upload-v2/edit.tsx`. REEL mode no longer starts and stops recording within the same quick tap gesture, which previously triggered an iOS recorder race and surfaced `AVFoundationErrorDomain Code=-11805 Cannot Record`.
+- 2026-04-25: Shared mention suggestions were restored in `libs/ui/src/lib/MentionInput.tsx` using cursor-aware detection and inline suggestion rendering. This re-enables `@mentions` in both comment input and upload caption entry, which had regressed after the shared UI mention component was refactored.
+- 2026-04-25: Modal bottom sheets for comments, report, and share now retain responder ownership during downward drags. The fix removes inner pressable wrappers that were swallowing drag events and strengthens the shared `useSwipeToClose` responder capture logic.
 - 2026-04-16: `ReelCaption.tsx` caption and hashtag overlays were strengthened for colorful content backgrounds. Hashtags now use white text with a stronger shadow radius and opacity so they remain readable over bright frames.
 - 2026-04-16: Upload V2 edit preview now exposes a JS-only play/pause floating action button for selected videos. This keeps the fix OTA-safe while `VideoView` continues to run with `nativeControls={false}`.
 - 2026-04-16: `TrimOverlay.tsx` now renders a live playback cursor and loops playback within the selected trim window, improving visual trimming feedback without changing native video dependencies.

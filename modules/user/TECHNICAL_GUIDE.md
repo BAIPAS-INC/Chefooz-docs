@@ -1,7 +1,7 @@
 # 👤 User Module — Technical Guide
 
 **Status**: ✅ **PRODUCTION READY**  
-**Last Updated**: 2026-02-14  
+**Last Updated**: 2026-04-25  
 **Target Audience**: Backend/Full-Stack Developers  
 **Related Docs**: 
 - [User Feature Overview](./FEATURE_OVERVIEW.md)
@@ -12,6 +12,12 @@
 ## 📋 Overview
 
 The User module provides comprehensive user profile and address management APIs. It handles delivery address CRUD operations, username validation with smart suggestions, and reputation-integrated coin accrual system. This module is central to order fulfillment, social features, and gamification.
+
+## Recent QA Fixes
+
+- 2026-04-25: `GET /api/v1/users/username-suggestions` now accepts an empty `q` value and returns a default top-10 list. This supports Instagram/TikTok-style mention UX where typing `@` immediately shows suggestions before a prefix is entered.
+- 2026-04-25: Prefix search behavior is unchanged for non-empty queries. Empty-query handling is implemented in `UsernameService.searchUsernames()` before the Elasticsearch/PostgreSQL prefix branch.
+- 2026-04-25: Username suggestion search now falls back to PostgreSQL when Elasticsearch returns zero hits. This protects mention UX from stale or partially indexed search clusters where a valid username exists in Postgres but is missing from the `chefooz-users` index.
 
 **Learning Objectives**:
 - Understand address management with geolocation support

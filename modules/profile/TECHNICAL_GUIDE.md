@@ -28,6 +28,8 @@
 
 ### 1.3 Recent QA Fixes
 
+- `apps/chefooz-app/src/app/post/[postId].tsx` no longer pushes `/reels/:id?action=share` from the flick viewer. Sharing now opens the same `ShareSheet` and `DirectShareModal` flow used by feed cards, which preserves `contentType='POST'` and the profile username for chat reopen routing.
+- `apps/chefooz-app/src/app/post/[postId].tsx` also defers clearing `activeSharePost` until the local share flow fully closes. This avoids a race where tapping `Share Directly` first closes the sheet and then tries to open `DirectShareModal` after the selected post has already been cleared.
 - `apps/chefooz-app/src/components/TaggedUsersBottomSheet.tsx` now compares the tapped `userId` with `useMyProfile().data.userId` and routes to `/(tabs)/profile` for self-navigation. This avoids stacking `/profile/:username` on top of the existing profile tab for the current user.
 - `apps/chefooz-app/src/app/profile/edit.tsx` keeps the existing public/private toggle logic but now renders an active checkmark and primary text color for the selected visibility option. No API contract changed.
 - `apps/chefooz-app/src/app/profile/reputation.tsx` intentionally hides the leaderboard CTA. The screen still exposes the explanatory modal and weekly digest toggle, but the leaderboard route is not part of the release path.

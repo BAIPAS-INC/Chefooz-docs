@@ -1,7 +1,7 @@
 # 👤 User Module — QA Test Cases
 
 **Status**: ✅ **PRODUCTION READY**  
-**Last Updated**: 2026-02-14  
+**Last Updated**: 2026-04-25  
 **Target Audience**: QA Engineers, Testers, Automation Engineers  
 **Related Docs**:
 - [User Feature Overview](./FEATURE_OVERVIEW.md)
@@ -25,6 +25,40 @@
 ---
 
 ## 🧪 Test Categories
+
+### USER-REG-006: Mention suggestions appear immediately on `@`
+**Priority**: Critical  
+**Platform**: Mobile + Backend API  
+**Automation**: [@manual]
+
+**Preconditions**:
+- User is logged in
+- At least one active user with a username exists in the system
+
+**Steps**:
+1. Open any surface using username mentions: reel comments, reply input, or upload caption
+2. Type `@` without any additional characters
+3. Observe the suggestion dropdown above the input
+4. Continue typing one or more characters and confirm the list narrows by prefix
+
+**Expected Result**:
+- A default suggestion list appears immediately after typing `@`
+- The list updates as a prefix is typed
+- Selecting a row inserts `@username ` into the input
+
+**Actual Result (before fix)**:
+- No list appeared on bare `@`
+- The client and backend both enforced a minimum query length, so the UI could not behave like Instagram/TikTok mention pickers
+- In environments with Elasticsearch enabled, valid usernames could also show as "No users found" when the search index returned zero hits and the service did not fall back to Postgres
+
+**Fix Applied**:
+- Removed the minimum-length hard stop from the client hook/API client
+- Updated `UsernameService.searchUsernames()` to return a default list for empty queries
+- Added PostgreSQL fallback when Elasticsearch returns zero suggestion hits
+- Restored above-input rendering in the shared mention component
+
+**Regression test**: `apps/chefooz-apis/src/modules/user/username.service.spec.ts`
+**Status**: Fixed ✅
 
 ### 1. Functional Tests (Address CRUD)
 

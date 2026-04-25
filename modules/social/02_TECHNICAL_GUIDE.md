@@ -4,7 +4,7 @@
 **Type**: Core Feature  
 **Category**: Social & Discovery  
 **Status**: Production  
-**Last Updated**: February 14, 2026
+**Last Updated**: 2026-04-25
 
 ---
 
@@ -25,6 +25,21 @@
 ---
 
 ## Architecture Overview
+
+### Direct Share Pagination Constraint
+
+- `GET /api/v1/reels/:reelId/share/targetable-users` paginates on `user_follow.createdAt`, not on a user ID.
+- `nextCursor` must therefore be an ISO 8601 timestamp taken from the last follow row in the current page.
+- Invalid cursor values such as `null`, `undefined`, or stale ID-based cursors are ignored instead of being passed through as `Invalid Date` to PostgreSQL.
+- The service still deduplicates users per page after reading follow relationships, so the cursor source must stay tied to follow rows rather than the returned user payload.
+
+### Direct Share Chat Delivery Constraint
+
+- The Share With mobile flow is two-step: record the direct-share analytics first, then create or reuse a DM conversation and send the reel link as a chat message.
+- The messaging API returns the conversation identifier at `response.data.conversationId`.
+- Treating the response as `response.data.id` causes the UI to skip `sendMessage()` while still showing a success alert, which leaves the recipient with only a notification and no DM payload.
+- The mobile modal now treats a missing `conversationId` as a hard failure so the user does not see a false-positive “Sent!” state.
+- The DM payload now uses a structured `sharedContent` attachment so the chat thread can render tappable reel and flick preview cards instead of raw text links.
 
 ### Module Structure
 

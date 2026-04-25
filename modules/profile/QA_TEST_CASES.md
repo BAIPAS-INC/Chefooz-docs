@@ -149,6 +149,46 @@ JWT_TOKEN_CHEF_1=<staging-jwt-token>
 
 ## 3. Functional Test Cases
 
+### TC-profile-087: Flick viewer share opens the in-place share sheet
+
+**Type:** Bug Regression / Automated / Manual  
+**Feature area:** Flick detail viewer (`/post/[postId]`)  
+**Priority:** P1
+
+**Preconditions:**
+- User opens a flick from profile or chat.
+- Flick detail screen is visible.
+
+**Steps:**
+1. Tap the share icon on the flick detail screen.
+2. Observe the next UI state.
+
+**Expected result:** The screen opens the local share sheet and does not navigate to a reel route.
+**Actual result (before fix):** The share icon pushed `/reels/:id?action=share`, which reopened the flick inside feed/reel surfaces.
+**Fix applied:** `apps/chefooz-app/src/app/post/[postId].tsx` now keeps share state local and opens `ShareSheet` + `DirectShareModal` directly.
+**Regression test:** apps/chefooz-app/src/app/post/[postId].spec.tsx
+**Status:** Fixed ✅
+
+### TC-profile-088: Flick viewer Share Directly opens direct-share modal
+
+**Type:** Bug Regression / Automated / Manual  
+**Feature area:** Flick detail viewer share sheet  
+**Priority:** P1
+
+**Preconditions:**
+- User opens a flick from their own profile.
+- Flick share sheet is visible.
+
+**Steps:**
+1. Tap the flick share icon.
+2. In the share sheet, tap `Share Directly`.
+
+**Expected result:** The share sheet closes and the direct-share modal opens with targetable users.
+**Actual result (before fix):** The share sheet closed, but nothing else happened because the selected post was cleared before `DirectShareModal` mounted.
+**Fix applied:** Post viewer cleanup now waits until both the share sheet and direct-share modal are closed before clearing the active share post.
+**Regression test:** apps/chefooz-app/src/app/post/[postId].spec.tsx
+**Status:** Fixed ✅
+
 ### TC-profile-082: Tagged tab visible on own profile
 
 **Type:** Manual / Automated  

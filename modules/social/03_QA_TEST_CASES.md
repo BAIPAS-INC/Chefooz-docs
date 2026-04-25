@@ -4,7 +4,7 @@
 **Type**: Core Feature  
 **Category**: Social & Discovery  
 **Status**: Production  
-**Last Updated**: February 14, 2026
+**Last Updated**: 2026-04-25
 
 ---
 
@@ -99,6 +99,72 @@ const testConfig = {
 ---
 
 ## Follow System Tests
+
+### TC-social-DS-01: Direct share pagination does not send Invalid Date to PostgreSQL
+
+**Type:** Bug Regression / Automated
+**Feature area:** Reel share target picker
+**Priority:** P1
+
+**Preconditions:**
+- User has more than one page of accepted follow relationships
+- Share With sheet requests `GET /api/v1/reels/:reelId/share/targetable-users`
+
+**Steps:**
+1. Open Share With for a reel.
+2. Load the first page of targetable users.
+3. Trigger pagination using the returned `nextCursor`.
+4. Repeat with a malformed cursor value such as `null` or an old ID-based cursor.
+
+**Expected result:** Pagination continues without a 500 error, and malformed cursors are ignored safely.
+**Actual result (before fix):** The backend returned a user ID as `nextCursor`, then converted it to `Invalid Date`, causing `invalid input syntax for type timestamp` in PostgreSQL.
+**Fix applied:** Reels share pagination now returns an ISO `createdAt` cursor and ignores invalid cursor strings before query binding.
+**Regression test:** apps/chefooz-apis/src/modules/social/reels-share.service.spec.ts
+**Status:** Fixed ✅
+
+### TC-social-DS-02: Direct share creates a DM message for the target user
+
+**Type:** Bug Regression / Automated / Manual
+**Feature area:** Reel share target picker
+**Priority:** P1
+
+**Preconditions:**
+- Sender and target user can create or reuse a direct conversation
+- Share With modal is opened for a reel
+
+**Steps:**
+1. Tap a target user in the Share With modal.
+2. Let the app record the direct share.
+3. Confirm the app creates or reuses a conversation and sends the reel link as a DM.
+4. Open the target user's conversation thread.
+
+**Expected result:** The target conversation contains the reel link message, and the sender only sees the success alert after `sendMessage()` succeeds.
+**Actual result (before fix):** The modal read `response.data.id` instead of `response.data.conversationId`, skipped `sendMessage()`, and still showed “Sent!”.
+**Fix applied:** The modal now reads `data.conversationId`, uses the generated universal reel link, and throws an error if conversation creation does not return a usable ID.
+**Regression test:** apps/chefooz-app/src/components/share/DirectShareModal.spec.tsx
+**Status:** Fixed ✅
+
+### TC-social-DS-03: Direct share DM renders media preview cards for reels and flicks
+
+**Type:** Bug Regression / Manual
+**Feature area:** Share With modal + chat thread
+**Priority:** P1
+
+**Preconditions:**
+- Sender can direct-share both a reel card and a flick/post card
+- Recipient can open the shared conversation
+
+**Steps:**
+1. Direct-share a reel to another user.
+2. Direct-share a flick/post to the same user.
+3. Open the conversation thread.
+4. Tap each shared message card.
+
+**Expected result:** Each shared message renders a thumbnail card with the correct content label and opens the corresponding reel or flick route on tap.
+**Actual result (before fix):** Shared items rendered as plain text blocks with no thumbnail and no in-thread preview affordance.
+**Fix applied:** Direct-share messages now send `sharedContent` metadata for the chat renderer to show tappable preview cards for both reels and flicks.
+**Regression test:** apps/chefooz-app/src/components/messaging/SharedContentCard.spec.tsx
+**Status:** Fixed ✅
 
 ### Test 1.1: Follow Public Account (Auto-Accept)
 
