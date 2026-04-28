@@ -2,10 +2,24 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Purpose**: Media upload infrastructure for reels, stories, and images  
-> **Last Updated**: March 14, 2026  
+> **Last Updated**: April 26, 2026  
 > **Status**: ✅ Production Active
 
 ---
+
+## April 26, 2026 — Canonical LUT Filter Pipeline
+
+- Chefooz filters now have one canonical preset asset family per preset: backend `.cube` LUTs for FFmpeg `lut3d` baking and matching preview atlas PNGs for Skia-based selected-image preview.
+- Flick image previews now use the canonical LUT transform in-app, so the selected-media preview is materially closer to the final published output instead of relying on color-tint overlays.
+- REEL and Flick publishing now both resolve preset color grading from the same generated LUT set rather than independent parameter chains.
+- Spatial vignette remains a separate effect layered after the LUT, because vignette is position-based and cannot live inside a 3D color-only LUT.
+- Live camera and post-capture video playback still use the existing approximation layer for now; the canonical LUT pipeline currently guarantees exactness for publish output and selected-image preview.
+
+## April 25, 2026 — Flick Image Filter Baking
+
+- `POST` / Flick uploads now bake the selected filter into the final uploaded image files, instead of only storing filter metadata on the reel document.
+- This now applies to all images in a multi-image Flick, not just the first image preview shown during edit.
+- The backend now runs the same FFmpeg-driven LUT family for preset baking on both REEL and Flick media, with residual slider adjustments applied after the LUT where needed.
 
 ## March 14, 2026 — Post photo portrait crop preset updated
 

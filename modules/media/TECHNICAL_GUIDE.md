@@ -2,10 +2,152 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Tech Stack**: NestJS, MongoDB (Media/Reel schemas), PostgreSQL (Orders/Users), AWS S3, Bull Queue, FFmpeg  
-> **Last Updated**: April 25, 2026  
+> **Last Updated**: April 28, 2026  
 > **Maintainer**: Backend Team
 
 ---
+
+## April 26, 2026 — Canonical LUT architecture for preview and baking
+
+### Root problem
+
+- The mobile preview layer, shared preset definitions, static-image baking helper, and FFmpeg video service all carried their own copies of filter defaults or preset ordering.
+- This allowed drift between what users could select, what the app previewed, and what the backend actually baked.
+- A parameter-based chain can be kept consistent, but it is still not a canonical transform. The same preset could look different between overlay preview, `sharp` baking, and FFmpeg video output.
+
+### Fix
+
+| Layer | File | Responsibility |
+|---|---|---|
+| Shared domain rule | `libs/domain/src/lib/media/media-filter.ts` | Defines preset order, preset defaults, LUT asset metadata, preset normalization, and residual slider adjustments |
+| LUT asset generator | `tools/scripts/generate-media-luts.ts` | Generates backend `.cube` LUTs and matching mobile preview atlas PNGs from the same preset transform source |
+| Mobile exact image preview | `apps/chefooz-app/src/components/upload/LUTImagePreview.tsx` | Uses Skia runtime shader + LUT atlas PNG to render the canonical preset for selected images |
+| Mobile preset UI | `apps/chefooz-app/src/components/upload/FilterPickerSheet.tsx`, `CameraFilterSelector.tsx` | Uses the shared production preset order so picker and camera strip expose the same catalog |
+| POST baking | `apps/chefooz-apis/src/modules/media/post-image-filter.util.ts` | Normalizes source image to JPEG, then uses FFmpeg + `lut3d` for canonical still-image baking |
+| REEL baking | `apps/chefooz-apis/src/modules/media-processing/media-filter-lut.util.ts`, `video-filters.service.ts` | Resolves preset LUT file path and builds the FFmpeg filter chain around `lut3d` + residual adjustments |
+
+### Production rule
+
+- `libs/domain/src/lib/media/media-filter.ts` is now the authoritative place for:
+  - preset normalization from `preset` or `name`
+  - preset ordering
+  - effective scalar defaults
+  - LUT asset metadata
+  - residual slider adjustments after preset defaults are applied
+- `tools/scripts/generate-media-luts.ts` is the only place that should generate or regenerate preset LUT assets.
+- `libs/types/src/lib/reel.types.ts` remains the source of preset payload shapes shared across app and API contracts.
+
+### Constraint
+
+- Selected-image preview in the upload edit screen is now LUT-driven and canonical.
+- Live camera and post-capture video playback are still approximate because `expo-video` does not expose a shader/video-frame path that can directly apply the same LUT on-device.
+- VisionCamera frame processors remain the likely future path for exact live-camera LUT preview. That is a separate follow-up slice from this publish + selected-image parity work.
+
+---
+
+## April 28, 2026 — Vignette Radial Gradient + VisionCamera v5 Architecture Constraint
+
+### Vignette upgrade
+
+| Before | After |
+|---|---|
+| `FilterVisualOverlay` rendered vignette as a flat `View` with uniform black opacity (~22%) | Vignette is now a Skia `Canvas` + `RadialGradient` (transparent centre → black edges) |
+| Flat overlay covered the entire frame uniformly | Radial falloff (radius = `max(w, h) × 0.72`) only darkens edges and corners |
+
+**Key files changed:**
+- `apps/chefooz-app/src/components/upload/FilterVisualOverlay.tsx` — added `VignetteCanvas` inner component using Skia `RadialGradient`
+- All non-vignette overlay layers remain View-based (unchanged)
+
+### Color matrix utility (`getPresetColorMatrix`)
+
+A 20-element Skia ColorFilter matrix utility was added at `libs/domain/src/lib/media/media-filter-color-matrix.ts`.
+
+- Mirrors the parameter scaling coefficients from `generate-media-luts.ts` exactly (same brightness/contrast/saturation/warmth coefficients)
+- Returns `null` for `original` preset (caller skips filtering)
+- Vignette intentionally excluded — it is positional/radial and cannot be expressed in a static 4×5 linear matrix
+- **Current usage**: available for future Skia `ColorFilter.MakeMatrix()` usage (e.g., still-image thumbnails, future frame processor path)
+- **Spec**: `libs/domain/src/lib/media/media-filter-color-matrix.spec.ts`
+
+### VisionCamera v5 frame processor constraint
+
+| API | Status in v5.0.6 |
+|---|---|
+| `useSkiaFrameProcessor` | ❌ Removed — does not exist in v5 Nitro Modules architecture |
+| `useFrameOutput` | ✅ Available — provides raw `Frame` objects via worklet |
+| `useFrameRenderer` + `NativeFrameRendererView` | ✅ Available — displays raw frames; no Skia injection path |
+| `Skia.Image.MakeFromNativeBuffer` | ❌ Not present in @shopify/react-native-skia v2.0.0-next.4 |
+
+**Infrastructure additions (for future use):**
+- `react-native-worklets-core/plugin` added to `apps/chefooz-app/babel.config.js` (must precede `react-native-reanimated/plugin`)
+- `react-native-vision-camera` plugin added to `apps/chefooz-app/app.json` with `enableFrameProcessors: true`
+
+**Consequence:** Live camera preview uses `FilterVisualOverlay` approximation. GPU-level frame colour grading requires either a VisionCamera v6+ Skia integration or a native GL compositor — tracked as a future enhancement.
+
+### LUT asset layout
+
+| Asset type | Path | Consumer |
+|---|---|---|
+| Backend preset LUT | `static/media-luts/*.cube` | FFmpeg `lut3d` for REEL and POST publish baking |
+| Mobile preview LUT atlas | `apps/chefooz-app/assets/media-luts/*.png` | Skia runtime shader in `LUTImagePreview.tsx` |
+
+### Residual adjustments
+
+- Preset color transforms live in the generated LUT files.
+- User slider adjustments that differ from preset defaults are applied after the LUT:
+  - brightness / contrast / saturation via FFmpeg `eq` or Skia shader uniforms
+  - warmth via FFmpeg `colortemperature` or Skia shader uniforms
+  - vignette separately as a spatial effect
+
+This preserves a single canonical preset transform while still letting the editor keep custom adjustments.
+
+## April 25, 2026 — Flick POST Filter Baking Fix
+
+### Full-flow verification
+
+- The active local API process is running from `apps/chefooz-apis`, not from a stale compiled `dist/` output.
+- MongoDB stores the selected filter metadata correctly on both `POST` and `REEL` reel documents.
+- For a failing single-image Flick sample, the output object in `chefooz-media-output/photos/...` differed from the original upload in `chefooz-media-uat/uploads/...`, which verified that server-side POST baking was executing.
+- The remaining issue was output fidelity: backend preset transforms were materially weaker than the frontend preview overlay, so published media often looked effectively unfiltered even though processing had run.
+
+### Root cause
+
+- The upload API persisted `reel.filter`, but the `POST` completion branch in `media.service.ts` skipped processing and only copied original images from the upload bucket to the output bucket.
+- As a result, Flick previews showed filters before upload, but the final uploaded image URLs always pointed at unfiltered originals.
+
+### Fix
+
+| Layer | File | Change |
+|---|---|---|
+| POST completion | `apps/chefooz-apis/src/modules/media/media.service.ts` | Replaced raw S3 copy path with conditional image-filter baking when `reel.filter` is present |
+| Image processing helper | `apps/chefooz-apis/src/modules/media/post-image-filter.util.ts` | Added `sharp`-based static-image filter pipeline for brightness, contrast, saturation, warmth, preset tints, and vignette |
+| REEL preset processing | `apps/chefooz-apis/src/modules/media-processing/video-filters.service.ts` | Strengthened FFmpeg preset chains and normalized preset resolution from either `preset` or `name` |
+| Regression coverage | `apps/chefooz-apis/src/modules/media/post-image-filter.util.spec.ts` | Verifies filtered output remains JPEG and preserves dimensions |
+| Regression coverage | `apps/chefooz-apis/src/modules/media-processing/video-filters.service.spec.ts` | Verifies REEL preset chains resolve from persisted metadata and remain visibly stronger |
+
+### Behavior
+
+- `POST` uploads without a filter still use the direct-copy path.
+- `POST` uploads with a filter now download each uploaded source image, bake the selected filter via `sharp`, and upload filtered JPEGs to the output bucket.
+- The fix applies to all images in `extraImageS3Keys`, so multi-image Flick posts remain visually consistent.
+- The POST filter helper now resolves presets from either `filter.preset` or `filter.name`, so single-image Flick uploads still bake filters correctly even if a resumed/idempotent upload only retains the named preset identifier.
+- `REEL` uploads now use stronger FFmpeg preset chains so published video output is visibly closer to the in-app preview instead of looking effectively unchanged.
+
+### FFmpeg verification findings
+
+- Local FFmpeg runtime support was verified for `eq`, `colortemperature`, `colorbalance`, `curves`, `vibrance`, `colorchannelmixer`, and `vignette`.
+- A controlled encode against `testsrc2` confirmed FFmpeg was not the failing layer. A strong documented chain produced a large output shift, while the existing `golden` preset only caused a small change.
+- Root cause for REEL output was preset design, not FFmpeg execution. Root cause for POST output was the same class of issue on the `sharp` side: the helper baked too-soft adjustments and low-opacity tints.
+
+### Preset-strength adjustment
+
+| Path | Change |
+|---|---|
+| REEL / FFmpeg | Reworked named presets to rely on stronger documented filters such as `vibrance`, `curves`, `colorbalance` with `pl=1`, and `colorchannelmixer` for `bw` |
+| POST / Sharp | Increased brightness, saturation, contrast, warmth, and preset-tint intensity; `bw` now uses true grayscale baking |
+
+### Constraint
+
+- If the frontend preview remains intentionally stylized beyond what backend rendering can reproduce exactly, backend presets must still be strong enough that a published asset is obviously filtered on first glance.
 
 ## April 25, 2026 — Camera Filters & Live Preview (Food-Optimised Presets)
 
@@ -37,23 +179,15 @@ A full filter pipeline for the upload flow — from live camera preview to serve
 | `dramatic` | Dramatic | Fine-dining, dark plating — high contrast +vignette |
 | `bw` | B&W | Editorial / artisan mono — full desaturation |
 
-### Preview approach (no Skia dependency)
+### Preview approach
 
-Filters are previewed as a stack of semi-transparent `View` overlays placed above the camera/video using `StyleSheet.absoluteFill`. Each `VideoFilter` field maps to a colour tint:
-
-| Field | Overlay colour | Opacity scaling |
+| Surface | Implementation | Accuracy |
 |---|---|---|
-| `brightness > 0` | `#FFFFFF` (white) | `abs(brightness) * 0.28` |
-| `brightness < 0` | `#000000` (black) | `abs(brightness) * 0.28` |
-| `saturation < 0` | `#808080` (grey) | `abs(saturation) * 0.38` |
-| `warmth > 0` | `#FFA726` (orange) | `abs(warmth) * 0.20` |
-| `warmth < 0` | `#42A5F5` (blue) | `abs(warmth) * 0.20` |
-| `contrast > 0` | `#000000` (darken) | `abs(contrast) * 0.10` |
-| `vignette > 0` | `#000000` (darken) | `vignette * 0.22` |
+| Selected image preview | `LUTImagePreview.tsx` + Skia runtime shader + generated LUT atlas PNG | Canonical preset WYSIWYG for Flick images |
+| Live camera preview | `FilterVisualOverlay.tsx` tint layer | Approximate |
+| Post-capture video preview | `VideoFilterPreview.tsx` overlay layer over `expo-video` | Approximate |
 
-This is a visual approximation. Actual LUT-grade colour transforms happen server-side in FFMPEG (see MediaConvert LUT section below when implemented).
-
-**Why not Skia?** `@shopify/react-native-skia` is not installed. The View-tinting approach is zero-dependency and has near-zero performance overhead (no extra GPU passes). It is sufficient for a "preview" that communicates the filter mood to the user before uploading.
+This split is intentional. The canonical LUT path is now used everywhere the current stack can support it exactly, while the camera/video surfaces remain on the lightweight approximation path until a native video-frame shader path is added.
 
 ### Camera filter UX flow
 
@@ -63,9 +197,12 @@ This is a visual approximation. Actual LUT-grade colour transforms happen server
 4. **Video/image editing**: A **Filter** button (palette icon) in the right action rail opens `FilterPickerSheet` for full control — 9 presets + custom adjustment sliders (brightness, contrast, saturation, warmth, vignette).
 5. **Share**: The `filter` field in the store is sent to the backend as part of the reel creation DTO.
 
-### Server-side filter baking (pending — backend sprint)
+### Server-side filter baking
 
-The `filter` field (`{ name, preset, brightness, contrast, saturation, warmth, vignette }`) is passed to the media service with the upload request. FFMPEG filter baking implementation (LUT `.cube` files per preset, `MediaConvert LUTSettings`) is a separate backend sprint.
+- The `filter` field (`{ name, preset, brightness, contrast, saturation, warmth, vignette }`) is passed to the media service with the upload request.
+- REEL and POST publish baking now both use the generated `.cube` LUT family through FFmpeg `lut3d`.
+- Residual slider changes are layered after the LUT instead of replacing it.
+- This gives Chefooz one canonical preset transform path for publish output across both still and video media.
 
 ---
 

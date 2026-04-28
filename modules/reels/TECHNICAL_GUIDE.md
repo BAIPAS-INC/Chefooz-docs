@@ -26,31 +26,40 @@
 
 ---
 
-## 🚧 Upload V2 UI Gating (Temporary)
+## Upload V2 Edit Preview Rules
 
 ### Scope
 
-- File changed: `apps/chefooz-app/src/app/reels/upload-v2/edit.tsx`
-- UI-only change in mobile upload flow.
+- Files changed:
+  - `apps/chefooz-app/src/app/reels/upload-v2/edit.tsx`
+  - `apps/chefooz-app/src/components/upload/LiveCameraView.tsx`
+  - `apps/chefooz-app/src/components/upload/VideoFilterPreview.tsx`
+  - `apps/chefooz-app/src/components/upload/ImageFilterPreview.tsx`
+  - `apps/chefooz-app/src/store/upload-v2.store.ts`
 
-### What is hidden
+### POST / Flick camera rules
 
-- Right rail action removed: **Text** (`format-text`)
-- Right rail action removed: **Filter** (`palette`)
-- Filter chip indicator hidden from preview layer
+- New Flick captures default to `4:5` via `postAspectRatio='4:5'` in the upload store.
+- The no-media POST camera preview and the captured POST preview now share the same `4:5` viewport sizing helper so the layout does not jump between camera mode and preview mode.
+- The POST stage now centers that 4:5 preview in the available vertical space instead of pinning it to the top and leaving an oversized dead black area below.
+- The live POST filter strip is offset above the bottom shutter controls so it stays visually attached to the Flick camera stage without overlapping the next/shutter controls.
+- Captured photo fallback dimensions for Flicks are `1080x1350` so the first preview stays aligned with the default post frame even if `Image.getSize()` is unavailable.
 
-### What remains enabled
+### Filter behavior
 
-- Data model support for `textOverlays` and `filter` remains in reel schema/contracts.
-- Upload screen still preserves previously stored values if present in draft/store state.
-- All backend endpoints and media processing contracts are unchanged.
-
-### Rollback
-
-- Re-enable by restoring the removed `actionRailItems` entries and the filter chip block in `edit.tsx`.
+- Backend upload and processing already supported `filter` for both `REEL` and `POST` payloads; no API contract changed.
+- `LiveCameraView` now shows the live camera filter selector for both REEL and POST so Flick keeps the same instant filter affordance as Flip.
+- Flick image previews now render `ImageFilterPreview`, which uses the same visual overlay approximation as `VideoFilterPreview` plus preset-specific tint layers so warm/golden/vibrant presets are actually visible on neutral images.
+- This keeps POST edit previews visually closer to the processed output without introducing native shader dependencies.
+- When a camera photo is taken in Flick mode, the selected live filter is persisted into upload state before crop opens, so the same preset is visible again once the user exits crop.
+- Camera-captured Flick images now enter `PostCropModal` immediately, matching the gallery multi-image POST flow instead of bypassing crop entirely.
 
 ## Recent QA Fixes
 
+- 2026-04-25: Flick capture in `apps/chefooz-app/src/app/reels/upload-v2/edit.tsx` now uses a 4:5-native preview height instead of reusing the longer reel camera viewport. The upload store also defaults `postAspectRatio` to `4:5`, which prevents freshly captured Flicks from appearing almost square before the crop flow runs.
+- 2026-04-25: Flick camera mode and the captured post preview now use the same viewport sizing helper, so switching from live camera to preview no longer produces a tall-to-short layout jump. The POST camera stage also centers the 4:5 frame to avoid a large dead black slab beneath the camera.
+- 2026-04-25: `LiveCameraView.tsx` keeps the live camera filter selector available in POST mode as well, and `ImageFilterPreview.tsx` renders preset filter approximations for Flick image previews. This makes Flick filter selection behave more like Flip while still keeping the underlying post frame at 4:5.
+- 2026-04-25: `edit.tsx` now routes camera-captured Flick photos through the same crop-first flow used by gallery images, and persists the active live filter into the captured preview state so the post-crop preview still shows the chosen preset.
 - 2026-04-25: Upload V2 shutter handling now separates tap-to-start from hold-to-record in `apps/chefooz-app/src/app/reels/upload-v2/edit.tsx`. REEL mode no longer starts and stops recording within the same quick tap gesture, which previously triggered an iOS recorder race and surfaced `AVFoundationErrorDomain Code=-11805 Cannot Record`.
 - 2026-04-25: Shared mention suggestions were restored in `libs/ui/src/lib/MentionInput.tsx` using cursor-aware detection and inline suggestion rendering. This re-enables `@mentions` in both comment input and upload caption entry, which had regressed after the shared UI mention component was refactored.
 - 2026-04-25: Modal bottom sheets for comments, report, and share now retain responder ownership during downward drags. The fix removes inner pressable wrappers that were swallowing drag events and strengthens the shared `useSwipeToClose` responder capture logic.

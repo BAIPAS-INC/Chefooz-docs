@@ -105,59 +105,89 @@
 **Regression test:** Runtime/manual only
 **Status:** Fixed ✅
 
-### Category 0: Upload V2 UI Gating (Temporary)
+### TC-reels-095: Flick camera uses 4:5 framing before capture
 
-#### TC-UPL-UI-001: Text action hidden in edit screen right rail
-**Priority**: High  
-**Automation**: ❌ Manual
+**Type:** Bug Regression / Manual / Automated
+**Feature area:** Upload V2 edit screen, Flick mode camera
+**Priority:** P1
 
-**Pre-conditions**:
-- App launched to mobile upload flow
-- Navigate to `/reels/upload-v2/edit`
+**Preconditions:**
+- Camera permission granted
+- User opens `/reels/upload-v2/edit` with no selected media
 
-**Test Steps**:
-1. Open edit screen with selected media
-2. Inspect right action rail items
+**Steps:**
+1. Switch the edit screen toggle to `Flick`.
+2. Observe the live camera preview height.
+3. Capture a photo.
 
-**Expected Result**:
-- Right action rail does **not** show `Text` action
-- No tap target exists to open `TextEditModal` for creating a new overlay
+**Expected result:** The live Flick camera preview uses a 4:5-style frame and the captured post preview does not fall back to an almost-square first render.
+**Actual result (before fix):** Flick reused the longer reel camera viewport and then defaulted to a square-ish post preview.
+**Fix applied:** POST camera height and captured-post preview height now use the same 4:5 viewport helper, and the upload store defaults `postAspectRatio` to `4:5`.
+**Regression test:** apps/chefooz-app/src/utils/upload-v2.spec.ts
+**Status:** Fixed ✅
 
----
+### TC-reels-096: Flick camera keeps the live filter strip and overlay
 
-#### TC-UPL-UI-002: Filter action hidden in edit screen right rail
-**Priority**: High  
-**Automation**: ❌ Manual
+**Type:** Bug Regression / Manual / Automated
+**Feature area:** Upload V2 edit screen, live filters
+**Priority:** P1
 
-**Pre-conditions**:
-- App launched to mobile upload flow
-- Navigate to `/reels/upload-v2/edit` with video media
+**Preconditions:**
+- Camera permission granted
+- Edit screen opens with no selected media
 
-**Test Steps**:
-1. Open edit screen with selected video
-2. Inspect right action rail items
+**Steps:**
+1. Switch to `Flick`.
+2. Inspect the live camera preview area.
 
-**Expected Result**:
-- Right action rail does **not** show `Filter` action
-- No direct rail tap target opens `FilterPickerSheet`
+**Expected result:** Flick shows the same live filter selector and visible live color overlay as Flip, but inside the 4:5 post camera frame.
+**Actual result (before fix):** Flick either hid the live filter strip entirely or showed filter changes too weakly, making the camera feel inconsistent with Flip.
+**Fix applied:** The live camera filter selector is now available in POST mode too, preset overlays were strengthened for visibly different live/captured previews, and the selector is offset above the bottom controls in Flick mode.
+**Regression test:** apps/chefooz-app/src/utils/upload-v2.spec.ts
+**Status:** Fixed ✅
 
----
+### TC-reels-097: Flick image filter preview renders before upload
 
-#### TC-UPL-UI-003: Filter chip hidden when filter state exists
-**Priority**: Medium  
-**Automation**: ❌ Manual
+**Type:** Bug Regression / Manual
+**Feature area:** Upload V2 edit screen, captured Flick preview
+**Priority:** P1
 
-**Pre-conditions**:
-- Upload store has existing `filter` value (from saved draft/state)
-- Edit screen opened with media
+**Preconditions:**
+- User has captured or selected a Flick image
+- A filter preset is selected from the filter sheet
 
-**Test Steps**:
-1. Open `/reels/upload-v2/edit`
-2. Inspect lower-left chip area and preview overlays
+**Steps:**
+1. Capture or select a Flick image.
+2. Open the filter picker and choose a preset.
+3. Return to the edit preview.
 
-**Expected Result**:
-- Filter chip is not displayed
-- UI does not expose edit entry point for filter while gate is active
+**Expected result:** The Flick preview visibly reflects the selected preset before upload.
+**Actual result (before fix):** Flicks stored filter metadata for upload, but the edit preview did not visually apply it to image posts.
+**Fix applied:** Added `ImageFilterPreview`, strengthened `FilterVisualOverlay` with preset-aware tint layers, and now persist the active live camera filter when a Flick photo is captured so the same preset appears again after crop.
+**Regression test:** apps/chefooz-app/src/utils/upload-v2.spec.ts
+**Status:** Fixed ✅
+
+### TC-reels-098: Camera-captured Flick opens crop immediately
+
+**Type:** Bug Regression / Manual / Automated
+**Feature area:** Upload V2 edit screen, Flick camera capture
+**Priority:** P1
+
+**Preconditions:**
+- Camera permission granted
+- User is on the upload edit screen in `Flick` mode
+
+**Steps:**
+1. Select any live filter in the Flick camera.
+2. Tap the shutter to capture a photo.
+3. Observe the next screen.
+4. Complete crop and return to the edit preview.
+
+**Expected result:** Crop opens immediately after camera capture, matching the phone-gallery image flow, and the chosen live filter remains applied when returning to the edit preview.
+**Actual result (before fix):** Camera-captured Flicks bypassed crop and the selected live filter was not guaranteed to carry into the post-capture preview.
+**Fix applied:** Camera-captured Flicks now enter `PostCropModal` immediately, and the active live filter is stored before crop opens.
+**Regression test:** apps/chefooz-app/src/utils/upload-v2.spec.ts
+**Status:** Fixed ✅
 
 ---
 

@@ -2,8 +2,179 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Test Coverage Target**: 85%+ (Unit + Integration + E2E)  
-> **Last Updated**: April 25, 2026  
+> **Last Updated**: April 26, 2026  
 > **Test Environment**: UAT (chefooz-media-uat S3 bucket)
+
+### **TC-MEDIA-025: Flick selected-image preview uses the canonical LUT preset**
+
+**Type:** Bug Regression / Manual
+**Feature area:** Upload edit preview, Flick image preview
+**Priority:** P1
+
+**Preconditions:**
+- User selects or captures a Flick image
+- User applies a non-original preset such as `Golden`, `Warm`, or `Vintage`
+
+**Steps:**
+1. Open the edit preview for the Flick image.
+2. Apply the preset.
+3. Compare the edit preview against the published result after upload.
+
+**Expected result:** The selected-image preview in edit mode uses the canonical LUT transform and stays visually close to the published output.
+**Actual result (before fix):** Flick image preview used overlay tints only, so the edit preview and published output could diverge noticeably.
+**Fix applied:** Added Skia-based `LUTImagePreview.tsx` that uses generated preset LUT atlas PNGs derived from the same source as backend `.cube` assets.
+**Regression test:** Runtime validation + `libs/domain/src/lib/media/media-filter.spec.ts`
+**Status:** Fixed ✅
+
+### **TC-MEDIA-026: REEL and Flick preset publish paths resolve from canonical LUT assets**
+
+**Type:** Bug Regression / Automated / Manual
+**Feature area:** Backend filter baking
+**Priority:** P1
+
+**Preconditions:**
+- Generated LUT assets exist in `static/media-luts/`
+- User publishes a REEL or Flick with a named preset
+
+**Steps:**
+1. Publish a REEL with `Golden`.
+2. Publish a Flick with `Golden`.
+3. Inspect backend processing and compare outputs.
+
+**Expected result:** Both publish paths resolve the preset through the canonical generated LUT assets instead of separate per-layer preset implementations.
+**Actual result (before fix):** REEL and Flick used different filter implementations (`FFmpeg` parameter chain vs `sharp` adjustments), so canonical preset parity did not exist.
+**Fix applied:** Added generated `.cube` preset assets and wired both REEL and POST baking through FFmpeg LUT processing.
+**Regression test:** `apps/chefooz-apis/src/modules/media-processing/video-filters.service.spec.ts`, `apps/chefooz-apis/src/modules/media/post-image-filter.util.spec.ts`
+**Status:** Fixed ✅
+
+### **TC-MEDIA-023: Name-only persisted filters resolve consistently in preview and backend baking**
+
+**Type:** Bug Regression / Automated
+**Feature area:** Shared media filter contract
+**Priority:** P1
+
+**Preconditions:**
+- A saved or resumed draft contains `filter: { name: 'Warm' }` or another non-original preset without explicit scalar values
+
+**Steps:**
+1. Open the draft in the upload edit screen.
+2. Verify the preview shows the selected preset layers.
+3. Complete upload and allow backend processing to finish.
+4. Compare the published asset against the preview mood.
+
+**Expected result:** The preset resolves from the name, preview layers render correctly, and backend baking uses the same preset defaults.
+**Actual result (before fix):** Individual layers reimplemented preset fallback logic, so name-only filters could preview or bake inconsistently depending on the code path.
+**Fix applied:** Introduced `libs/domain/src/lib/media/media-filter.ts` as the shared rule for preset normalization, effective defaults, preview layers, and production preset order.
+**Regression test:** `libs/domain/src/lib/media/media-filter.spec.ts`, `apps/chefooz-app/src/components/upload/FilterVisualOverlay.spec.tsx`
+**Status:** Fixed ✅
+
+### **TC-MEDIA-024: B&W preset is available across picker, live camera, and backend baking**
+
+**Type:** Bug Regression / Manual / Automated
+**Feature area:** Filter catalog parity
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in and opens the upload camera or edit screen
+
+**Steps:**
+1. Open the filter picker from the edit screen.
+2. Open the live camera filter strip.
+3. Select `B&W` and publish a supported image or reel.
+4. Verify the final baked media is monochrome.
+
+**Expected result:** `B&W` is selectable anywhere the production preset catalog is exposed, and the backend bakes a visibly monochrome asset.
+**Actual result (before fix):** `B&W` existed in backend/docs but not as a guaranteed shared preset across the mobile preset catalog.
+**Fix applied:** Added `bw` to shared filter presets and switched picker/camera ordering to the shared preset contract.
+**Regression test:** `libs/domain/src/lib/media/media-filter.spec.ts`, `apps/chefooz-apis/src/modules/media/post-image-filter.util.spec.ts`, `apps/chefooz-apis/src/modules/media-processing/video-filters.service.spec.ts`
+**Status:** Fixed ✅
+
+### **TC-REEL-021: Published REEL video remains visibly filtered after processing**
+- **Priority**: P1 (High)
+- **Preconditions**:
+  - User is authenticated
+  - User creates a `REEL` video or photo-reel
+  - A visible preset such as `Golden`, `Warm`, or `Fresh` is selected before publish
+- **Test Steps**:
+  1. Publish the REEL with a visible preset filter.
+  2. Wait for processing to complete.
+  3. Open the published REEL from the feed or profile.
+  4. Compare the published playback against the unfiltered source media.
+- **Expected Result**:
+  - The published video remains visibly filtered and matches the mood of the selected preset.
+  - The result should not look effectively identical to the original media.
+- **Actual Result (before fix)**:
+  - Filter metadata was persisted and FFmpeg processing ran, but preset chains were too weak, so the published REEL often looked unfiltered to users.
+- **Fix Applied**:
+  - Strengthened FFmpeg preset chains in `video-filters.service.ts` and resolved presets from either `filter.preset` or `filter.name`.
+- **Automation**: ✅ Yes (Jest chain regression) + Manual visual verification
+- **Tags**: `[api, reel, video, filter, ffmpeg, regression]`
+
+### **TC-REEL-022: Golden preset remains visibly different after backend transcode**
+- **Priority**: P1 (High)
+- **Preconditions**:
+  - User is authenticated
+  - User uploads a `REEL` video with the `Golden` preset
+- **Test Steps**:
+  1. Publish a REEL with the `Golden` preset.
+  2. Wait for processing to complete.
+  3. Compare the published output against the source video and preview.
+- **Expected Result**:
+  - Published output is visibly warmer, richer, and more saturated than the original.
+  - Output should not look like a near-original transcode.
+- **Actual Result (before fix)**:
+  - FFmpeg ran successfully, but the `Golden` preset only applied a small temperature and EQ shift, so users perceived no filter.
+- **Fix Applied**:
+  - Replaced subtle preset chains with stronger documented FFmpeg combinations using `vibrance`, `colortemperature`, `colorbalance`, and higher-impact tone shaping.
+- **Regression test**:
+  - `apps/chefooz-apis/src/modules/media-processing/video-filters.service.spec.ts`
+- **Automation**: ✅ Yes (Jest chain regression) + Manual visual verification
+- **Status**: Fixed ✅
+
+### **TC-POST-019: Multi-image Flick upload bakes selected filter server-side**
+- **Priority**: P1 (High)
+- **Preconditions**:
+  - User is authenticated
+  - User creates a `POST` / Flick with 2 or more images
+  - A visible preset filter such as `Warm` or `Golden` is selected before upload
+- **Test Steps**:
+  1. Complete a multi-image Flick upload with a selected filter
+  2. Wait for upload completion and processing readiness
+  3. Open the published Flick
+  4. Swipe through all uploaded images
+- **Expected Result**:
+  - Every uploaded Flick image visibly reflects the selected filter
+  - No image falls back to the original unfiltered version after publish
+- A single-image Flick with a preset such as `Warm` or `Golden` also remains visibly filtered after publish
+- **Actual Result (before fix)**:
+  - Backend stored `reel.filter` metadata but copied original POST images directly to the output bucket, so published Flick images were unfiltered
+- **Fix Applied**:
+  - `media.service.ts` now bakes static-image filters with `sharp` for the POST branch before uploading each image to the output bucket
+  - `post-image-filter.util.ts` resolves presets from `filter.preset` or `filter.name` so named presets do not get treated as `original`
+- **Automation**: ✅ Yes (Jest helper spec) + Manual publish verification
+- **Tags**: `[api, post, filter, upload, regression]`
+
+### **TC-POST-020: B&W Flick image is baked as monochrome output**
+
+**Type:** Bug Regression / Automated / Manual
+**Feature area:** POST image filter baking
+**Priority:** P1
+
+**Preconditions:**
+- User is logged in
+- User selects a single-image or multi-image Flick
+- User applies the `B&W` preset before publish
+
+**Steps:**
+1. Publish the Flick with the `B&W` preset.
+2. Wait for backend image processing to complete.
+3. Open the published image.
+
+**Expected result:** Published image is true monochrome, not just slightly desaturated.
+**Actual result (before fix):** The backend baking path could look too subtle, especially on warm-toned food imagery, so the result appeared only weakly altered.
+**Fix applied:** Strengthened the static-image baking path and added explicit grayscale handling for the `bw` preset.
+**Regression test:** `apps/chefooz-apis/src/modules/media/post-image-filter.util.spec.ts`
+**Status:** Fixed ✅
 
 ---
 
@@ -2119,6 +2290,57 @@ guard let utFileType = UTType(mimeType: mimeType) else {
 
 ---
 
+### TC-MEDIA-FILTER-09: Vignette shows radial dark-edge falloff (not flat opacity)
+
+**Type:** Manual / Visual
+**Feature area:** `FilterVisualOverlay` — vignette layer
+**Priority:** P2
+
+**Preconditions:**
+- Edit screen open in live-camera mode
+- Select a preset that includes vignette (e.g. `Vintage`, `Dramatic`)
+
+**Steps:**
+1. Select "Vintage" from the filter strip.
+2. Observe the edges of the camera preview frame versus the centre.
+
+**Expected result:**
+- The vignette is visually darker at the four corners and edges, fading gradually to fully transparent in the centre.
+- The centre of the frame shows no darkening from the vignette layer.
+- On small (320px) and large (768px) devices the vignette scales proportionally.
+**Actual result (before fix):** Vignette was a flat uniform black overlay at ~22% opacity covering the entire frame, with no radial falloff.
+**Fix applied:** Replaced the vignette `View` in `FilterVisualOverlay` with a Skia `Canvas` + `RadialGradient` that goes from transparent at the centre to black at the edge opacity. Radius = `max(w, h) × 0.72` to cover the corner diagonal.
+**Regression test:** `libs/domain/src/lib/media/media-filter-color-matrix.spec.ts` (verifies vignette is excluded from linear matrix)
+**Status:** Fixed ✅
+
+---
+
+### TC-MEDIA-FILTER-10: VisionCamera v5 frame processor limitation is acknowledged and non-blocking
+
+**Type:** Architecture Decision Record / Manual
+**Feature area:** Live camera colour grading
+**Priority:** P3
+
+**Background:**
+During April 2026 QA, a decision was made on whether to implement `useSkiaFrameProcessor` for exact GPU-level live camera colour grading (applying the canonical LUT to each camera frame at display-time).
+
+**Finding:**
+- `react-native-vision-camera` v5.0.6 (Nitro Modules architecture) does NOT include `useSkiaFrameProcessor`. This hook was removed from v5.
+- The v5 frame processor pipeline is `useFrameOutput` + `FrameRenderer.renderFrame(frame)` + `NativeFrameRendererView` but `FrameRenderer.renderFrame` only accepts raw `Frame` objects; there is no path to inject Skia-processed frames.
+- `@shopify/react-native-skia` v2.0.0-next.4 does NOT include `Skia.Image.MakeFromNativeBuffer`. GPU camera texture sharing is not available.
+- The babel plugin `react-native-worklets-core/plugin` (required for any worklet) was added to `apps/chefooz-app/babel.config.js` and the VisionCamera plugin with `enableFrameProcessors: true` was added to `app.json` as infrastructure for future use.
+
+**Impact:**
+- Live camera preview continues to use `FilterVisualOverlay` (View-layer + Skia vignette approach).
+- Selected-image preview uses the canonical Skia LUT shader (`LUTImagePreview.tsx`).
+- Published output uses FFmpeg LUT baking (unchanged, remains canonical).
+- The live preview is an approximation; the published output is WYSIWYG.
+
+**Expected result:** Known limitation. No action required until VisionCamera v6+ re-introduces a Skia frame processor integration or a GL-based preview path becomes available.
+**Status:** Known Limitation — Documented ✅
+
+---
+
 **[SLICE_COMPLETE ✅]**  
-*Media Module QA Test Cases - Updated April 25, 2026 (78 test cases)*
+*Media Module QA Test Cases - Updated April 28, 2026 (80 test cases)*
 

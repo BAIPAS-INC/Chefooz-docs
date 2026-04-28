@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Purpose**: Short-form video content management and retrieval  
 **Version**: 1.0  
-**Last Updated**: 2026-04-16
+**Last Updated**: 2026-04-25
 
 ---
 
@@ -11,12 +11,13 @@
 
 The Reels module manages short-form video content on the Chefooz platform, handling reel retrieval, user engagement tracking, and content lifecycle management. It supports three distinct reel types (User Review, Promotional, Menu Showcase) with different monetization strategies and business purposes.
 
-### Upload V2 Temporary UI Availability (2026-02-28)
+### Upload V2 Edit Experience (2026-04-25)
 
-- In the mobile upload edit screen (`/reels/upload-v2/edit`), **Text** and **Filter** actions are temporarily hidden from the right action rail.
-- The filter indicator chip is also hidden to avoid exposing the filter editing entry point.
-- Existing backend/storage support for `textOverlays` and `filter` remains unchanged.
-- This is a UX gating change only; no API contract or reel schema behavior changes.
+- `Flip` (REEL) keeps the reel-native live camera preview and live filter selector before capture.
+- `Flick` (POST) now uses the same 4:5 viewport contract before and after capture, so the live camera frame and the saved post preview stay aligned instead of jumping between tall camera and shorter preview layouts.
+- Flick keeps a live filter strip and live color overlay like Flip, but inside the 4:5 post camera frame instead of the tall reel camera surface.
+- Flick edit previews now render more visible preset filter feedback before upload, using the same preset metadata already sent to backend processing.
+- Capturing a Flick photo from the camera now opens crop immediately, matching the gallery-image flow, and the selected live filter carries forward into the post-crop preview.
 
 ### April 2026 Staging OTA Fixes
 
