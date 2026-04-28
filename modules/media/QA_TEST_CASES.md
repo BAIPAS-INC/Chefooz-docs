@@ -2344,3 +2344,25 @@ During April 2026 QA, a decision was made on whether to implement `useSkiaFrameP
 **[SLICE_COMPLETE ✅]**  
 *Media Module QA Test Cases - Updated April 28, 2026 (80 test cases)*
 
+---
+
+### TC-MEDIA-FILTER-11: B&W camera preview is visually black and white
+
+**Type:** Bug Regression → Feature Decision
+**Feature area:** CameraFilterSelector / FilterPickerSheet — B&W filter visibility
+**Priority:** P1
+
+**Preconditions:**
+- User is on the upload/record screen or the post-capture edit screen
+
+**Steps:**
+1. Open the camera record screen
+2. Observe the filter strip
+
+**Expected result:** B&W is not shown in the filter strip (no broken/misleading preview).
+**Actual result (before fix):** B&W was shown but the live preview appeared blue-tinted (not greyscale) — the `#808080` grey overlay at 38% opacity shifted colour on warm scenes due to additive compositing. The `filter: [{ grayscale: 1 }]` RN style prop also had no effect on the native `AVCaptureVideoPreviewLayer`.
+**Root cause:** VisionCamera v5 removed `useSkiaFrameProcessor` — real-time greyscale processing of the camera feed is not possible with the current stack. The RN `filter` style prop cannot desaturate a native video preview layer. No feasible WYSIWYG B&W live preview exists in VisionCamera v5.
+**Fix applied:** B&W (`preset === 'bw'`) excluded from `CameraFilterSelector` and `FilterPickerSheet` render loops via `.filter((k) => k !== 'bw')`. The backend FFmpeg B&W pipeline remains intact — the filter is simply not exposed in the UI until a framework upgrade enables real-time preview.
+**Regression test:** `libs/domain/src/lib/media/media-filter.spec.ts` — "does NOT add saturation-negative overlay for B&W preset"
+**Status:** Fixed ✅ (B&W removed from selectable UI filters)
+
