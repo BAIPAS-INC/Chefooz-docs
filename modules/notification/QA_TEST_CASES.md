@@ -1,6 +1,6 @@
 # Notification Module — QA Test Cases
 
-**Last Updated:** March 2026  
+**Last Updated:** 30 April 2026  
 **Module:** notification  
 **Path:** `apps/chefooz-apis/src/modules/notification/`
 
@@ -15,6 +15,12 @@
 | TC-NOTIF-003 | Tapping a follow notification navigates to the follower's profile | P1 | Not tested |
 | TC-NOTIF-004 | Unread badge count decrements after marking read | P1 | Not tested |
 | TC-NOTIF-005 | Push notification tap deep-links to correct reel | P0 | Not tested |
+| TC-NOTIF-006 | Like notification shows "liked your reel" not "interacted with your content" | P0 | Fixed ✅ |
+| TC-NOTIF-007 | Grouped multi-actor like shows correct copy | P1 | Fixed ✅ |
+| TC-NOTIF-008 | Comment notification includes comment text | P0 | Fixed ✅ |
+| TC-NOTIF-009 | Mention notification includes comment text in body | P1 | Fixed ✅ |
+| TC-NOTIF-010 | Tag notification does not start with @ in body | P2 | Fixed ✅ |
+| TC-NOTIF-011 | Direct reel share notification includes sender name in body | P2 | Fixed ✅ |
 
 ---
 
@@ -91,3 +97,115 @@
 
 **Expected result:** Navigates to `/profile/user_b_username`  
 **Status:** Not tested
+
+---
+
+### TC-NOTIF-006: Like notification shows specific copy, not generic fallback
+
+**Type:** Bug Regression  
+**Feature area:** Notifications inbox — message rendering  
+**Priority:** P0
+
+**Preconditions:**
+- User B likes User A's reel
+
+**Steps:**
+1. User A opens the notifications inbox
+2. Find the like notification row
+
+**Expected result:** `"{username} liked your reel"`  
+**Actual result (before fix):** `"{username} interacted with your content"` — shown for ALL engagement notification types (likes, comments, follows, saves, mentions, tags)  
+**Root cause:** `buildGroupedMessage` in `notifications/index.tsx` had a `switch(type)` where `type` is the coarse DB value `'engagement'`. All `case` branches checked legacy strings like `'REEL_LIKED'` or `'FOLLOWED'` — none ever matched, so every notification fell to the `default` branch returning the generic copy.  
+**Fix applied:**
+1. Backend `notification.dispatcher.ts`: `templateKey` is now stored in the notification metadata (DB + Expo push payload).
+2. Frontend `notifications/index.tsx`: For single-actor groups, `buildGroupedMessage` returns the backend-rendered `body` verbatim. For multi-actor groups, the switch now uses `metadata.templateKey` instead of the coarse `type`.
+**Regression test:** Manual — automated unit test recommended for `buildGroupedMessage`  
+**Status:** Fixed ✅
+
+---
+
+### TC-NOTIF-007: Grouped multi-actor notification shows correct action word
+
+**Type:** Bug Regression  
+**Feature area:** Notifications inbox — grouping  
+**Priority:** P1
+
+**Preconditions:**
+- Users B, C, D all liked User A's reel within 1 hour (same reelId)
+
+**Steps:**
+1. User A opens notifications inbox
+2. The three likes should be merged into one row
+
+**Expected result:** `"chefmaria and 2 others liked your reel"`  
+**Actual result (before fix):** `"chefmaria and 2 others interacted with your content"`  
+**Fix applied:** `buildGroupedMessage` now reads `metadata.templateKey` (e.g. `'engagement.like'`) to pick `NL.multiple.likedReel` template  
+**Status:** Fixed ✅
+
+---
+
+### TC-NOTIF-008: Mention push notification includes comment text
+
+**Type:** Bug Regression  
+**Feature area:** Push notification — `engagement.mention` template  
+**Priority:** P1
+
+**Preconditions:**
+- User B comments "@userA great recipe!" on any reel
+
+**Steps:**
+1. User A receives push notification
+
+**Expected result:**
+- Title: `"{username} mentioned you 💬"`
+- Body: `"{username} mentioned you in a comment: "@userA great recipe!"`
+
+**Actual result (before fix):**  
+- Title: `"@{username} mentioned you"`  
+- Body: `"@{username} mentioned you"` — body was identical to title; comment text was absent  
+**Fix applied:** Updated `engagement.mention` template: new body = `{{username}} mentioned you in a comment: "{{comment}}"`. Removed `@` prefix from title (username is already shown without it).  
+**Status:** Fixed ✅
+
+---
+
+### TC-NOTIF-009: Tag notification title does not start with @
+
+**Type:** Bug Regression  
+**Feature area:** Push notification — `engagement.tag` template  
+**Priority:** P2
+
+**Preconditions:**
+- User B tags User A in a reel
+
+**Steps:**
+1. User A receives push notification  
+
+**Expected result:**
+- Title: `"{username} tagged you in a post 🏷️"`
+- Body: `"{username} tagged you in a reel."`
+
+**Actual result (before fix):** Title: `"@{username} tagged you"` — the `@` looked like a system artefact rather than rendered copy  
+**Fix applied:** Removed `@` prefix; added `🏷️` emoji and "in a post" context to title  
+**Status:** Fixed ✅
+
+---
+
+### TC-NOTIF-010: Direct reel share includes sender name in push body
+
+**Type:** Bug Regression  
+**Feature area:** Push notification — `reel.shared_direct` template  
+**Priority:** P2
+
+**Preconditions:**
+- User B shares a reel directly with User A via DM
+
+**Steps:**
+1. User A receives push notification
+
+**Expected result:**
+- Title: `"{username} shared a reel with you 🍳"`
+- Body: `"{username} sent you a reel. Tap to watch!"`
+
+**Actual result (before fix):** Body was just `"Tap to watch!"` — sender context was absent; recipient could not tell who sent it  
+**Fix applied:** Updated `reel.shared_direct` body to include `{{username}}`  
+**Status:** Fixed ✅

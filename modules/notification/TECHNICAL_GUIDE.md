@@ -1,6 +1,6 @@
 # Notification Module — Technical Guide
 
-**Last Updated:** March 2026  
+**Last Updated:** 30 April 2026  
 **Module:** notification  
 **Path:** `apps/chefooz-apis/src/modules/notification/`
 
@@ -43,10 +43,22 @@ Event (e.g. REEL_LIKED)
 
 | Type | Fields |
 |---|---|
-| `engagement` (reel like) | `{ reelId, username, reelThumbnail }` |
-| `engagement` (follow) | `{ username, actorUsername }` |
+| `engagement` | `{ reelId, username, reelThumbnail, templateKey }` |
+| `engagement` (follow) | `{ username, actorUsername, templateKey }` |
 | `order` | `{ orderId, status }` |
 | `system` | `{ deepLink? }` |
+
+> `templateKey` was added in April 2026. Pre-existing notifications in the DB will not have it. The frontend falls back to the generic `'interacted with your content'` string for those records only.
+
+---
+
+## Key Constraint: `templateKey` in Metadata (April 2026)
+
+> The `notification.dispatcher.ts` now serialises `templateKey` (e.g. `'engagement.like'`, `'follow.new_follower'`) into the notification `metadata` (DB column) and into the Expo push `data` payload.
+>
+> The frontend `buildGroupedMessage()` function in `notifications/index.tsx` reads `metadata.templateKey` to distinguish engagement sub-types (like vs comment vs follow vs save vs share vs mention vs tag) when constructing grouped notification copy for the inbox.
+>
+> **Without this field**, the function cannot differentiate `'engagement'` sub-types and falls back to the generic `'{username} interacted with your content'` string — which was the root cause of the bug fixed in April 2026.
 
 ---
 
