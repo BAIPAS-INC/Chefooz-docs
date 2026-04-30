@@ -1402,4 +1402,73 @@ Located at `apps/chefooz-apis/src/modules/packaged-delivery/shiprocket.client.ts
 | `dispatchBuffer + deliveryDays === shelfLifeDays` | NOT orderable (strict boundary) |
 | Pre-migration table state | TypeORM query fails gracefully; enrichment skipped |
 
-**Last Updated**: March 2026
+---
+
+## Location-Based Serviceability — Pan-India Implementation
+
+> **Implemented: April 2026**
+> Motivation: Users across pan-India were seeing MENU_SHOWCASE reels and category menu items from home chefs whose delivery radius did not cover the user's location, leading to "cannot order" dead-ends.
+
+### Serviceability Rule
+
+| Content Type | Location Filter |
+|---|---|
+| **PROMOTIONAL reels** | Always global — no location gate |
+| **Packaged / national delivery items** | Global with feasibility badge (`enrichWithDeliveryFeasibility`) |
+| **MENU_SHOWCASE reels (non-packaged)** | Restricted to serviceable chefs when user has an address |
+| **USER_REVIEW reels** | Restricted to serviceable chefs when user has an address |
+| **Category menu items** | Restricted to serviceable chefs when user has an address |
+
+### `getServiceableChefIds(lat, lng)` Helper
+
+Private method in `ExploreService`. Returns a union of:
+1. **Local delivery chefs** — kitchen within `EXPLORE_NEAR_YOU_RADIUS_KM` (env, default 25 km) AND within the chef's own `deliveryRadiusKm`
+2. **National delivery chefs** — at least one `ChefMenuItem.nationalDeliveryEnabled = true` active item
+
+Returns `null` when coordinates are not provided (caller shows global content).
+Returns `{ chefProfileIds: [], chefUserIds: [] }` when coordinates present but no chefs serve the area (shows empty orderable section).
+
+### `buildOrderableLocationFilter(serviceableChefs)` Helper
+
+Produces a MongoDB `$or` clause:
+```ts
+{
+  $or: [
+    { reelPurpose: { $nin: ['MENU_SHOWCASE', 'USER_REVIEW'] } }, // global pass-through
+    { userId: { $in: serviceableChefs.chefUserIds } },           // nearby / national
+    { 'linkedMenu.chefId': { $in: serviceableChefs.chefProfileIds } }, // linked menu
+  ],
+}
+```
+Returns `{}` (no-op) when `serviceableChefs === null` (no location).
+
+### Affected Methods
+
+| Method | Change |
+|---|---|
+| `getTrendingItems` | Accepts `latitude?, longitude?`; applies `buildOrderableLocationFilter` |
+| `getRecommendedItems` | Same |
+| `getNewDishItems` | Accepts `latitude?, longitude?`; since all content is MENU_SHOWCASE/USER_REVIEW, applies serviceable chef `$or` directly |
+| `getAllSections` | Passes `latitude`/`longitude` to trending, recommended, newDishes in addition to nearYou |
+| `getReelsByCategory` | Accepts `latitude?, longitude?`; applies `buildOrderableLocationFilter` |
+| `getCategoryDetail` | Accepts `latitude?, longitude?`; filters TypeORM menu item query to `chefId IN serviceableChefIds`; passes coords to `getVirtualSectionDetail` |
+| `getVirtualSectionDetail('near-you')` | **Fixed**: now applies actual Haversine filter (was previously a date-only cutoff with no location check) |
+| `getVirtualSectionDetail('new'/'recommended'/'menu')` | Now applies `buildOrderableLocationFilter` for orderable content |
+
+### Frontend
+
+| File | Change |
+|---|---|
+| `apps/chefooz-app/src/app/(tabs)/explore.tsx` | Already passed lat/lng to `useConsolidatedExploreSections` ✅ |
+| `apps/chefooz-app/src/app/explore/category/[categoryKey].tsx` | Reads `defaultAddress` from Zustand and passes `latitude`/`longitude` to `useCategoryDetail` |
+| `apps/chefooz-app/src/app/explore/reels/[sectionKey].tsx` | Passes location to `useCategoryDetail` for virtual section view-all pages |
+| `libs/api-client/src/lib/clients/explore.client.ts` | `getCategoryDetail` and `getReelsByCategory` accept `latitude?`/`longitude?` |
+| `libs/api-client/src/lib/hooks/explore/useExplore.ts` | `useCategoryDetail` and `useReelsByCategory` accept `latitude?`/`longitude?`; keyed in React Query query key so cache is per-location |
+
+### Graceful Degradation
+
+- **No address set**: `getServiceableChefIds` returns `null` → global content shown (same experience as before)
+- **Address set but no nearby chefs**: returns `{ chefProfileIds: [], chefUserIds: [] }` → orderable sections empty; user sees only PROMOTIONAL content
+- **Chef with national delivery**: always included in serviceable set regardless of distance
+
+**Last Updated**: April 2026
