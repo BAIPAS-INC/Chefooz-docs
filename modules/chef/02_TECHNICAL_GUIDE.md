@@ -1,5 +1,10 @@
 # 🔧 Chef Module - Technical Implementation Guide
 
+## Recent UI Bug Fixes
+
+- 2026-05-01: `apps/chefooz-app/src/app/chef/orders/index.tsx` now wraps the accept and reject dialogs in `KeyboardAvoidingView` so the keyboard no longer covers the action buttons.
+- 2026-05-01: The reject-order reason modal now dismisses the keyboard when the chef taps inside the dialog content area, without dismissing the dialog itself.
+
 ## 📋 **Table of Contents**
 - [Architecture Overview](#architecture-overview)
 - [Database Schema](#database-schema)

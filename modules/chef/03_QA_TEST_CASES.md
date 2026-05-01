@@ -1,5 +1,38 @@
 # 🧪 Chef Module - QA Test Cases
 
+## Recent UI Regression Cases
+
+### TC-CHEF-UI-049: Reject-order dialog dismisses keyboard without closing modal
+
+**Type:** Bug Regression / Manual
+**Feature area:** Chef live orders screen reject flow
+**Priority:** P1
+
+**Preconditions:**
+- Chef has at least one rejectable live order
+- Reject dialog is opened from `apps/chefooz-app/src/app/chef/orders/index.tsx`
+
+**Steps:**
+1. Tap `Reject` on an active order.
+2. Enter a multiline rejection reason.
+3. With the keyboard open, tap inside the dialog content area outside the text field.
+4. Verify the keyboard dismisses.
+5. Confirm `Cancel` and `Reject` buttons remain visible and usable.
+
+**Expected result:**
+- Keyboard dismisses without closing the dialog.
+- Dialog remains open and action buttons are accessible after keyboard dismissal.
+
+**Actual result (before fix):**
+- Keyboard covered the dialog actions.
+- Tapping outside the dialog dismissed both the keyboard and the modal, forcing the chef to restart the flow.
+
+**Fix applied:**
+- Added `KeyboardAvoidingView` around the dialogs and in-dialog tap-to-dismiss keyboard handling.
+
+**Regression test:** Runtime/manual only
+**Status:** Fixed ✅
+
 ## 📋 **Table of Contents**
 - [Testing Overview](#testing-overview)
 - [Test Environment Setup](#test-environment-setup)

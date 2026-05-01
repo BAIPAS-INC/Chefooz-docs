@@ -1,7 +1,7 @@
 # Feed Module - Feature Overview
 
 **Version:** 1.0  
-**Last Updated:** April 16, 2026  
+**Last Updated:** May 1, 2026  
 **Module:** `apps/chefooz-apis/src/modules/feed/`  
 **Domain Logic:** `libs/domain/src/feed/`  
 **Purpose:** Home feed with advanced ranking algorithm, CRS reputation boost, engagement tracking, and abuse prevention
@@ -42,6 +42,12 @@ The **Feed module** provides a personalized, ranked content stream for the Chefo
 ### April 2026 Home Feed Fix
 
 - Home-feed reel cards now stay visually consistent with engagement changes made on other reel surfaces. When React Query updates a reel's `stats.isLiked`, both `FeedReelCard` and `FeedCinemaCard` immediately reflect the new liked state instead of keeping a stale outlined heart.
+
+### May 2026 Open-Now Row Density Update
+
+- `ChefOpenNowRow` now uses more compact card geometry so at least 3 chefs are visible in the discovery row on standard phone widths, with partial visibility for the next chef when space allows.
+- The row keeps the same kitchen name, username, delivery badge, and distance signals, but shrinks avatar, padding, and text sizing to improve scannability in the home feed.
+- Delivery ETA is shown below the username as a circular chip (`~30m`), and packaged kitchens show a circular `📦` chip.
 
 ### Business Value
 

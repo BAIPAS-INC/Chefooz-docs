@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Test Coverage**: Functional, Security, Performance, Integration  
 **Version**: 1.0  
-**Last Updated**: 2026-04-25
+**Last Updated**: 2026-05-01
 
 ---
 
@@ -187,6 +187,63 @@
 **Actual result (before fix):** Camera-captured Flicks bypassed crop and the selected live filter was not guaranteed to carry into the post-capture preview.
 **Fix applied:** Camera-captured Flicks now enter `PostCropModal` immediately, and the active live filter is stored before crop opens.
 **Regression test:** apps/chefooz-app/src/utils/upload-v2.spec.ts
+**Status:** Fixed ✅
+
+### TC-reels-099: Link-order and link-menu screens maintain readable dark mode contrast
+
+**Type:** Bug Regression / Manual
+**Feature area:** Upload V2 reel-linking flow (`link-order`, `link-menu`, `OrderMenuLinkSheet`)
+**Priority:** P1
+
+**Preconditions:**
+- Dark mode enabled in app theme
+- User has at least one delivered order and one active menu item
+
+**Steps:**
+1. Open the Order/Menu link sheet from upload flow.
+2. Navigate to Link Order and select one delivered order.
+3. Return and open Link Menu and select one menu item.
+4. Verify info banners, selected cards, text, chips, and bottom CTA area in all three surfaces.
+
+**Expected result:**
+- Surfaces use dark-theme backgrounds and readable foreground text.
+- Selected cards remain clearly highlighted in dark mode.
+- Info banner copy and chip text stay readable without washed-out contrast.
+
+**Actual result (before fix):**
+- Static light-theme colors made selected cards and banner text hard to read in dark mode.
+
+**Fix applied:**
+- Replaced static color tokens with `useChefoozTheme()` bindings and tuned dark-mode selected-state/banner alpha values.
+
+**Regression test:** Runtime/manual only
+**Status:** Fixed ✅
+
+### TC-reels-100: Link-menu Combos tab shows Coming Soon tooltip
+
+**Type:** Bug Regression / Manual
+**Feature area:** Upload V2 Link Menu segmented tabs
+**Priority:** P2
+
+**Preconditions:**
+- Link Menu screen is open in upload flow
+
+**Steps:**
+1. Hover over the `Combos` tab (web) or tap/long-press it (mobile).
+2. Observe tooltip behavior.
+3. Verify that selected tab remains `Menu Items` and no combos list opens.
+
+**Expected result:**
+- A transient tooltip appears with `Coming soon`.
+- Combos tab remains non-interactive (no tab switch).
+
+**Actual result (before fix):**
+- Disabled tab showed no guidance text, which looked like a dead UI control in review demos.
+
+**Fix applied:**
+- Added an overlay hitbox + transient tooltip bubble tied to combos tab area while keeping segmented option disabled.
+
+**Regression test:** Runtime/manual only
 **Status:** Fixed ✅
 
 ---

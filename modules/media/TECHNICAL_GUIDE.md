@@ -2,8 +2,29 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Tech Stack**: NestJS, MongoDB (Media/Reel schemas), PostgreSQL (Orders/Users), AWS S3, Bull Queue, FFmpeg  
-> **Last Updated**: April 28, 2026  
+> **Last Updated**: May 2, 2026  
 > **Maintainer**: Backend Team
+
+---
+
+## May 2, 2026 — Reputation credit + variant dimension stabilization
+
+### Root cause
+
+- `completeUpload` only emitted reputation events for `USER_REVIEW` reels linked to an order. `PROMOTIONAL` user uploads did not map to any CRS event.
+- Video-processing variants were persisted with `height: 0` in `media.variants[]`, which can break aspect-ratio handling in clients that rely on stored dimensions.
+
+### Fix
+
+| Layer | File | Change |
+|---|---|---|
+| Media upload event mapping | `apps/chefooz-apis/src/modules/media/reel-upload-reputation.util.ts` | Added centralized eligibility mapping for upload-driven reputation events (user review + promotional user uploads) |
+| Media upload completion | `apps/chefooz-apis/src/modules/media/media.service.ts` | Replaced inline event conditionals with utility mapping and corrected `referenceId` to `mediaId` |
+| Video processing metadata | `apps/chefooz-apis/src/modules/media-processing/video-processing.processor.ts` | Replaced hardcoded `height: 0` with ffprobe-derived dimensions and non-zero fallback dimensions |
+
+### Constraint
+
+- Until a dedicated promotional upload event enum is introduced, promotional user upload credit reuses `REEL_UPLOADED_FROM_ORDER` with metadata `meta.reelPurpose = 'PROMOTIONAL'` for traceability.
 
 ---
 

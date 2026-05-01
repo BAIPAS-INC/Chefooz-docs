@@ -2,8 +2,41 @@
 
 > **Module**: `apps/chefooz-apis/src/modules/media`  
 > **Test Coverage Target**: 85%+ (Unit + Integration + E2E)  
-> **Last Updated**: April 26, 2026  
+> **Last Updated**: May 2, 2026  
 > **Test Environment**: UAT (chefooz-media-uat S3 bucket)
+
+### TC-MEDIA-027: Promotional Flip upload credits reputation and stores non-zero variant dimensions
+
+**Type:** Bug Regression / Automated + Manual
+**Feature area:** Upload completion + media processing + reputation event mapping
+**Priority:** P0
+
+**Preconditions:**
+- Authenticated user uploads a Flip with `reelPurpose='PROMOTIONAL'`
+- Upload completes and video-processing job succeeds
+
+**Steps:**
+1. Initialize a promotional reel upload and complete upload.
+2. Wait for processing completion and inspect `media.variants` metadata.
+3. Verify reputation event write for that upload user.
+
+**Expected result:**
+- At least one upload-driven reputation event is recorded for eligible promotional user content.
+- Processed variants persist valid non-zero dimensions (`width > 0`, `height > 0`).
+
+**Actual result (before fix):**
+- Promotional uploads were not mapped to any reputation event.
+- `video-processing.processor.ts` persisted `height: 0` for 720p/480p/360p variants.
+
+**Fix applied:**
+- Added `getReelUploadReputationEvent()` utility and used it in both upload completion branches.
+- Resolved variant dimensions using ffprobe metadata with non-zero fallback dimensions.
+
+**Regression test:**
+- `apps/chefooz-apis/src/modules/media/reel-upload-reputation.util.spec.ts`
+- `apps/chefooz-apis/src/modules/media-processing/video-processing.processor.spec.ts`
+
+**Status:** Fixed ✅
 
 ### **TC-MEDIA-025: Flick selected-image preview uses the canonical LUT preset**
 

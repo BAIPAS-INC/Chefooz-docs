@@ -1,7 +1,16 @@
 # Reputation Module — Technical Guide
 
 **Version:** 2.0 (Production-Grade Scale)
-**Last Updated:** March 2026
+**Last Updated:** May 2, 2026
+
+---
+
+## May 2, 2026 — Upload event source mapping update
+
+- Upload-driven reputation writes are triggered from media upload completion.
+- `PROMOTIONAL` user uploads now map into the existing upload event stream using `REEL_UPLOADED_FROM_ORDER` with `meta.reelPurpose = 'PROMOTIONAL'`.
+- `USER_REVIEW` uploads continue using `REEL_UPLOADED_FROM_ORDER` with `meta.reelPurpose = 'USER_REVIEW'`.
+- `referenceId` for these upload events is now the media id (not reel id), so content-source eligibility checks in `ReputationService.recordEvent()` can evaluate the underlying media correctly.
 
 ---
 

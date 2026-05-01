@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Tech Stack**: NestJS, MongoDB (Mongoose), PostgreSQL (TypeORM), Redis (Valkey)  
 **Version**: 1.0  
-**Last Updated**: 2026-04-25
+**Last Updated**: 2026-05-01
 
 ---
 
@@ -54,8 +54,16 @@
 - When a camera photo is taken in Flick mode, the selected live filter is persisted into upload state before crop opens, so the same preset is visible again once the user exits crop.
 - Camera-captured Flick images now enter `PostCropModal` immediately, matching the gallery multi-image POST flow instead of bypassing crop entirely.
 
+### Reel-linking theming rules
+
+- `link-order`, `link-menu`, and `OrderMenuLinkSheet` must bind colors from `useChefoozTheme()` for cards, text, icon tint, info banners, and bottom CTA containers.
+- Avoid static light-only tokens in these files (`white`, fixed dark text, fixed light borders), because they break readability in dark mode.
+- Selected-card backgrounds should use stronger alpha in dark mode (for example `accent + '22'`) than light mode (`accent + '10'`) so selection remains obvious across both themes.
+
 ## Recent QA Fixes
 
+- 2026-05-01: `apps/chefooz-app/src/app/reels/upload-v2/link-menu.tsx` now overlays a hitbox on the disabled `Combos` segmented tab and renders a transient tooltip (`Coming soon`) on hover/tap for ISO/demo clarity while keeping the tab non-interactive.
+- 2026-05-01: Dark-mode contrast issues in reel-linking surfaces were fixed in `apps/chefooz-app/src/app/reels/upload-v2/link-order.tsx`, `apps/chefooz-app/src/app/reels/upload-v2/link-menu.tsx`, and `apps/chefooz-app/src/components/upload/OrderMenuLinkSheet.tsx` by replacing static light tokens with `useChefoozTheme()` color bindings.
 - 2026-04-25: Flick capture in `apps/chefooz-app/src/app/reels/upload-v2/edit.tsx` now uses a 4:5-native preview height instead of reusing the longer reel camera viewport. The upload store also defaults `postAspectRatio` to `4:5`, which prevents freshly captured Flicks from appearing almost square before the crop flow runs.
 - 2026-04-25: Flick camera mode and the captured post preview now use the same viewport sizing helper, so switching from live camera to preview no longer produces a tall-to-short layout jump. The POST camera stage also centers the 4:5 frame to avoid a large dead black slab beneath the camera.
 - 2026-04-25: `LiveCameraView.tsx` keeps the live camera filter selector available in POST mode as well, and `ImageFilterPreview.tsx` renders preset filter approximations for Flick image previews. This makes Flick filter selection behave more like Flip while still keeping the underlying post frame at 4:5.

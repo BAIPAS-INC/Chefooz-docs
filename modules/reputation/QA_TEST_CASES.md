@@ -1,7 +1,7 @@
 # Reputation Module — QA Test Cases
 
 **Version:** 2.0  
-**Last Updated:** March 2026  
+**Last Updated:** May 2, 2026  
 **Module:** Reputation / CRS
 
 ---
@@ -23,6 +23,39 @@
 | TC-REP-011 | Follower milestone awards correct points | Automated | P1 |
 | TC-REP-012 | Follow/unfollow gaming blocked by 30-day cap | Automated | P0 |
 | TC-REP-013 | Missing meta.followerCount returns 400 | Automated | P1 |
+| TC-REP-014 | Promotional upload writes eligible reputation event | Automated | P1 |
+
+---
+
+### TC-REP-014: Promotional upload writes eligible reputation event
+
+**Type:** Automated (regression)  
+**Feature area:** Upload-driven event ingestion (`MediaService` → `ReputationService.recordEvent`)  
+**Priority:** P1
+
+**Preconditions:**
+- Authenticated user creates a promotional reel upload (`reelPurpose='PROMOTIONAL'`)
+- Media source is user content
+
+**Steps:**
+1. Complete upload through media flow.
+2. Observe event payload sent to `recordEvent`.
+3. Verify event metadata includes reel purpose and reference points to media id.
+
+**Expected result:**
+- Eligible promotional user uploads emit an upload-driven reputation event.
+- Payload includes `meta.reelPurpose='PROMOTIONAL'` and `referenceId=<mediaId>`.
+
+**Actual result (before fix):**
+- Promotional uploads did not map to any reputation event; no CRS write occurred.
+
+**Fix applied:**
+- Added `getReelUploadReputationEvent()` utility in media module and wired both upload-completion branches to use it.
+
+**Regression test:**
+- `apps/chefooz-apis/src/modules/media/reel-upload-reputation.util.spec.ts`
+
+**Status:** Fixed ✅
 
 ---
 

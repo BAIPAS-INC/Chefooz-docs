@@ -3,7 +3,7 @@
 **Module**: `apps/chefooz-apis/src/modules/reels`  
 **Purpose**: Short-form video content management and retrieval  
 **Version**: 1.0  
-**Last Updated**: 2026-04-25
+**Last Updated**: 2026-05-01
 
 ---
 
@@ -18,6 +18,13 @@ The Reels module manages short-form video content on the Chefooz platform, handl
 - Flick keeps a live filter strip and live color overlay like Flip, but inside the 4:5 post camera frame instead of the tall reel camera surface.
 - Flick edit previews now render more visible preset filter feedback before upload, using the same preset metadata already sent to backend processing.
 - Capturing a Flick photo from the camera now opens crop immediately, matching the gallery-image flow, and the selected live filter carries forward into the post-crop preview.
+
+### Upload Linking Dark Theme Polish (2026-05-01)
+
+- Link Order, Link Menu, and the Order/Menu Link Sheet now use theme-driven surface/text colors instead of fixed light-theme tokens.
+- Selected cards and info banners have improved dark-mode contrast, so selected states remain obvious without reducing readability.
+- Bottom CTA bars and chip backgrounds now follow dark/light theme surfaces consistently across the reel-linking flow.
+- The disabled `Combos` tab on Link Menu now shows a `Coming soon` tooltip on hover/tap for clearer reviewer guidance.
 
 ### April 2026 Staging OTA Fixes
 
