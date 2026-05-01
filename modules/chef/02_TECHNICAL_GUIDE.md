@@ -1098,13 +1098,116 @@ describe('Chef Module (E2E)', () => {
 
 ---
 
+## 🛡️ **Compliance / KYC Technical Notes** *(Added March 2026)*
+
+### Backend module: `chef-compliance`
+
+```
+apps/chefooz-apis/src/modules/chef-compliance/
+├── admin-chef-compliance.controller.ts # admin-only review endpoints
+├── chef-compliance.controller.ts   # 6 route methods, all use req.user.id
+├── chef-compliance.service.ts      # getOrCreate, submitXxx, adminGetCompliance, adminVerifyStep
+├── chef-compliance.module.ts
+└── dto/compliance.dto.ts           # SubmitIdentityDto, SubmitBankDetailsDto, SubmitFssaiDto,
+                                      AcceptLegalDto, ComplianceUploadUrlDto, AdminVerifyStepDto
+```
+
+### Admin KYC review surface *(Updated May 2026)*
+
+- Admin page route: `/dashboard/chefs/[chefId]/compliance`
+- Entry point: `apps/chefooz-admin/src/app/dashboard/chefs/page.tsx` action column
+- Data flow: `admin-chef-compliance.client.ts` → `useAdminChefCompliance.ts` → MUI review page
+- Review actions use confirmation UI and invalidate the per-chef query key `['admin', 'chef-compliance', chefId]`
+- Submitted documents are not considered admin-approved until their `verifiedBy` field is set by an admin action
+- Final activation is intentionally split between chef operations and payout enablement
+
+### Admin endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/admin/chef-compliance/:chefId` | Fetch full unmasked compliance record |
+| `PATCH` | `/api/v1/admin/chef-compliance/:chefId/identity` | Verify or reject identity |
+| `PATCH` | `/api/v1/admin/chef-compliance/:chefId/bank` | Verify or reject bank |
+| `PATCH` | `/api/v1/admin/chef-compliance/:chefId/fssai` | Verify or reject FSSAI |
+| `PATCH` | `/api/v1/admin/chef-compliance/:chefId/notes` | Save internal admin notes |
+| `PATCH` | `/api/v1/admin/chef-compliance/:chefId/chef-status` | Enable chef operations |
+| `PATCH` | `/api/v1/admin/chef-compliance/:chefId/payout` | Enable payouts |
+
+### Admin response mapping
+
+- Admin endpoints do **not** return the raw TypeORM entity
+- `ChefComplianceService.mapAdminCompliance()` converts stored `Date` values to ISO strings for transport
+- Admin responses remain unmasked so reviewers can inspect full identity and payout details before approving
+- Rejection requires `rejectionReason`; verification clears any prior rejection reason for that step
+- `chefVerificationStatus` is sourced from `ChefProfile.verificationStatus`
+- `payoutEnabled` is sourced from `chef_compliance.payout_enabled`
+- `canVerifyChef` requires approved identity + approved FSSAI + accepted legal terms
+- `canEnablePayout` requires verified chef operations + approved bank details
+
+### S3 upload pattern
+
+```
+POST /v1/chef/compliance/upload-url
+  Body: { purpose, fileExtension, contentType }
+  Returns: { uploadUrl (pre-signed PUT), publicUrl, fileKey, expiresIn }
+
+Client then:
+  PUT {uploadUrl} with raw file body  →  stores at S3_OUTPUT_BUCKET
+  Submits publicUrl as field in subsequent step DTO
+```
+
+S3 key format: `compliance/{chefId}/{purpose}/{uuid}.{ext}`
+
+Accepted purposes: `front`, `back`, `selfie`, `certificate`
+
+### Key constraint: req.user.id
+
+JWT guard exposes `.id` (NOT `.userId`). All 6 controller methods use `req.user.id`. This was a production bug fixed in March 2026 that caused "Chef undefined" errors.
+
+### cache invalidation
+
+All 4 mutation hooks use `queryClient.invalidateQueries(['chef-compliance'])` in `onSuccess`. Do NOT use `setQueryData` — query must be refetched from server to ensure index.tsx checklist reflects updated step status.
+
+### IFSC Auto-fill (bank.tsx)
+
+- Fetches `https://ifsc.razorpay.com/{IFSC}` when `ifscCode` reaches 11 chars and matches `/^[A-Z]{4}0[A-Z0-9]{6}$/`
+- Uses `AbortController` via `useRef` to cancel stale requests
+- Auto-populates `bankName` and `branchName` from `{ BANK, BRANCH }` response fields
+- `ifscLookupState: 'idle' | 'loading' | 'found' | 'error'` drives inline status indicator
+
+### Legal scroll gate (legal.tsx)
+
+- Accept checkbox is disabled until user scrolls within `normalize(60)` px of the bottom
+- If chef taps disabled checkbox, `ScrollView.scrollToEnd()` is called automatically
+- `hasScrolledToBottom` bypassed when re-entering after prior acceptance
+
+### Expiry date formatting (fssai.tsx)
+
+- UI input: `DD/MM/YYYY` (auto-inserts slashes as digits are typed)
+- API payload: `YYYY-MM-DD` (converted via `parseDateDMY` + `toIsoDate`)
+- Validation: parsed `Date` must be strictly after `new Date()` (current moment)
+
+### Pre-population pattern
+
+All four screens share the same guard pattern to avoid overwriting user-edited state:
+```ts
+const [initialized, setInitialized] = useState(false);
+useEffect(() => {
+  if (initialized) return;
+  // seed from existingCompliance.*Data
+  setInitialized(true);
+}, [existingCompliance, initialized]);
+```
+
+---
+
 **[TECHNICAL_GUIDE_COMPLETE ✅]**
 
 *For business overview, see `01_FEATURE_OVERVIEW.md`. For QA testing procedures, see `03_QA_TEST_CASES.md`.*
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: February 2026  
-**Implementation Status**: ✅ Complete (Caching Pending)  
-**Next Review**: Q2 2026 (Caching Implementation)
+**Document Version**: 1.2  
+**Last Updated**: 2026-05-01  
+**Implementation Status**: ✅ Complete (Compliance/KYC with admin review endpoints and screen)  
+**Next Review**: Q2 2026

@@ -712,14 +712,69 @@ GET /api/v1/chefs/:chefId/menu?search=chicken&sortBy=price
 
 ---
 
+## 🛡️ **Chef Compliance / KYC Flow** *(Added March 2026)*
+
+Chefs must complete a 4-step KYC/compliance process before their kitchen becomes publicly active. This is surfaced as a dedicated "Verification & Compliance" section within the chef's app.
+
+### Admin review flow *(Updated May 2026)*
+
+- Admins can now open a dedicated KYC review screen from `Users → Chefs → Action`
+- The screen shows which documents are merely submitted versus explicitly admin-approved
+- Uploaded identity images and FSSAI certificate URLs can be opened directly from the admin portal
+- Identity, bank, and FSSAI can each be marked `verified` or `rejected` with an explicit rejection reason
+- Internal admin notes can be saved on the same record for follow-up reviews
+- Final admin actions are split:
+  - `Mark Chef Verified` enables operations and order acceptance
+  - `Enable Payout` remains separate and requires reviewed bank details
+- Bank review is not mandatory for making the chef operational
+
+### Steps
+
+| Step | Screen | Description | S3 Upload? |
+|---|---|---|---|
+| 1 | `identity.tsx` | Upload government ID (Aadhaar / PAN / Passport / Driving Licence) + selfie | ✅ Front, Back, Selfie |
+| 2 | `bank.tsx` | Bank account or UPI payout details | No |
+| 3 | `fssai.tsx` | FSSAI food business licence number + certificate image | ✅ Certificate |
+| 4 | `legal.tsx` | Display and accept platform terms (v2.1) | No |
+
+### Progress tracking
+
+- `compliance/index.tsx` shows a checklist derived from `useChefComplianceStatus()`
+- Each step is always tappable (re-entry allowed for corrections)
+- Submitted steps show a green checkmark; re-submission is permitted
+- Backend stores data in a `chef_compliance` table (one row per chef)
+
+### Payout mode (Step 2)
+
+- **Bank Transfer** — bank fields required, UPI optional (fallback)
+- **UPI Transfer** — UPI ID required, bank fields optional (fallback)  
+- Real-time confirm-account-number match indicator
+- IFSC code auto-filled from the Razorpay public IFSC API (`https://ifsc.razorpay.com/{IFSC}`)
+
+### FSSAI rules (Step 3)
+
+- 14-digit licence number (digit-only)
+- Expiry date must be in the future
+- Certificate files (JPEG, PNG) uploaded → S3 via pre-signed PUT URL
+- Business name + address must match FSSAI registration
+
+### Legal acceptance (Step 4)
+
+- Terms are displayed in four expandable cards (Platform, Food Safety, Payout, Privacy)
+- Accept checkbox only enabled after scrolling past all terms
+- Acceptance is recorded against terms version `v2.1`
+- Re-entry shows an "already accepted" banner but chef may re-read and re-accept
+
+---
+
 **[FEATURE_OVERVIEW_COMPLETE ✅]**
 
 *This document provides a comprehensive business overview of the Chef Module. For technical implementation details, see `02_TECHNICAL_GUIDE.md`. For QA testing procedures, see `03_QA_TEST_CASES.md`.*
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: February 2026  
-**Module Status**: ✅ Implemented (Backend Complete, Caching Pending)  
+**Document Version**: 1.2  
+**Last Updated**: 2026-05-01  
+**Module Status**: ✅ Implemented (Compliance/KYC flow with admin review tooling)  
 **Dependencies**: Chef-Kitchen Module, Media Module, Cart Module  
-**Next Review**: Q2 2026 (Caching Enhancement Planning)
+**Next Review**: Q2 2026

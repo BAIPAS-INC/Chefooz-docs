@@ -1525,14 +1525,268 @@ Dev Lead: ________________    Date: __________
 
 ---
 
+## 🛡️ **Compliance / KYC — Regression Tests** *(Added March 2026)*
+
+### TC-COMPLIANCE-001: req.user.id bug regression
+
+**Type:** Bug Regression / Automated  
+**Feature area:** All compliance endpoints  
+**Priority:** P0
+
+**Preconditions:**
+- Authenticated chef JWT in request headers
+
+**Steps:**
+1. Call any `POST /v1/chef/compliance/*` endpoint with a valid chef JWT
+
+**Expected result:** Chef entity resolved; step saved with correct `chefId`  
+**Actual result (before fix):** `Chef undefined` — `req.user.userId` did not exist; all mutations silently failed  
+**Fix applied:** Changed all 6 controller methods from `req.user.userId` to `req.user.id`  
+**Regression test:** `apps/chefooz-apis/src/modules/chef-compliance/chef-compliance.controller.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
+### TC-COMPLIANCE-002: Step 1 not marked complete after submit
+
+**Type:** Bug Regression / Manual  
+**Feature area:** compliance/index.tsx checklist  
+**Priority:** P1
+
+**Preconditions:**
+- Chef is on `compliance/index.tsx`
+
+**Steps:**
+1. Enter Step 1 (identity), fill and submit
+2. Navigate back to index
+
+**Expected result:** Step 1 card shows green checkmark  
+**Actual result (before fix):** Step 1 card still shows unchecked — `setQueryData` was used in hook `onSuccess`, which does not trigger re-render from server  
+**Fix applied:** Changed all 4 mutation hooks to use `invalidateQueries` instead of `setQueryData`  
+**Regression test:** Manual — confirm checkmark appears after submitting each step  
+**Status:** Fixed ✅
+
+---
+
+### TC-COMPLIANCE-003: Identity screen loses state on re-entry
+
+**Type:** Bug Regression / Manual  
+**Feature area:** identity.tsx  
+**Priority:** P1
+
+**Preconditions:**
+- Chef has previously submitted Step 1
+
+**Steps:**
+1. Submit Step 1
+2. Navigate back to index
+3. Tap Step 1 again
+
+**Expected result:** Document type, document number, and upload slots pre-populated from server data  
+
+---
+
+### TC-COMPLIANCE-004: Admin can review pending KYC steps from Chefs list
+
+**Type:** Manual / Automated  
+**Feature area:** Admin Portal → Users → Chefs → KYC Review  
+**Priority:** P0
+
+**Preconditions:**
+- Admin user is logged into the admin portal
+- A chef has submitted at least one of identity, bank, or FSSAI
+
+**Steps:**
+1. Open `Users → Chefs`
+2. Click the action icon in the chef row
+3. Verify the KYC review page opens for the selected chef
+4. Confirm pending steps are clearly visible in the overall status and step cards
+5. Verify or reject one pending step
+6. Refresh the page and confirm the updated status persists
+
+**Expected result:**
+- The page shows document links, step-by-step pending/verified status, and payout eligibility
+- Submitted documents remain in review until an admin explicitly verifies them
+- Verify/reject actions update the selected step only
+- Rejections require a reason and show that reason after save
+
+**Actual result (before fix):**
+- The action icon opened the payouts page instead of a compliance review surface
+- Admins had no way to inspect uploaded KYC documents or clear pending steps
+
+**Fix applied:**
+- Added `/dashboard/chefs/[chefId]/compliance`
+- Added admin compliance endpoints and React Query hooks
+- Rewired the chefs table action to the KYC review page
+
+**Regression test:** `apps/chefooz-apis/src/modules/chef-compliance/chef-compliance.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
+### TC-COMPLIANCE-005: Chef can be verified for operations without bank review
+
+**Type:** Manual / Automated  
+**Feature area:** Admin Portal → Users → Chefs → KYC Review  
+**Priority:** P0
+
+**Preconditions:**
+- Identity and FSSAI are admin-approved
+- Legal terms are accepted
+- Bank details may still be pending review
+
+**Steps:**
+1. Open the chef's KYC review page
+2. Verify identity and FSSAI
+3. Leave bank unverified
+4. Click `Mark Chef Verified`
+
+**Expected result:**
+- Chef is marked verified for operations
+- Chef can go online and accept orders
+- Payout remains disabled until bank review + payout enable action happen
+
+**Fix applied:** Split final admin actions into chef operational verification and payout enablement  
+**Regression test:** `apps/chefooz-apis/src/modules/chef-compliance/chef-compliance.service.spec.ts`  
+**Status:** Fixed ✅
+
+---
+
+### TC-COMPLIANCE-006: Payout stays disabled until bank review and explicit enablement
+
+**Type:** Manual / Automated  
+**Feature area:** Admin Portal → Users → Chefs → KYC Review  
+**Priority:** P0
+
+**Preconditions:**
+- Chef is already verified for operations
+- Bank details are submitted but not admin-approved
+
+**Steps:**
+1. Open the chef's KYC review page
+2. Confirm `Enable Payout` is disabled while bank review is pending
+3. Verify the bank details
+4. Click `Enable Payout`
+
+**Expected result:**
+- Payout cannot be enabled before bank review
+- Payout becomes enabled only after explicit admin action
+
+**Fix applied:** Added `payout_enabled` final admin-controlled switch and payout eligibility rules  
+**Regression test:** `apps/chefooz-apis/src/modules/chef-compliance/chef-compliance.service.spec.ts`  
+**Status:** Fixed ✅
+**Actual result (before fix):** All fields blank on re-entry  
+**Fix applied:** Added `useEffect` with `initialized` guard seeding state from `existingCompliance.identityData`  
+**Regression test:** Manual  
+**Status:** Fixed ✅
+
+---
+
+### TC-COMPLIANCE-004: Bank account confirm number — real-time match
+
+**Type:** Manual / QA  
+**Feature area:** bank.tsx  
+**Priority:** P1
+
+**Preconditions:**
+- Chef on Step 2 (bank.tsx), Bank Transfer mode selected
+
+**Steps:**
+1. Enter account number: `12345678901`
+2. Type confirm account number: `12345678900` (one digit wrong)
+3. Observe inline indicator
+
+**Expected result:** Red "do not match" indicator shown in real-time below confirm field  
+**Actual result (before fix):** No real-time indicator — error only shown after submit  
+**Fix applied:** `accountsMatch = useMemo(...)` computing `null | true | false`; inline `Ionicons` indicator rendered based on value  
+**Status:** Fixed ✅
+
+---
+
+### TC-COMPLIANCE-005: Bank mode toggle changes required fields
+
+**Type:** Manual / QA  
+**Feature area:** bank.tsx  
+**Priority:** P1
+
+**Preconditions:**
+- Chef on Step 2 (bank.tsx)
+
+**Steps:**
+1. Select **UPI Transfer** mode
+2. Observe Section 2 (Bank Account Details) header
+
+**Expected result:** "Optional" pill shown on bank section; UPI field marked as required  
+**Actual result (before fix):** Both sections always appeared required regardless of mode  
+**Fix applied:** `bankRequired = preferredMode === 'bank'`; conditional "Optional" pill rendered; validation skips unprovided bank fields when `preferredMode === 'upi'`  
+**Status:** Fixed ✅
+
+---
+
+### TC-COMPLIANCE-006: IFSC auto-lookup
+
+**Type:** Manual / QA  
+**Feature area:** bank.tsx  
+**Priority:** P2
+
+**Preconditions:**
+- Chef on Step 2 (bank.tsx), Bank Transfer mode selected
+
+**Steps:**
+1. Type a valid 11-character IFSC code (e.g. `HDFC0001234`)
+2. Wait for lookup
+
+**Expected result:** `bankName` and `branchName` fields auto-populated; green check icon shown on IFSC field  
+**Steps on failure:** Amber warning icon shown; manual entry still possible  
+**Fix applied:** `useEffect` fires on `ifscCode` length 11 + regex match; fetches Razorpay IFSC API; `AbortController` via `useRef` cancels stale requests  
+**Status:** Fixed ✅
+
+---
+
+### TC-COMPLIANCE-007: FSSAI expiry date validation
+
+**Type:** Manual / QA  
+**Feature area:** fssai.tsx  
+**Priority:** P1
+
+**Preconditions:**
+- Chef on Step 3 (FSSAI)
+
+**Steps:**
+1. Enter a past date (e.g. 01/01/2020) in expiry field
+2. Tap submit
+
+**Expected result:** Inline error: "Expiry date must be in the future"  
+**Status:** Fixed ✅
+
+---
+
+### TC-COMPLIANCE-008: Legal scroll-to-accept gate
+
+**Type:** Manual / QA  
+**Feature area:** legal.tsx  
+**Priority:** P2
+
+**Preconditions:**
+- Chef on Step 4 (legal.tsx), has NOT previously accepted
+
+**Steps:**
+1. Without scrolling, tap the accept checkbox
+
+**Expected result:** Screen auto-scrolls to bottom; checkbox remains unchecked until scroll threshold reached  
+**Fix applied:** `hasScrolledToBottom` state; `ScrollView.scrollToEnd()` called on premature tap  
+**Status:** Fixed ✅
+
+---
+
 **[QA_TEST_CASES_COMPLETE ✅]**
 
 *This document covers comprehensive testing for the Chef Module. For feature overview, see `01_FEATURE_OVERVIEW.md`. For technical implementation details, see `02_TECHNICAL_GUIDE.md`.*
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: February 2026  
-**Test Coverage**: 48 test cases across 8 categories  
-**Automation Coverage**: ~85% (41/48 tests automated)  
-**Next Review**: Post-deployment (Q2 2026)
+**Document Version**: 1.1  
+**Last Updated**: March 2026  
+**Test Coverage**: 56 test cases (48 original + 8 compliance regression)  
+**Automation Coverage**: ~85%  
+**Next Review**: Post-QA sign-off (Q2 2026)

@@ -1,7 +1,7 @@
 # Chefooz — System Architecture Overview
 
 **Version:** 1.0  
-**Last Updated:** February 2026  
+**Last Updated:** 2026-05-01  
 **Scope:** Complete system architecture across all apps, services, infrastructure, and integrations  
 **Business Rule Summary:** Chefooz is a food-tech platform that combines a social content feed (reels/stories) with a home-chef ordering marketplace. The architecture is built as a managed Nx monorepo serving three distinct client surfaces: a React Native mobile app, a Next.js admin portal, and a NestJS backend API.  
 **Target Release:** QA by mid-February 2026 (first production release)
@@ -228,6 +228,7 @@ const { data, isLoading } = useSearchDishes({
 ├── page.tsx                 ← Dashboard home
 ├── analytics/               ← Platform analytics
 ├── audit-log/               ← Admin audit trail
+├── chefs/                   ← Chef management + KYC review detail
 ├── feature-flags/           ← Feature flag management
 ├── payouts/                 ← Payout monitoring
 ├── pricing/                 ← Pricing configuration
@@ -236,6 +237,15 @@ const { data, isLoading } = useSearchDishes({
 ├── reviews/                 ← Chef review moderation
 └── users/                   ← User management
 ```
+
+#### Admin KYC review path
+
+- `Users → Chefs` now links each chef row to `/dashboard/chefs/[chefId]/compliance`
+- This detail route is used for manual review of identity, bank, and FSSAI submissions
+- Admin actions call `/api/v1/admin/chef-compliance/*` and keep payout gating aligned with the backend compliance record
+- Operational activation and payout activation are separate admin actions:
+  - Chef operations use `ChefProfile.verificationStatus = 'verified'`
+  - Payouts use `chef_compliance.payout_enabled = true`
 
 ---
 
