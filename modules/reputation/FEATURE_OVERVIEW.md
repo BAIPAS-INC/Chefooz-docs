@@ -1,7 +1,7 @@
 # Reputation Module — Feature Overview
 
 **Version:** 2.0 (Production-Grade Scale)
-**Last Updated:** March 2026
+**Last Updated:** May 2, 2026
 **Module:** `apps/chefooz-apis/src/modules/reputation/`
 **Domain Logic:** `libs/domain/src/policies/reputation.policy.ts`, `libs/domain/src/reputation/reputation.config.ts`
 **Shared Types:** `libs/types/src/lib/reputation.types.ts`
@@ -17,6 +17,24 @@ It is **not a gamification badge** — it is a production-grade trust signal use
 - Determine rider assignment priority
 - Influence feed ranking for chefs whose customers are highly trusted
 - Detect spam or fraudulent activity patterns
+
+## User-Facing Disclosure Policy (Reputation Modal)
+
+- The mobile reputation modal intentionally **does not disclose exact per-event point values**.
+- The modal uses qualitative guidance (review quality, consistency, hygiene, delivery quality, authentic follower growth, and conversion influence) while still showing tier names and perk outcomes.
+- Rationale:
+	- reduces point-farming behavior,
+	- prevents stale UI copy when event weights are tuned centrally via environment config,
+	- keeps focus on trust-building actions instead of formula gaming.
+
+### Enforcement Scope (May 2026)
+
+- Numeric reputation values are hidden in all user-facing reputation UI surfaces:
+	- profile reputation screen hero,
+	- feed/reel avatar badge overlays,
+	- profile header reputation badge,
+	- leaderboard row values.
+- Tier indicators and perk unlock states remain visible for motivation and status communication.
 
 ---
 

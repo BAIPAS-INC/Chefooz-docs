@@ -5,12 +5,42 @@
 
 ---
 
-## May 2, 2026 — Upload event source mapping update
+## May 2, 2026 — Upload event taxonomy fix: REEL_UPLOADED_GENERIC introduced
 
-- Upload-driven reputation writes are triggered from media upload completion.
-- `PROMOTIONAL` user uploads now map into the existing upload event stream using `REEL_UPLOADED_FROM_ORDER` with `meta.reelPurpose = 'PROMOTIONAL'`.
-- `USER_REVIEW` uploads continue using `REEL_UPLOADED_FROM_ORDER` with `meta.reelPurpose = 'USER_REVIEW'`.
-- `referenceId` for these upload events is now the media id (not reel id), so content-source eligibility checks in `ReputationService.recordEvent()` can evaluate the underlying media correctly.
+- `REEL_UPLOADED_GENERIC` added as a new CRS event covering `PROMOTIONAL` and `MENU_SHOWCASE` reel uploads.
+- `REEL_UPLOADED_FROM_ORDER` is now **strictly reserved** for `USER_REVIEW` reels that include a `linkedOrderId`.
+- `MENU_SHOWCASE` uploads now earn upload points (previously untracked) — +80 pts per event.
+- `PROMOTIONAL` uploads earn +80 pts via `REEL_UPLOADED_GENERIC` (previously incorrectly using `REEL_UPLOADED_FROM_ORDER`).
+- Backfill migration: existing `REEL_UPLOADED_FROM_ORDER` rows with `meta.reelPurpose='PROMOTIONAL'` are rewritten to `REEL_UPLOADED_GENERIC`.
+
+## May 2, 2026 — User-facing modal copy no longer shows exact point values
+
+- Reputation modal text in the mobile app now avoids exposing exact per-event point values and exact score thresholds.
+- UI copy source of truth:
+  - `apps/chefooz-app/src/constants/labels/profile.labels.ts`
+  - `PROFILE_LABELS.reputation.modal.earnPoints`
+  - `PROFILE_LABELS.reputation.modal.tiers`
+- Backend scoring remains unchanged and centralized in:
+  - `libs/domain/src/environment/environment.config.ts` (`reputation.eventWeights`)
+  - `apps/chefooz-apis/src/modules/reputation/utils/leveling.ts`
+- Reason for policy:
+  - reduces behavior gaming,
+  - avoids drift when ops tunes CRS weights,
+  - keeps UX guidance principle-based instead of formula-based.
+
+### Numeric value suppression across all reputation UI surfaces
+
+- The no-numeric-disclosure policy is now enforced beyond modal copy:
+  - `apps/chefooz-app/src/app/profile/reputation.tsx`:
+    - hero card shows current tier name instead of numeric score.
+  - `apps/chefooz-app/src/components/reel/identity/ReelUserIdentity.tsx`:
+    - avatar badge shows tier initial only (no score).
+  - `apps/chefooz-app/src/app/profile/_components/ProfileHeader.tsx`:
+    - profile avatar reputation badge shows tier only.
+  - `apps/chefooz-app/src/app/reputation/leaderboard.tsx`:
+    - list rows show tier only; no points text rendered.
+
+- Backend and ranking logic are unchanged; only user-facing rendering is suppressed.
 
 ## May 2, 2026 — Production hardening audit for event wiring
 
@@ -23,7 +53,8 @@
 | Event | Weight | Live trigger | Status |
 |---|---:|---|---|
 | `REVIEW_SUBMITTED` | +60 | `review.service.ts` on saved review | Wired |
-| `REEL_UPLOADED_FROM_ORDER` | +100 | `media.service.ts` upload completion | Wired |
+| `REEL_UPLOADED_FROM_ORDER` | +100 | `media.service.ts` — USER_REVIEW reels with `linkedOrderId` only | Wired |
+| `REEL_UPLOADED_GENERIC` | +80 | `media.service.ts` — PROMOTIONAL (user) and MENU_SHOWCASE reels | Wired |
 | `ENGAGEMENT_HEALTHY` | +50 | `ReputationService.checkWeeklyEngagement()` cron/manual admin trigger | Wired |
 | `CONSISTENCY_WEEK` | +75 | `ReputationService.checkWeeklyEngagement()` cron/manual admin trigger | Wired |
 | `HYGIENE_POSITIVE` | +150 | `review.service.ts` when `dto.hygiene >= 4` | Wired |
@@ -43,12 +74,13 @@
 - The unwired events above are defined in the CRS model but still require business-specific module triggers. They should not be treated as active production signals until corresponding service-level integration and regression coverage exist.
 ### Production MVP Phase 1 (May 2026)
 
-**Scope: 9 events fully production-ready and end-to-end wired**
+**Scope: 10 events fully production-ready and end-to-end wired**
 
 | Event | Weight | Live trigger | Phase |
 |---|---:|---|---|
 | `REVIEW_SUBMITTED` | +60 | `review.service.ts:168` on saved review | ✅ MVP Phase 1 |
-| `REEL_UPLOADED_FROM_ORDER` | +100 | `media.service.ts:1245` on upload completion | ✅ MVP Phase 1 |
+| `REEL_UPLOADED_FROM_ORDER` | +100 | `media.service.ts` — USER_REVIEW reels with `linkedOrderId` | ✅ MVP Phase 1 |
+| `REEL_UPLOADED_GENERIC` | +80 | `media.service.ts` — PROMOTIONAL (user) + MENU_SHOWCASE reels | ✅ MVP Phase 1 |
 | `ENGAGEMENT_HEALTHY` | +50 | `reputation.service.ts:964` cron (Monday 2 AM) | ✅ MVP Phase 1 |
 | `CONSISTENCY_WEEK` | +75 | `reputation.service.ts:964` cron (Monday 2 AM) | ✅ MVP Phase 1 |
 | `HYGIENE_POSITIVE` | +150 | `review.service.ts:175` when `dto.hygiene >= 4` | ✅ MVP Phase 1 |
@@ -164,7 +196,8 @@
   - source allow-list per event type,
   - required `referenceId` for entity-bound events,
   - required `meta.linkedReelId` for `CONVERSION_INFLUENCE`,
-  - required `meta.reelPurpose` (`USER_REVIEW`/`PROMOTIONAL`) for `REEL_UPLOADED_FROM_ORDER`,
+  - required `meta.reelPurpose = 'USER_REVIEW'` for `REEL_UPLOADED_FROM_ORDER` (PROMOTIONAL/MENU_SHOWCASE are rejected — they must use `REEL_UPLOADED_GENERIC`),
+  - required `meta.reelPurpose` of `PROMOTIONAL` or `MENU_SHOWCASE` for `REEL_UPLOADED_GENERIC`,
   - valid follower thresholds for `FOLLOWER_MILESTONE`.
 - This prevents cross-module event spoofing and malformed high-value events.
 
@@ -221,7 +254,7 @@
 - Reputation service now:
   - validates reel upload linkage via `meta.mediaId` (or legacy `referenceId`),
   - resolves reel content-source checks using `meta.mediaId`,
-  - persists `referenceId = null` for `REEL_UPLOADED_FROM_ORDER` to avoid UUID-column violations.
+  - persists `referenceId = null` for **both** `REEL_UPLOADED_FROM_ORDER` and `REEL_UPLOADED_GENERIC` to avoid UUID-column violations.
 
 ### Backward compatibility
 
@@ -348,6 +381,7 @@ With `scoreMax = 1,000,000`, the numeric tier thresholds are:
   "eventWeights": {
     "REVIEW_SUBMITTED":         60,
     "REEL_UPLOADED_FROM_ORDER": 100,
+    "REEL_UPLOADED_GENERIC":    80,
     "ENGAGEMENT_HEALTHY":       50,
     "CONSISTENCY_WEEK":         75,
     "HYGIENE_POSITIVE":         150,

@@ -10,7 +10,7 @@
 **Status:** All 23 test cases below are **automated** and **cover end-to-end production flows** for Phase 1 events.
 
 **Events covered in Phase 1:**
-- ✅ REVIEW_SUBMITTED | HYGIENE_POSITIVE | REEL_UPLOADED_FROM_ORDER | CONVERSION_INFLUENCE | DELIVERY_HELPFUL
+- ✅ REVIEW_SUBMITTED | HYGIENE_POSITIVE | REEL_UPLOADED_FROM_ORDER | REEL_UPLOADED_GENERIC | CONVERSION_INFLUENCE | DELIVERY_HELPFUL
 - ✅ FOLLOWER_MILESTONE | ENGAGEMENT_HEALTHY | CONSISTENCY_WEEK | ADMIN_OVERRIDE
 
 **Events deferred to future phases:**
@@ -48,7 +48,9 @@
 | TC-REP-021 | CRS scheduler jobs are active in module DI | Automated | P1 |
 | TC-REP-022 | Disallowed event source is rejected | Automated | P0 |
 | TC-REP-023 | Event endpoint enqueues durable queue job | Automated | P0 |
-| TC-REP-030 | Promotional reel media ObjectId does not break UUID persistence | Automated | P0 |
+| TC-REP-030 | Promotional reel media ObjectId does not break UUID persistence (REEL_UPLOADED_GENERIC) | Automated | P0 |
+| TC-REP-031 | REEL_UPLOADED_FROM_ORDER rejects PROMOTIONAL reelPurpose after taxonomy fix | Automated | P0 |
+| TC-REP-032 | MENU_SHOWCASE upload earns REEL_UPLOADED_GENERIC points | Automated | P1 |
 
 ---
 
@@ -68,8 +70,8 @@
 3. Verify event metadata includes reel purpose and reference points to media id.
 
 **Expected result:**
-- Eligible promotional user uploads emit an upload-driven reputation event.
-- Payload includes `meta.reelPurpose='PROMOTIONAL'` and `referenceId=<mediaId>`.
+- Eligible promotional user uploads emit `REEL_UPLOADED_GENERIC` reputation event (+80 pts).
+- Payload includes `meta.reelPurpose='PROMOTIONAL'` and `meta.mediaId=<mediaId>`.
 
 **Actual result (before fix):**
 - Promotional uploads did not map to any reputation event; no CRS write occurred.
@@ -695,32 +697,96 @@ These test cases will be added when the corresponding modules integrate with rep
 
 ---
 
-### TC-REP-030: Promotional reel media ObjectId does not break UUID persistence
+### TC-REP-030: Promotional reel media ObjectId does not break UUID persistence (REEL_UPLOADED_GENERIC)
 
 **Type:** Bug Regression / Automated
-**Feature area:** `ReputationService.recordEventInternal()` persistence path for `REEL_UPLOADED_FROM_ORDER`
+**Feature area:** `ReputationService.recordEventInternal()` persistence path for `REEL_UPLOADED_GENERIC`
 **Priority:** P0
 
 **Preconditions:**
-- Reel upload event uses Mongo media id (ObjectId-like string)
+- Reel upload event uses Mongo media id (ObjectId-like string, 24-char hex)
 
 **Steps:**
-1. Trigger `recordEvent(..., { type: REEL_UPLOADED_FROM_ORDER, referenceId: '<mongo-id>', meta: { reelPurpose: 'PROMOTIONAL', mediaId: '<mongo-id>' } })`.
+1. Trigger `recordEvent(..., { type: REEL_UPLOADED_GENERIC, meta: { reelPurpose: 'PROMOTIONAL', mediaId: '<mongo-id>' } })`.
 2. Observe entity payload passed to `user_reputation_events` repository create/save.
 
 **Expected result:**
-- Event is recorded successfully.
-- `referenceId` persisted as `null` for reel upload events.
+- Event is recorded successfully with `type='REEL_UPLOADED_GENERIC'`.
+- `referenceId` persisted as `null` (Mongo ObjectId must not reach UUID column).
 - `meta.mediaId` retains Mongo id linkage for traceability.
 
 **Actual result (before fix):**
 - Insert failed with PostgreSQL error: `invalid input syntax for type uuid`.
+- Failure was caused by `REEL_UPLOADED_FROM_ORDER` being used for PROMOTIONAL reels.
 
 **Fix applied:**
+- `REEL_UPLOADED_GENERIC` enum introduced for PROMOTIONAL and MENU_SHOWCASE reels.
+- `resolvePersistedReferenceId()` now returns `null` for both upload event types.
 - Media producer writes reel linkage into `meta.mediaId`.
-- Reputation service uses metadata for reel checks and sanitizes persisted `referenceId` for upload events.
 
 **Regression test:**
-- `apps/chefooz-apis/src/modules/reputation/reputation.service.spec.ts`
+- `apps/chefooz-apis/src/modules/reputation/reputation.service.spec.ts` — TC-REP-030
+
+**Status:** Fixed ✅
+
+---
+
+### TC-REP-031: REEL_UPLOADED_FROM_ORDER rejects PROMOTIONAL reelPurpose after taxonomy fix
+
+**Type:** Bug Regression / Automated
+**Feature area:** `ReputationService.validateEventSource()` — event-type semantic enforcement
+**Priority:** P0
+
+**Preconditions:**
+- Caller sends `REEL_UPLOADED_FROM_ORDER` with `meta.reelPurpose='PROMOTIONAL'`
+
+**Steps:**
+1. Call `recordEvent(..., { type: REEL_UPLOADED_FROM_ORDER, meta: { reelPurpose: 'PROMOTIONAL', mediaId: '...' } })`.
+
+**Expected result:**
+- `BadRequestException` thrown: `REEL_UPLOADED_FROM_ORDER requires meta.reelPurpose=USER_REVIEW`.
+
+**Actual result (before fix):**
+- PROMOTIONAL was accepted as a valid purpose for `REEL_UPLOADED_FROM_ORDER`, producing semantically incorrect event rows.
+
+**Fix applied:**
+- `validateEventSource()` now only accepts `reelPurpose='USER_REVIEW'` for `REEL_UPLOADED_FROM_ORDER`.
+- PROMOTIONAL callers are directed to `REEL_UPLOADED_GENERIC`.
+
+**Regression test:**
+- `apps/chefooz-apis/src/modules/reputation/reputation.service.spec.ts` — TC-REP-031
+
+**Status:** Fixed ✅
+
+---
+
+### TC-REP-032: MENU_SHOWCASE upload earns REEL_UPLOADED_GENERIC points
+
+**Type:** Automated
+**Feature area:** `ReputationService.recordEvent()` — MENU_SHOWCASE reel upload path
+**Priority:** P1
+
+**Preconditions:**
+- Chef or user uploads a menu showcase reel (`reelPurpose='MENU_SHOWCASE'`)
+
+**Steps:**
+1. Upload a reel linked to a menu item from `media.service.ts`.
+2. Observe CRS event emitted.
+
+**Expected result:**
+- `REEL_UPLOADED_GENERIC` event recorded with +80 delta.
+- `meta.reelPurpose = 'MENU_SHOWCASE'`.
+- `referenceId = null` (Mongo ObjectId not persisted to UUID column).
+
+**Actual result (before fix):**
+- No CRS event was emitted for MENU_SHOWCASE reels (returned `null` from utility).
+
+**Fix applied:**
+- `getReelUploadReputationEvent()` now maps `MENU_SHOWCASE` to `REEL_UPLOADED_GENERIC`.
+- Frequency cap: 3 events per 7 days.
+
+**Regression test:**
+- `apps/chefooz-apis/src/modules/media/reel-upload-reputation.util.spec.ts` — TC-REP-032
+- `apps/chefooz-apis/src/modules/reputation/reputation.service.spec.ts` — TC-REP-032
 
 **Status:** Fixed ✅
