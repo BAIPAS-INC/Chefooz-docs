@@ -12,6 +12,222 @@
 - `USER_REVIEW` uploads continue using `REEL_UPLOADED_FROM_ORDER` with `meta.reelPurpose = 'USER_REVIEW'`.
 - `referenceId` for these upload events is now the media id (not reel id), so content-source eligibility checks in `ReputationService.recordEvent()` can evaluate the underlying media correctly.
 
+## May 2, 2026 — Production hardening audit for event wiring
+
+- `FOLLOWER_MILESTONE` now uses the same central frequency-cap enforcement as other positive events (`1 / 30 days`), matching `crs.weights.json`.
+- `checkWeeklyEngagement()` now increments `engagementFired` / `consistencyFired` only when a reputation row was actually inserted, not merely when a user was eligible before cap checks.
+- A dedicated Jest regression spec now exists at `apps/chefooz-apis/src/modules/reputation/reputation.service.spec.ts`.
+
+### Event wiring status matrix
+
+| Event | Weight | Live trigger | Status |
+|---|---:|---|---|
+| `REVIEW_SUBMITTED` | +60 | `review.service.ts` on saved review | Wired |
+| `REEL_UPLOADED_FROM_ORDER` | +100 | `media.service.ts` upload completion | Wired |
+| `ENGAGEMENT_HEALTHY` | +50 | `ReputationService.checkWeeklyEngagement()` cron/manual admin trigger | Wired |
+| `CONSISTENCY_WEEK` | +75 | `ReputationService.checkWeeklyEngagement()` cron/manual admin trigger | Wired |
+| `HYGIENE_POSITIVE` | +150 | `review.service.ts` when `dto.hygiene >= 4` | Wired |
+| `DELIVERY_HELPFUL` | +40 | `rider-rating.service.ts` when rating `>= 4` | Wired |
+| `CONVERSION_INFLUENCE` | +200 | `order.service.ts` when attributed order credits a reel owner | Wired |
+| `FOLLOWER_MILESTONE` | variable | `social.service.ts` when follower count crosses threshold | Wired |
+| `HELPFUL_VOTES` | +50 | No module trigger found | Unwired |
+| `SPAM_REPORTED` | -300 | No module trigger found | Unwired |
+| `BIASED_REVIEW` | -180 | No module trigger found | Unwired |
+| `CHEF_COMPLAINT_VALID` | -270 | No module trigger found | Unwired |
+| `FORCED_ENGAGEMENT` | -330 | No module trigger found | Unwired |
+| `LOCATION_MISMATCH` | -225 | No module trigger found | Unwired |
+| `ADMIN_OVERRIDE` | 0 / manual delta | `reputation.service.ts` admin override / decay path | Wired |
+
+### Release constraint
+
+- The unwired events above are defined in the CRS model but still require business-specific module triggers. They should not be treated as active production signals until corresponding service-level integration and regression coverage exist.
+### Production MVP Phase 1 (May 2026)
+
+**Scope: 9 events fully production-ready and end-to-end wired**
+
+| Event | Weight | Live trigger | Phase |
+|---|---:|---|---|
+| `REVIEW_SUBMITTED` | +60 | `review.service.ts:168` on saved review | ✅ MVP Phase 1 |
+| `REEL_UPLOADED_FROM_ORDER` | +100 | `media.service.ts:1245` on upload completion | ✅ MVP Phase 1 |
+| `ENGAGEMENT_HEALTHY` | +50 | `reputation.service.ts:964` cron (Monday 2 AM) | ✅ MVP Phase 1 |
+| `CONSISTENCY_WEEK` | +75 | `reputation.service.ts:964` cron (Monday 2 AM) | ✅ MVP Phase 1 |
+| `HYGIENE_POSITIVE` | +150 | `review.service.ts:175` when `dto.hygiene >= 4` | ✅ MVP Phase 1 |
+| `DELIVERY_HELPFUL` | +40 | `rider-rating.service.ts:122` when rating `>= 4` | ✅ MVP Phase 1 |
+| `CONVERSION_INFLUENCE` | +200 | `order.service.ts:1580` on order attribution | ✅ MVP Phase 1 |
+| `FOLLOWER_MILESTONE` | variable | `social.service.ts:790` on follower threshold | ✅ MVP Phase 1 |
+| `ADMIN_OVERRIDE` | 0 / manual | `reputation.controller.ts:123` admin endpoint | ✅ MVP Phase 1 |
+
+### Future Phases (Roadmap)
+
+**Phase 2: Moderation & Quality (Q3 2026 estimate)**
+
+| Event | Weight | Required Module | Notes |
+|---|---:|---|---|
+| `HELPFUL_VOTES` | +50 | comment/reaction module | Detect helpful vote signals |
+| `SPAM_REPORTED` | -300 | moderation.service | Integrate spam detection pipeline |
+| `BIASED_REVIEW` | -180 | review-quality module | Integrate review bias ML model |
+
+**Phase 3: Fraud & Address Validation (Q4 2026 estimate)**
+
+| Event | Weight | Required Module | Notes |
+|---|---:|---|---|
+| `CHEF_COMPLAINT_VALID` | -270 | complaint module | Customer dispute resolution workflow |
+| `FORCED_ENGAGEMENT` | -330 | fraud-detection module | ML-based suspicious engagement patterns |
+| `LOCATION_MISMATCH` | -225 | delivery module | Address validation on fulfillment |
+
+### Production Deployment Safety
+
+- **MVP scope is locked for production.** Only Phase 1 events emit events end-to-end.
+- **Future events are admin-triggerable** but have no automatic producer.
+- **Source validation is enforce** at ingestion boundary, preventing cross-module spoofing.
+- **Durability via queue** ensures no event loss under transient producer failures.
+- **Frequency caps** prevent farming on all active events.
+
+## May 2, 2026 — QA bug-fix hardening (Top 3 production blockers)
+
+### 1) Admin override score range aligned to production scale
+
+- `AdminOverrideDto.newScore` now validates `0..1,000,000` (was `0..100`).
+- This matches the current production CRS range used by `mapScoreToLevel()` and environment config.
+- File: `apps/chefooz-apis/src/modules/reputation/dto/admin-override.dto.ts`
+
+### 2) Leaderboard rebuild endpoint now executes real rebuild logic
+
+- `POST /api/v1/crs/admin/rebuild-leaderboard` is no longer a placeholder response.
+- Controller now delegates to `ReputationService.rebuildLeaderboard()`.
+- Rebuild flow:
+  - clear leaderboard table,
+  - fetch top users from `user_reputation_current` by score DESC,
+  - write weekly and monthly ranked rows.
+- Files:
+  - `apps/chefooz-apis/src/modules/reputation/reputation.controller.ts`
+  - `apps/chefooz-apis/src/modules/reputation/reputation.service.ts`
+
+### 3) Score recomputation switched to full event aggregation
+
+- `updateCurrentScore()` now recomputes from full event history for the user.
+- Previous incremental window (`createdAt > lastEventAt`) could miss events in high-concurrency scenarios.
+- New approach is deterministic and idempotent; event history is the source of truth.
+- File: `apps/chefooz-apis/src/modules/reputation/reputation.service.ts`
+
+### New regression tests
+
+- `apps/chefooz-apis/src/modules/reputation/dto/admin-override.dto.spec.ts`
+  - accepts 1,000,000 and rejects >1,000,000
+- `apps/chefooz-apis/src/modules/reputation/reputation.service.spec.ts`
+  - verifies leaderboard rebuild persists both periods
+  - verifies score recomputation uses full event history
+
+## May 2, 2026 — QA bug-fix hardening (Next production gaps)
+
+### 4) Shared event-type contract drift removed
+
+- `libs/types` now includes `FOLLOWER_MILESTONE` in `ReputationEventType`.
+- This aligns shared client contracts with backend/domain event support.
+- File: `libs/types/src/lib/reputation.types.ts`
+
+### 5) Snapshot idempotency enforced (application + database)
+
+- Weekly snapshot writer now uses repository `upsert(..., ['userId', 'weekStart'])`.
+- Snapshot entity now declares a unique index on `userId + weekStart`.
+- New migration adds a unique DB index for production safety:
+  - `apps/chefooz-apis/src/migrations/1778400000000-AddUniqueIndexToReputationSnapshots.ts`
+
+### 6) CRS jobs activated via DI and cron decorators
+
+- `WeeklySnapshotJob`, `WeeklyDigestJob`, and `RebuildLeaderboardJob` now have executable `@Cron(...)` decorators.
+- These jobs are now registered as providers in `ReputationModule`, so scheduler discovery can instantiate and run them.
+- Weekly decay remains on `ReputationService.applyWeeklyDecay()` to avoid duplicate decay schedules.
+
+### Additional regression test
+
+- `apps/chefooz-apis/src/jobs/crs/weeklySnapshot.job.spec.ts`
+  - verifies snapshot writes use upsert conflict keys `['userId', 'weekStart']`
+
+## May 2, 2026 — P0 safeguards (event endpoint security + durable producer delivery)
+
+### 7) Event ingestion endpoint restricted to admin/system workflows
+
+- `POST /api/v1/crs/events` now accepts `InternalRecordEventDto` and requires admin role.
+- Endpoint no longer allows authenticated end users to self-credit by posting arbitrary event payloads.
+- Payload now explicitly includes:
+  - target `userId`
+  - trusted `source`
+  - source-owned event payload (`type`, `referenceId`, `meta`)
+- File:
+  - `apps/chefooz-apis/src/modules/reputation/reputation.controller.ts`
+  - `apps/chefooz-apis/src/modules/reputation/dto/internal-record-event.dto.ts`
+
+### 8) Source-aware event validation at ingestion boundary
+
+- `ReputationService.validateEventSource()` now enforces:
+  - source allow-list per event type,
+  - required `referenceId` for entity-bound events,
+  - required `meta.linkedReelId` for `CONVERSION_INFLUENCE`,
+  - required `meta.reelPurpose` (`USER_REVIEW`/`PROMOTIONAL`) for `REEL_UPLOADED_FROM_ORDER`,
+  - valid follower thresholds for `FOLLOWER_MILESTONE`.
+- This prevents cross-module event spoofing and malformed high-value events.
+
+### 9) Durable queue path for producer event delivery
+
+- Producers now call `ReputationService.enqueueEvent(...)` instead of direct `recordEvent(...)` fire-and-forget writes.
+- Queue: `reputation-events` (Bull) with retries and exponential backoff.
+- Consumer: `ReputationEventsProcessor` calls `processQueuedEvent(...)`.
+- Terminal failure behavior: structured dead-letter log emitted via `@OnQueueFailed` once max retries are exhausted.
+- Updated producer integrations:
+  - `apps/chefooz-apis/src/modules/review/review.service.ts`
+  - `apps/chefooz-apis/src/modules/order/order.service.ts`
+  - `apps/chefooz-apis/src/modules/rider-rating/rider-rating.service.ts`
+  - `apps/chefooz-apis/src/modules/social/social.service.ts`
+  - `apps/chefooz-apis/src/modules/media/media.service.ts`
+
+### New regression tests
+
+- `apps/chefooz-apis/src/modules/reputation/reputation.service.spec.ts`
+  - verifies queue enqueue options and payload shape
+  - verifies disallowed source/event combinations are rejected
+
+## May 2, 2026 — Centralized event weights in environment config
+
+- Reputation event weights were moved from `ReputationService` constants to centralized environment configuration:
+  - `libs/domain/src/environment/environment.config.ts`
+  - `reputation.eventWeights`
+- Runtime scoring now resolves non-milestone deltas via:
+  - `getEnvConfig().reputation.eventWeights[eventType]`
+- This enables phase-wise tuning from one place without editing service logic.
+
+### Why `ADMIN_OVERRIDE` is `0`
+
+- `ADMIN_OVERRIDE` does not use a static reward/penalty weight.
+- Its effective delta is computed dynamically as:
+  - `newScore - oldScore`
+- Keeping config weight `0` prevents accidental double-counting while preserving event-type compatibility.
+
+### Why `FOLLOWER_MILESTONE` is `0`
+
+- `FOLLOWER_MILESTONE` delta is intentionally variable by threshold.
+- Actual points come from `FOLLOWER_MILESTONE_REWARDS` map (e.g., 10 → 100, 100 → 400, 10_000 → 3500).
+- Keeping config weight `0` avoids conflicting with threshold-specific reward logic.
+
+## May 2, 2026 — Promotional reel referenceId UUID mismatch fix
+
+- Root cause: `REEL_UPLOADED_FROM_ORDER` producer passed Mongo `mediaId` (ObjectId string) in `referenceId`, but `user_reputation_events.referenceId` is PostgreSQL UUID.
+- Runtime symptom: `invalid input syntax for type uuid` during reputation event insertion.
+
+### Fix applied
+
+- Media producer now sends reel media linkage in metadata:
+  - `meta.mediaId = <mongo-media-id>`
+- Reputation service now:
+  - validates reel upload linkage via `meta.mediaId` (or legacy `referenceId`),
+  - resolves reel content-source checks using `meta.mediaId`,
+  - persists `referenceId = null` for `REEL_UPLOADED_FROM_ORDER` to avoid UUID-column violations.
+
+### Backward compatibility
+
+- Validation keeps fallback support for legacy payloads still sending reel media id in `referenceId`.
+- Persistence sanitization prevents invalid UUID writes while preserving metadata for traceability.
+
 ---
 
 ## Scale Design
@@ -82,6 +298,7 @@ private async checkEventFrequencyLimit(
 - Returns `{ allowed: false, reason: 'cap message' }` when limit exceeded
 - Capped events are **silently absorbed** — `success: true` is returned but no delta is applied and no event row is inserted
 - Window is `Date.now() - windowDays * 86400 * 1000`
+- `FOLLOWER_MILESTONE` is centrally capped at `1 / 30 days` in addition to threshold-based triggering in the social module.
 
 ---
 
@@ -179,7 +396,8 @@ User action triggers event
 1. **Negative score prevention:** `updateCurrentScore()` uses `Math.max(0, recalculated)` — scores cannot go below 0.
 2. **Platinum bug (fixed March 2026):** Old `tierOrder` array contained `'platinum'` instead of `'diamond'`+`'legend'`. This caused the tier-recovery check to silently skip Diamond/Legend users. Fixed in `updateCurrentScore()`.
 3. **No event deduplication:** Two identical events at different times are both recorded. Frequency caps handle this via the rolling window.
-4. **Batch decay:** `applyReputationDecay` is safe for batch jobs — it is stateless and does not write to DB. The job calls `recordEvent(INACTIVITY_DECAY)` after computing the delta.
-5. **`mockEnvironmentConfig()` export:** Added to `environment.config.ts` to support test-file imports that previously silently failed. Returns `DEVELOPMENT_CONFIG` with optional deep-merge overrides.
-6. **Follower milestone delta resolution:** `FOLLOWER_MILESTONE` is the only event type where the delta comes from `FOLLOWER_MILESTONE_REWARDS[meta.followerCount]` instead of `CRS_WEIGHTS.eventWeights`. The caller (social service background job) must pass `meta.followerCount` equal to the exact milestone threshold crossed (e.g. `100`, not `"102"`). An unrecognised threshold throws HTTP 400 listing valid thresholds.
-7. **PostgreSQL enum:** `FOLLOWER_MILESTONE` was added to `reputation_event_type_enum` via migration `1778300000000`. `ADD VALUE IF NOT EXISTS` is used so the migration is idempotent.
+4. **Eligibility vs award accounting:** Scheduled engagement jobs must count only `recorded=true` outcomes after cap checks, not raw eligibility scans.
+5. **Batch decay:** `applyReputationDecay` is safe for batch jobs — it is stateless and does not write to DB. The job calls `recordEvent(INACTIVITY_DECAY)` after computing the delta.
+6. **`mockEnvironmentConfig()` export:** Added to `environment.config.ts` to support test-file imports that previously silently failed. Returns `DEVELOPMENT_CONFIG` with optional deep-merge overrides.
+7. **Follower milestone delta resolution:** `FOLLOWER_MILESTONE` is the only event type where the delta comes from `FOLLOWER_MILESTONE_REWARDS[meta.followerCount]` instead of `CRS_WEIGHTS.eventWeights`. The caller (social service background job) must pass `meta.followerCount` equal to the exact milestone threshold crossed (e.g. `100`, not `"102"`). An unrecognised threshold throws HTTP 400 listing valid thresholds.
+8. **PostgreSQL enum:** `FOLLOWER_MILESTONE` was added to `reputation_event_type_enum` via migration `1778300000000`. `ADD VALUE IF NOT EXISTS` is used so the migration is idempotent.
